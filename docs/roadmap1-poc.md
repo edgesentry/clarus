@@ -128,7 +128,7 @@ Goal: `EntityStream` → `RiskEvent`. No vision, no LLM. Deterministic and testa
   { "rule_id": "EXCLUSION_ZONE_BREACH", "condition": "zone_member",     "severity": "CRITICAL", "regulation": "PSA Terminal Safety Rules §4.2" }
   { "rule_id": "TTC_CRITICAL_3S",       "condition": "ttc < 3.0",       "severity": "HIGH",     "regulation": "MPA Port Safety Circular No. 14 of 2023 §3.2" }
   ```
-- [ ] Unity scene: flat terminal yard, forklift (box collider), pedestrian (capsule), UDP export at 10 Hz
+- [x] Unity scene: C# scripts + setup guide — `ClarusUdpExporter.cs`, `ClarusEntity.cs`, `ForkliftPath.cs` ([PR #14](https://github.com/edgesentry/clarus/pull/14), see `unity/README.md`)
 - [x] CLI binary (`main.rs`) + CSV file replay (`file_replay.rs`) — ([PR #10](https://github.com/edgesentry/clarus/pull/10))
 
 **Deliverable:** ✅ `cargo run --bin clarus -- --input file://fixtures/forklift_approach.csv --profile profiles/sg-port-safety` fires `MPA_CLEARANCE_5M` (HIGH) + `TTC_CRITICAL_3S` (HIGH) across all 15 frames; TTC drops 2.29 s → 0.89 s as FL-01 closes to 1.24 m. (86 tests passing across engine + adapter)
