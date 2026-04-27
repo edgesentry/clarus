@@ -79,7 +79,7 @@ A profile is a JSON rule file + regulatory KB + entity parameters. The engine is
 
 Architecture defined. PoC implementation in progress targeting CAP Vista submission (30 June 2026) and PIER71 Smart Port Challenge (15 June 2026).
 
-See [`docs/poc-roadmap.md`](docs/poc-roadmap.md) for the week-by-week build plan from today through the 6-month PoC audit log.
+See [`docs/roadmap1-poc.md`](docs/roadmap1-poc.md) for the week-by-week build plan from today through the 6-month PoC audit log.
 
 ---
 
@@ -87,6 +87,6 @@ See [`docs/poc-roadmap.md`](docs/poc-roadmap.md) for the week-by-week build plan
 
 | Document | Contents |
 |---|---|
-| [`docs/poc-roadmap.md`](docs/poc-roadmap.md) | Week-by-week build plan: Phase 0 (submission) → Phase 1 (deployment prep) → Phase 2 (PoC execution) |
+| [`docs/roadmap1-poc.md`](docs/roadmap1-poc.md) | Week-by-week build plan: Phase 0 (submission) → Phase 1 (deployment prep) → Phase 2 (PoC execution) |
 
 Commercial strategy, competitive analysis, and submission documents are in [`clarus-commercial`](https://github.com/edgesentry/clarus-commercial).
