@@ -10,10 +10,10 @@
 
 ```mermaid
 flowchart TD
-    SIM["Simulation<br/><i>synthetic coords — dev/test only</i>"]
-    VID["Video<br/><i>pixel frames → vision model → coords</i>"]
-    NAV["Navigation signal<br/><i>radio/RF position data</i>"]
-    PTS["Point sensor<br/><i>spatial ranging / zone trigger</i>"]
+    SIM["Simulation"]
+    VID["Video"]
+    NAV["Navigation Signal"]
+    PTS["Point Sensor"]
 
     ES["EntityStream<br/>id · type · pos · vel · timestamp"]
 
