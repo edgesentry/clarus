@@ -8,21 +8,57 @@
 
 ## Architecture in one diagram
 
-```
-Input Adapter
-  Unity UDP coords  ──┐
-  RTSP video stream ──┤──► EntityStream ──► Rust Logic Engine ──► RiskEvent
-  AIS NMEA feed     ──┘     (normalised)     (physics + rules)    (structured)
-                                                                        │
-                                                               LLM Explanation
-                                                               (local, no cloud)
-                                                                        │
-                                                               edgesentry-audit
-                                                               (BLAKE3 + Ed25519)
-                                                                        │
-                                                    ┌───────────────────┴──────────────────┐
-                                              Alert dashboard              AuditRecord chain
-                                              MOM Report PDF               (tamper-proof log)
+```mermaid
+flowchart TD
+    subgraph InputAdapter["Input Adapter"]
+        U["Unity UDP coords\n(Phase 0 PoC)"]
+        R["RTSP video stream\n(Phase 2)"]
+        A["AIS NMEA feed\n(Phase 2)"]
+    end
+
+    ES["EntityStream\nid · type · pos · vel · timestamp"]
+
+    subgraph Engine["Rust Logic Engine  ❰never changes❱"]
+        P["Physics\ndistance · rel_velocity\nbraking_dist · TTC · zone"]
+        RU["Rules\nrules.json evaluation"]
+    end
+
+    RE["RiskEvent\nrule_id · value · threshold\nregulation_citation · severity"]
+
+    subgraph Explanation["LLM Explanation  ❰local · no cloud❱"]
+        RAG["Regulatory RAG\nKB snippet retrieval"]
+        LLM["Local LLM\nMistral / Llama 3"]
+    end
+
+    subgraph Audit["edgesentry-audit  ❰BLAKE3 + Ed25519❱"]
+        SEAL["seal(payload, prev_hash, key)"]
+    end
+
+    AR["AuditRecord\ntimestamp · rule · measured_value\nregulation_citation · sensor_hash\nprev_hash · signature"]
+
+    subgraph Output["Output Adapter"]
+        DASH["Alert dashboard\n+ MOM Report PDF"]
+        CHAIN["Tamper-proof\nAuditRecord chain"]
+        API["Webhook / MQTT\n→ PSA CITOS / VTS"]
+    end
+
+    U --> ES
+    R --> ES
+    A --> ES
+    ES --> P
+    P --> RU
+    RU --> RE
+    RE --> RAG
+    RAG --> LLM
+    LLM --> SEAL
+    RE --> SEAL
+    SEAL --> AR
+    AR --> DASH
+    AR --> CHAIN
+    AR --> API
+
+    style Engine fill:#1a1a2e,color:#e0e0e0,stroke:#4a4a8a
+    style Audit fill:#0f3460,color:#e0e0e0,stroke:#4a4a8a
 ```
 
 **Invariant:** the Rust engine and audit layer never change across phases. Only the Input Adapter and the profile (rules + KB) change per deployment.
