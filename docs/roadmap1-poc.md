@@ -248,7 +248,7 @@ pub struct AuditRecord {
 - [ ] Identify sensor type at site: RTSP CCTV or AIS feed
 - [ ] Implement site-specific Input Adapter:
   - RTSP: `crates/input-adapter/src/rtsp.rs` — vision model (YOLOv8 export) + tracker → EntityStream
-  - AIS: `crates/input-adapter/src/ais_nmea.rs` — NMEA 0183 decoder → EntityStream (reuse arktrace parser)
+  - AIS: `crates/input-adapter/src/ais_nmea.rs` — NMEA 0183 decoder → EntityStream (implement in Rust; arktrace is Python/viz layer, no dependency)
 - [ ] Deploy production profile + run `sensor-test.sh`
 - [ ] First AuditRecord generated → run `edgesentry-audit verify` → confirm chain valid
 - [ ] Hand site contact the read-only audit log viewer URL
@@ -337,7 +337,7 @@ This package is the deliverable to CAP Vista, MPA, and the first insurer contact
 | Dependency | Source | Notes |
 |---|---|---|
 | `edgesentry-audit` | `edgesentry/edgesentry-rs` | Production-ready; reuse from documaris |
-| AIS parser | `edgesentry/arktrace` | NMEA 0183 decoder already implemented |
+| AIS parser | implement in `crates/input-adapter/src/ais_nmea.rs` | NMEA 0183 decode in Rust; arktrace is Python/viz, no code dependency |
 | LLM runtime | `llama.cpp` or `mlx` | Apple Silicon; no cloud API |
 | Vision model (Phase 2) | YOLOv8n export (ONNX) | Apache 2.0; fine-tune locally |
 | Unity | Unity 2023 LTS | UDP export via custom C# component |
