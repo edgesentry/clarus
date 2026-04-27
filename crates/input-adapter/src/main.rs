@@ -3,6 +3,7 @@ use std::fs;
 use std::process;
 
 use clarus_engine::rules::{evaluate, load_rules};
+use clarus_explanation::{Explainer, KnowledgeBase, OllamaClient};
 
 mod file_replay;
 mod unity_udp;
@@ -10,16 +11,21 @@ mod unity_udp;
 use file_replay::FileReplayAdapter;
 use unity_udp::UnityUdpAdapter;
 
-const USAGE: &str = "Usage: clarus --input <source> --profile <dir>
+const USAGE: &str = "Usage: clarus --input <source> --profile <dir> [--explain] [--ollama-url URL] [--model MODEL]
 
   --input udp://HOST:PORT     receive live entity stream from Unity via UDP
   --input file://PATH.csv     replay entities from a CSV fixture file
 
   --profile DIR               path to a profile directory containing rules.json
 
+  --explain                   generate plain-language explanation for each RiskEvent via local Ollama
+  --ollama-url URL            Ollama base URL (default: http://localhost:11434)
+  --model MODEL               Ollama model name (default: llama3.2)
+
 Examples:
-  clarus --input udp://127.0.0.1:9000 --profile profiles/sg-port-safety
   clarus --input file://fixtures/forklift_approach.csv --profile profiles/sg-port-safety
+  clarus --input udp://127.0.0.1:9000 --profile profiles/sg-port-safety --explain
+  clarus --input file://fixtures/forklift_approach.csv --profile profiles/sg-port-safety --explain --model mistral
 ";
 
 fn main() {
@@ -32,6 +38,10 @@ fn main() {
         eprintln!("{USAGE}");
         process::exit(1);
     });
+    let explain = args.contains(&"--explain".to_string());
+    let ollama_url = flag(&args, "--ollama-url")
+        .unwrap_or_else(|| "http://localhost:11434".to_string());
+    let model = flag(&args, "--model").unwrap_or_else(|| "llama3.2".to_string());
 
     let rules_path = format!("{profile_dir}/rules.json");
     let rules_json = fs::read_to_string(&rules_path).unwrap_or_else(|e| {
@@ -44,10 +54,22 @@ fn main() {
     });
     println!("Loaded {} rules from {rules_path}", rules.len());
 
+    let explainer = if explain {
+        let kb = KnowledgeBase::load(&profile_dir).unwrap_or_else(|e| {
+            eprintln!("Cannot load KB from {profile_dir}/kb/: {e}");
+            process::exit(1);
+        });
+        let llm = OllamaClient::new(ollama_url, model);
+        println!("Explanation enabled (Ollama)");
+        Some(Explainer::new(kb, llm))
+    } else {
+        None
+    };
+
     if let Some(addr) = input.strip_prefix("udp://") {
-        run_udp(addr, &rules);
+        run_udp(addr, &rules, explainer.as_ref());
     } else if let Some(path) = input.strip_prefix("file://") {
-        run_file(path, &rules);
+        run_file(path, &rules, explainer.as_ref());
     } else {
         eprintln!("Unknown input scheme: {input}");
         eprintln!("{USAGE}");
@@ -55,7 +77,7 @@ fn main() {
     }
 }
 
-fn run_udp(addr: &str, rules: &[clarus_engine::rules::Rule]) {
+fn run_udp(addr: &str, rules: &[clarus_engine::rules::Rule], explainer: Option<&Explainer>) {
     let adapter = UnityUdpAdapter::bind(addr).unwrap_or_else(|e| {
         eprintln!("Cannot bind UDP socket {addr}: {e}");
         process::exit(1);
@@ -63,13 +85,13 @@ fn run_udp(addr: &str, rules: &[clarus_engine::rules::Rule]) {
     println!("Listening on udp://{addr} …");
     loop {
         match adapter.recv_entities() {
-            Ok(entities) => process_frame(entities, rules),
+            Ok(entities) => process_frame(entities, rules, explainer),
             Err(e) => eprintln!("recv error: {e}"),
         }
     }
 }
 
-fn run_file(path: &str, rules: &[clarus_engine::rules::Rule]) {
+fn run_file(path: &str, rules: &[clarus_engine::rules::Rule], explainer: Option<&Explainer>) {
     let content = fs::read_to_string(path).unwrap_or_else(|e| {
         eprintln!("Cannot read {path}: {e}");
         process::exit(1);
@@ -80,32 +102,45 @@ fn run_file(path: &str, rules: &[clarus_engine::rules::Rule]) {
     });
     println!("Replaying {} frames from {path}", adapter.frame_count());
     while let Some(entities) = adapter.next_frame() {
-        process_frame(entities, rules);
+        process_frame(entities, rules, explainer);
     }
     println!("Replay complete.");
 }
 
-fn process_frame(entities: Vec<clarus_engine::entity::Entity>, rules: &[clarus_engine::rules::Rule]) {
+fn process_frame(
+    entities: Vec<clarus_engine::entity::Entity>,
+    rules: &[clarus_engine::rules::Rule],
+    explainer: Option<&Explainer>,
+) {
     let ts = entities.first().map(|e| e.timestamp_ms).unwrap_or(0);
     let events = evaluate(rules, &entities, ts);
     if events.is_empty() {
         println!("[t={ts}ms] {} entities — no risk events", entities.len());
-    } else {
-        for ev in &events {
-            println!(
-                "[t={ts}ms] RISK {:?} rule={} entities={:?} value={:.2} threshold={:.2} reg={}",
-                ev.severity,
-                ev.rule_id,
-                ev.entity_ids,
-                ev.measured_value,
-                ev.threshold,
-                ev.regulation
-            );
+        return;
+    }
+    for ev in &events {
+        println!(
+            "[t={ts}ms] RISK {:?} rule={} entities={:?} value={:.2} threshold={:.2} reg={}",
+            ev.severity,
+            ev.rule_id,
+            ev.entity_ids,
+            ev.measured_value,
+            ev.threshold,
+            ev.regulation
+        );
+        if let Some(exp) = explainer {
+            match exp.explain(ev) {
+                Ok(explanation) => {
+                    let grounded_marker = if explanation.grounded { "✓" } else { "⚠ ungrounded" };
+                    println!("  [EXPLANATION {grounded_marker}] {}", explanation.text);
+                }
+                Err(e) => eprintln!("  [EXPLANATION ERROR] {e}"),
+            }
         }
     }
 }
 
-fn flag<'a>(args: &'a [String], name: &str) -> Option<String> {
+fn flag(args: &[String], name: &str) -> Option<String> {
     args.windows(2)
         .find(|w| w[0] == name)
         .map(|w| w[1].clone())
