@@ -115,14 +115,14 @@ Goal: `EntityStream` → `RiskEvent`. No vision, no LLM. Deterministic and testa
 **Tasks:**
 
 - [ ] `crates/input-adapter/src/unity_udp.rs` — UDP receiver, deserialise JSON into `EntityStream`
-- [ ] `crates/engine/src/physics.rs` — implement:
+- [x] `crates/engine/src/physics.rs` — implement: ([PR #7](https://github.com/edgesentry/clarus/pull/7), 39 tests passing)
   - `euclidean_distance(a: &Entity, b: &Entity) -> f32`
   - `relative_velocity(a: &Entity, b: &Entity) -> f32`
   - `braking_distance(speed: f32, entity_class: EntityClass) -> f32`
   - `time_to_collision(distance: f32, approach_rate: f32) -> f32`
   - `zone_membership(pos: Vec2, polygon: &[Vec2]) -> bool`
-- [ ] `crates/engine/src/rules.rs` — load `rules.json`, evaluate each rule against `EntityStream`, emit `RiskEvent`
-- [ ] `profiles/sg-port-safety/rules.json` — encode first 3 rules:
+- [x] `crates/engine/src/rules.rs` — load `rules.json`, evaluate each rule against `EntityStream`, emit `RiskEvent` ([PR #8](https://github.com/edgesentry/clarus/pull/8), 21 tests passing)
+- [x] `profiles/sg-port-safety/rules.json` — 3 seed rules encoded ([PR #8](https://github.com/edgesentry/clarus/pull/8)):
   ```json
   { "rule_id": "MPA_CLEARANCE_5M",      "condition": "distance < 5.0",  "severity": "HIGH",     "regulation": "MPA Port Safety Circular No. 14 of 2023 §3.1" }
   { "rule_id": "EXCLUSION_ZONE_BREACH", "condition": "zone_member",     "severity": "CRITICAL", "regulation": "PSA Terminal Safety Rules §4.2" }
