@@ -1,0 +1,6 @@
+[package]
+name = "clarus-engine"
+version = "0.1.0"
+edition = "2021"
+description = "Physics-based risk event engine for clarus"
+license = "MIT OR Apache-2.0"
