@@ -36,7 +36,7 @@ impl std::ops::Sub for &Vec2 {
 }
 
 /// Physical class of an entity, used to look up braking parameters.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Deserialize)]
 pub enum EntityClass {
     /// Counterbalanced forklift up to 3.5 T
     Forklift,
