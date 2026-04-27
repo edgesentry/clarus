@@ -1,6 +1,6 @@
 # clarus — PoC Roadmap: CAP Vista Submission to 6-Month Audit Log
 
-- **Updated:** 2026-04-27
+- **Updated:** 2026-04-27 (input adapter complete)
 - **Scope:** Phase 0 (build → submit) through Phase 2 (PoC site → actuarial-grade data)
 - **Hard deadlines:** PIER71: 15 June 2026 · CAP Vista: 30 June 2026
 
@@ -114,7 +114,7 @@ Goal: `EntityStream` → `RiskEvent`. No vision, no LLM. Deterministic and testa
 
 **Tasks:**
 
-- [ ] `crates/input-adapter/src/unity_udp.rs` — UDP receiver, deserialise JSON into `EntityStream`
+- [x] `crates/input-adapter/src/unity_udp.rs` — UDP receiver, deserialise JSON into `EntityStream` ([PR #10](https://github.com/edgesentry/clarus/pull/10), 13 tests passing)
 - [x] `crates/engine/src/physics.rs` — implement: ([PR #7](https://github.com/edgesentry/clarus/pull/7), 39 tests passing)
   - `euclidean_distance(a: &Entity, b: &Entity) -> f32`
   - `relative_velocity(a: &Entity, b: &Entity) -> f32`
@@ -129,11 +129,11 @@ Goal: `EntityStream` → `RiskEvent`. No vision, no LLM. Deterministic and testa
   { "rule_id": "TTC_CRITICAL_3S",       "condition": "ttc < 3.0",       "severity": "HIGH",     "regulation": "MPA Port Safety Circular No. 14 of 2023 §3.2" }
   ```
 - [ ] Unity scene: flat terminal yard, forklift (box collider), pedestrian (capsule), UDP export at 10 Hz
-- [ ] CLI smoke test: `cargo run -- --input udp://127.0.0.1:9000 --profile profiles/sg-port-safety`
+- [x] CLI binary (`main.rs`) + CSV file replay (`file_replay.rs`) — ([PR #10](https://github.com/edgesentry/clarus/pull/10))
 
-**Deliverable:** terminal prints `RiskEvent { rule_id: "MPA_CLEARANCE_5M", severity: HIGH, distance: 3.2 }` as Unity forklift crosses 5 m threshold.
+**Deliverable:** ✅ `cargo run --bin clarus -- --input file://fixtures/forklift_approach.csv --profile profiles/sg-port-safety` fires `MPA_CLEARANCE_5M` (HIGH) + `TTC_CRITICAL_3S` (HIGH) across all 15 frames; TTC drops 2.29 s → 0.89 s as FL-01 closes to 1.24 m. (86 tests passing across engine + adapter)
 
-**Fallback:** if Unity UDP is unstable, replace with CSV replay: `--input file://fixtures/forklift_approach.csv`
+**Live UDP:** `--input udp://127.0.0.1:9000` ready; requires Unity scene (issue #6 — pending).
 
 ---
 

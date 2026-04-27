@@ -1,5 +1,6 @@
 [workspace]
 members = [
     "crates/engine",
+    "crates/input-adapter",
 ]
 resolver = "2"
