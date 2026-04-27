@@ -10,10 +10,10 @@
 
 ```mermaid
 flowchart TD
-    DEV["Dev / PoC inputs<br/>(simulation · file replay)"]
-    VIS["Vision inputs<br/>(RTSP video stream)"]
-    MAR["Maritime inputs<br/>(AIS · radar)"]
-    IOT["IoT sensor inputs<br/>(LiDAR · zone sensor · UWB/RFID)"]
+    SIM["Simulation<br/><i>synthetic coords — dev/test only</i>"]
+    VID["Video<br/><i>pixel frames → vision model → coords</i>"]
+    NAV["Navigation signal<br/><i>radio/RF position data</i>"]
+    PTS["Point sensor<br/><i>spatial ranging / zone trigger</i>"]
 
     ES["EntityStream<br/>id · type · pos · vel · timestamp"]
 
@@ -41,10 +41,10 @@ flowchart TD
         API["Webhook / MQTT<br/>→ PSA CITOS / VTS"]
     end
 
-    DEV --> ES
-    VIS --> ES
-    MAR --> ES
-    IOT --> ES
+    SIM --> ES
+    VID --> ES
+    NAV --> ES
+    PTS --> ES
     ES --> P
     P --> RU
     RU --> RE
@@ -59,7 +59,7 @@ flowchart TD
 
     style Engine fill:#1a1a2e,color:#e0e0e0,stroke:#4a4a8a
     style Audit fill:#0f3460,color:#e0e0e0,stroke:#4a4a8a
-    style DEV fill:#2d2d2d,color:#aaaaaa,stroke:#555555
+    style SIM fill:#2d2d2d,color:#aaaaaa,stroke:#555555
 ```
 
 **Invariant:** the Rust engine and audit layer never change across inputs. The Input Adapter normalises any source into EntityStream — the engine sees only positions, velocities, and timestamps regardless of sensor type.
@@ -68,25 +68,39 @@ flowchart TD
 
 ## Input Adapter — source types
 
-### Dev / PoC inputs
+Categories are defined by **data modality** (what the signal is), not by use case or industry.
 
-| Source | Notes |
-|---|---|
-| Unity UDP coords | Simulation output; not deployed in production |
-| CSV / JSON replay | Deterministic regression testing from recorded sessions |
-| Video file upload | Offline analysis or demo; same adapter as RTSP minus live streaming |
+### Simulation — synthetic coordinates (dev/test only)
 
-### Real-world inputs
+| Source | Phase | Notes |
+|---|---|---|
+| Unity UDP coords | Phase 0 | Simulation output at 10 Hz; never deployed in production |
+| CSV / JSON replay | Dev / test | Deterministic regression testing from recorded sessions |
 
-| Source | Category | Phase | Notes |
-|---|---|---|---|
-| RTSP stream (IP camera) | Vision | Phase 2 | Existing CCTV infrastructure; vision model + tracker → EntityStream |
-| RTSP stream (thermal camera) | Vision | Phase 2 | Same adapter as standard RTSP; perimeter / night operations |
-| AIS NMEA 0183 | Maritime | Phase 2 | Vessel position and kinematics; Rust re-implementation of arktrace logic |
-| Radar track data | Maritime | Phase 2+ | Vessel or perimeter detection; ASTERIX or proprietary format |
-| LiDAR point cloud | IoT sensor | Phase 2+ | Hokuyo 2D/3D; direct entity positioning — no vision model required |
-| Zone sensor boolean | IoT sensor | Phase 2+ | Omron light curtain or area sensor; maps to `zone_membership` rule |
-| UWB / RFID position tag | IoT sensor | Phase 2+ | Sub-metre worker/vehicle position; low-latency, no vision required |
+### Video — pixel frames requiring vision model
+
+| Source | Phase | Notes |
+|---|---|---|
+| Video file upload | Phase 0 demo | Offline analysis; same adapter as RTSP without live streaming |
+| RTSP stream — IP camera | Phase 2 | Existing CCTV; vision model (YOLOv8) + tracker → EntityStream |
+| RTSP stream — thermal camera | Phase 2 | Same adapter as IP camera; perimeter / night operations |
+
+### Navigation signal — radio / RF position data
+
+| Source | Phase | Notes |
+|---|---|---|
+| AIS NMEA 0183 | Phase 2 | Vessel position and kinematics; Rust re-implementation of arktrace logic |
+| Radar track data | Phase 2+ | Vessel or vehicle detection; ASTERIX or proprietary format |
+| GPS / GNSS | Phase 2+ | Vehicle or worker outdoor positioning |
+| UWB tag | Phase 2+ | Sub-metre indoor worker/vehicle position; low latency |
+| RFID tag | Phase 2+ | Zone-level worker/vehicle identification and position |
+
+### Point sensor — spatial ranging or zone trigger hardware
+
+| Source | Phase | Notes |
+|---|---|---|
+| LiDAR 2D/3D | Phase 2+ | Hokuyo; direct entity positioning — no vision model required |
+| Area sensor / light curtain | Phase 2+ | Omron; boolean zone breach maps directly to `zone_membership` rule |
 
 ---
 
