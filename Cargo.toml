@@ -2,5 +2,6 @@
 members = [
     "crates/engine",
     "crates/input-adapter",
+    "crates/explanation",
 ]
 resolver = "2"

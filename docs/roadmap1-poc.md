@@ -143,29 +143,17 @@ Goal: `RiskEvent` → natural-language explanation with verifiable regulation ci
 
 **Tasks:**
 
-- [ ] `crates/explanation/src/llm.rs` — local LLM inference via `llama.cpp` or `mlx` (Mistral 7B / Llama 3.2, Apple Silicon)
-- [ ] `crates/explanation/src/rag.rs` — embed KB docs, retrieve top-1 snippet given `rule_id`
-- [ ] `profiles/sg-port-safety/kb/` — seed with:
-  - MPA Port Safety Circular No. 14 of 2023 (§§3.1, 3.2, 3.4)
-  - MOM WSH (Docks) Regulations (relevant sections)
-  - COLREGs Rules 5, 8, 16 (for maritime scenario)
-- [ ] Prompt template:
-  ```
-  Event: {{rule_id}} fired. Measured: {{value}} {{unit}}. Threshold: {{threshold}} {{unit}}.
-  Entities: {{entity_a}} ({{class_a}}) and {{entity_b}} ({{class_b}}).
-  Physics: braking_distance={{braking_distance}}m, TTC={{ttc}}s.
-  Regulation: {{kb_snippet}}
-  Generate a one-paragraph plain-language alert for a safety officer.
-  ```
-- [ ] Grounding check: confirm LLM cites only text from `kb_snippet`; reject if it fabricates a citation
+- [x] `crates/explanation/src/llm.rs` — Ollama HTTP client (`POST /api/generate`); model configurable, default `llama3.2` ([PR #13](https://github.com/edgesentry/clarus/pull/13))
+- [x] `crates/explanation/src/kb.rs` — KB lookup: maps `rule_id` → text snippet from `profiles/<profile>/kb/<RULE_ID>.txt` ([PR #13](https://github.com/edgesentry/clarus/pull/13))
+- [x] `crates/explanation/src/explainer.rs` — orchestrates KB lookup → prompt → LLM → §N.N grounding check → `Explanation` ([PR #13](https://github.com/edgesentry/clarus/pull/13))
+- [x] `profiles/sg-port-safety/kb/` — 3 seed files: `MPA_CLEARANCE_5M.txt`, `TTC_CRITICAL_3S.txt`, `EXCLUSION_ZONE_BREACH.txt` ([PR #13](https://github.com/edgesentry/clarus/pull/13))
+- [x] Grounding check: rejects LLM output if it cites a `§N.N` clause absent from the KB snippet ([PR #13](https://github.com/edgesentry/clarus/pull/13))
+- [x] `--explain` flag wired into `clarus` binary — `--ollama-url` and `--model` configurable ([PR #13](https://github.com/edgesentry/clarus/pull/13))
 - [ ] Pipe `RiskEvent + explanation` into `edgesentry-audit::seal()` → `AuditRecord`
 
-**Deliverable:** `AuditRecord` containing:
-- `rule_id`, `measured_value`, `threshold_value`, `regulation_citation` (exact clause)
-- `explanation` (one paragraph, grounded)
-- `prev_record_hash`, `signature` (Ed25519)
+**Deliverable:** ✅ `cargo run --bin clarus -- --input file://fixtures/forklift_approach.csv --profile profiles/sg-port-safety --explain` calls local Ollama for each RiskEvent and prints a grounded plain-language alert with `✓` / `⚠ ungrounded` marker. (97 tests passing: 60 engine + 11 explanation + 26 adapter)
 
-**Validation:** run `edgesentry-audit verify <record>` → exits 0.
+**Remaining:** `AuditRecord` seal (blocked on `edgesentry-audit` integration — Week 3–4 follow-on).
 
 ---
 
