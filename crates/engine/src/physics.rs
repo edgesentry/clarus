@@ -213,4 +213,104 @@ mod tests {
         assert!(zone_membership(Vec2::new(1.0, 1.0), &tri));
         assert!(!zone_membership(Vec2::new(8.0, 8.0), &tri));
     }
+
+    #[test]
+    fn empty_polygon_is_false() {
+        assert!(!zone_membership(Vec2::new(0.0, 0.0), &[]));
+    }
+
+    // ── Edge cases ────────────────────────────────────────────────────────
+
+    #[test]
+    fn both_entities_moving_toward_each_other() {
+        // a at 0 moving right at 1, b at 10 moving left at 1 → approach rate = 2
+        let a = entity(0.0, 0.0, 1.0, 0.0);
+        let b = entity(10.0, 0.0, -1.0, 0.0);
+        let rv = relative_velocity(&a, &b);
+        assert!((rv - 2.0).abs() < 1e-4, "got {rv}");
+    }
+
+    #[test]
+    fn both_entities_moving_same_direction_same_speed() {
+        let a = entity(0.0, 0.0, 2.0, 0.0);
+        let b = entity(10.0, 0.0, 2.0, 0.0);
+        // No closing speed — parallel movement
+        let rv = relative_velocity(&a, &b);
+        assert!(rv.abs() < 1e-4, "got {rv}");
+    }
+
+    #[test]
+    fn distance_is_symmetric() {
+        let a = entity(1.0, 2.0, 0.0, 0.0);
+        let b = entity(4.0, 6.0, 0.0, 0.0);
+        assert!((euclidean_distance(&a, &b) - euclidean_distance(&b, &a)).abs() < 1e-5);
+    }
+
+    #[test]
+    fn braking_distance_reach_stacker_vs_forklift() {
+        // Reach stacker decelerates slower → longer stopping distance at same speed
+        let speed = 3.0;
+        let forklift = braking_distance(speed, &EntityClass::Forklift);
+        let stacker = braking_distance(speed, &EntityClass::ReachStacker);
+        assert!(stacker > forklift, "stacker {stacker} should be > forklift {forklift}");
+    }
+
+    #[test]
+    fn ttc_scales_with_distance() {
+        // Double the distance → double the TTC
+        let ttc_near = time_to_collision(5.0, 2.5);
+        let ttc_far = time_to_collision(10.0, 2.5);
+        assert!((ttc_far - 2.0 * ttc_near).abs() < 1e-5);
+    }
+
+    // ── Realistic scenario: MPA clearance breach ──────────────────────────
+    //
+    // Forklift FL-01 at (0, 0) moving toward Worker W-03 at (3.2, 0) at 1.4 m/s.
+    // MPA Port Safety Circular No. 14 of 2023 §3.1 requires ≥ 5.0 m clearance.
+    //
+    // Expected outputs from the roadmap demo:
+    //   distance          = 3.2 m   (< 5.0 m threshold → rule fires)
+    //   approach_rate     ≈ 1.4 m/s
+    //   braking_distance  ≈ 0.65 m  (at 1.4 m/s, Forklift decel 1.5 m/s²)
+    //   TTC               ≈ 2.3 s
+
+    #[test]
+    fn scenario_mpa_clearance_breach_distance() {
+        let forklift = entity(0.0, 0.0, 1.4, 0.0);
+        let worker = entity(3.2, 0.0, 0.0, 0.0);
+        let dist = euclidean_distance(&forklift, &worker);
+        assert!((dist - 3.2).abs() < 1e-4);
+        assert!(dist < 5.0, "clearance {dist}m breaches 5.0m threshold");
+    }
+
+    #[test]
+    fn scenario_mpa_clearance_breach_approach_rate() {
+        let forklift = entity(0.0, 0.0, 1.4, 0.0);
+        let worker = entity(3.2, 0.0, 0.0, 0.0);
+        let rv = relative_velocity(&forklift, &worker);
+        assert!((rv - 1.4).abs() < 1e-4, "approach rate {rv} m/s");
+    }
+
+    #[test]
+    fn scenario_mpa_clearance_breach_ttc() {
+        // distance=3.2m, approach_rate=1.4 m/s → TTC = 3.2/1.4 ≈ 2.286 s
+        let ttc = time_to_collision(3.2, 1.4);
+        assert!((ttc - 2.286).abs() < 0.01, "TTC {ttc} s");
+    }
+
+    #[test]
+    fn scenario_mpa_clearance_breach_braking_distance() {
+        // At 1.4 m/s with decel 1.5 m/s²: d = 1.96/3.0 ≈ 0.653 m
+        let bd = braking_distance(1.4, &EntityClass::Forklift);
+        assert!((bd - 0.653).abs() < 0.01, "braking distance {bd} m");
+    }
+
+    #[test]
+    fn scenario_safe_pass_no_breach() {
+        // Forklift passes at 6.0 m clearance — above the 5.0 m threshold, no rule fire
+        let forklift = entity(0.0, 0.0, 1.0, 0.0);
+        let worker = entity(6.0, 0.0, 0.0, 0.0);
+        let dist = euclidean_distance(&forklift, &worker);
+        assert!(dist >= 5.0, "6 m clearance should not breach 5 m threshold");
+    }
 }
