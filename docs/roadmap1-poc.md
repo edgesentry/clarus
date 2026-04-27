@@ -10,26 +10,10 @@
 
 ```mermaid
 flowchart TD
-    subgraph Dev["Dev / PoC only"]
-        U["Unity UDP coords"]
-        CSV["CSV / JSON replay"]
-        VF["Video file upload"]
-    end
-
-    subgraph Vision["Real-world — Vision"]
-        RT["RTSP stream<br/>(IP camera / thermal)"]
-    end
-
-    subgraph Maritime["Real-world — Maritime"]
-        AIS["AIS NMEA 0183"]
-        RAD["Radar track data"]
-    end
-
-    subgraph IoT["Real-world — IoT sensors"]
-        LI["LiDAR point cloud<br/>(Hokuyo 2D/3D)"]
-        ZS["Zone sensor boolean<br/>(Omron light curtain)"]
-        UWB["UWB / RFID tag<br/>(worker / vehicle pos)"]
-    end
+    DEV["Dev / PoC inputs<br/>(simulation · file replay)"]
+    VIS["Vision inputs<br/>(RTSP video stream)"]
+    MAR["Maritime inputs<br/>(AIS · radar)"]
+    IOT["IoT sensor inputs<br/>(LiDAR · zone sensor · UWB/RFID)"]
 
     ES["EntityStream<br/>id · type · pos · vel · timestamp"]
 
@@ -57,15 +41,10 @@ flowchart TD
         API["Webhook / MQTT<br/>→ PSA CITOS / VTS"]
     end
 
-    U --> ES
-    CSV --> ES
-    VF --> ES
-    RT --> ES
-    AIS --> ES
-    RAD --> ES
-    LI --> ES
-    ZS --> ES
-    UWB --> ES
+    DEV --> ES
+    VIS --> ES
+    MAR --> ES
+    IOT --> ES
     ES --> P
     P --> RU
     RU --> RE
@@ -80,25 +59,34 @@ flowchart TD
 
     style Engine fill:#1a1a2e,color:#e0e0e0,stroke:#4a4a8a
     style Audit fill:#0f3460,color:#e0e0e0,stroke:#4a4a8a
-    style Dev fill:#2d2d2d,color:#aaaaaa,stroke:#555555
+    style DEV fill:#2d2d2d,color:#aaaaaa,stroke:#555555
 ```
 
 **Invariant:** the Rust engine and audit layer never change across inputs. The Input Adapter normalises any source into EntityStream — the engine sees only positions, velocities, and timestamps regardless of sensor type.
 
-### Input Adapter — source types
+---
 
-| Source | Phase | Notes |
-|---|---|---|
-| Unity UDP coords | Dev / PoC | Simulation output; not deployed in production |
-| CSV / JSON replay | Dev / testing | Deterministic regression testing from recorded sessions |
-| Video file upload | Demo / batch | Offline analysis; same adapter as RTSP minus live streaming |
-| RTSP stream (IP camera) | Phase 2 | Existing CCTV infrastructure; vision model + tracker → EntityStream |
-| RTSP stream (thermal) | Phase 2 | Same adapter as standard RTSP; relevant for perimeter / night ops |
-| AIS NMEA 0183 | Phase 2 | Maritime vessel position; Rust re-implementation of arktrace logic |
-| Radar track data | Phase 2+ | Vessel or perimeter detection; ASTERIX or proprietary format |
-| LiDAR point cloud | Phase 2+ | Hokuyo 2D/3D; direct entity positioning without vision model |
-| Zone sensor boolean | Phase 2+ | Omron light curtain or area sensor; maps to zone_membership rule |
-| UWB / RFID position tag | Phase 2+ | Sub-metre worker/vehicle position; low-latency, no vision required |
+## Input Adapter — source types
+
+### Dev / PoC inputs
+
+| Source | Notes |
+|---|---|
+| Unity UDP coords | Simulation output; not deployed in production |
+| CSV / JSON replay | Deterministic regression testing from recorded sessions |
+| Video file upload | Offline analysis or demo; same adapter as RTSP minus live streaming |
+
+### Real-world inputs
+
+| Source | Category | Phase | Notes |
+|---|---|---|---|
+| RTSP stream (IP camera) | Vision | Phase 2 | Existing CCTV infrastructure; vision model + tracker → EntityStream |
+| RTSP stream (thermal camera) | Vision | Phase 2 | Same adapter as standard RTSP; perimeter / night operations |
+| AIS NMEA 0183 | Maritime | Phase 2 | Vessel position and kinematics; Rust re-implementation of arktrace logic |
+| Radar track data | Maritime | Phase 2+ | Vessel or perimeter detection; ASTERIX or proprietary format |
+| LiDAR point cloud | IoT sensor | Phase 2+ | Hokuyo 2D/3D; direct entity positioning — no vision model required |
+| Zone sensor boolean | IoT sensor | Phase 2+ | Omron light curtain or area sensor; maps to `zone_membership` rule |
+| UWB / RFID position tag | IoT sensor | Phase 2+ | Sub-metre worker/vehicle position; low-latency, no vision required |
 
 ---
 
