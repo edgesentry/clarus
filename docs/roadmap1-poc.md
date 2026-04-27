@@ -11,35 +11,35 @@
 ```mermaid
 flowchart TD
     subgraph InputAdapter["Input Adapter"]
-        U["Unity UDP coords\n(Phase 0 PoC)"]
-        R["RTSP video stream\n(Phase 2)"]
-        A["AIS NMEA feed\n(Phase 2)"]
+        U["Unity UDP coords<br/>(Phase 0 PoC)"]
+        R["RTSP video stream<br/>(Phase 2)"]
+        A["AIS NMEA feed<br/>(Phase 2)"]
     end
 
-    ES["EntityStream\nid · type · pos · vel · timestamp"]
+    ES["EntityStream<br/>id · type · pos · vel · timestamp"]
 
-    subgraph Engine["Rust Logic Engine  ❰never changes❱"]
-        P["Physics\ndistance · rel_velocity\nbraking_dist · TTC · zone"]
-        RU["Rules\nrules.json evaluation"]
+    subgraph Engine["Rust Logic Engine<br/>(never changes)"]
+        P["Physics<br/>distance · rel_velocity<br/>braking_dist · TTC · zone"]
+        RU["Rules<br/>rules.json evaluation"]
     end
 
-    RE["RiskEvent\nrule_id · value · threshold\nregulation_citation · severity"]
+    RE["RiskEvent<br/>rule_id · value · threshold<br/>regulation_citation · severity"]
 
     subgraph Explanation["LLM Explanation  ❰local · no cloud❱"]
-        RAG["Regulatory RAG\nKB snippet retrieval"]
-        LLM["Local LLM\nMistral / Llama 3"]
+        RAG["Regulatory RAG<br/>KB snippet retrieval"]
+        LLM["Local LLM<br/>Mistral / Llama 3"]
     end
 
     subgraph Audit["edgesentry-audit  ❰BLAKE3 + Ed25519❱"]
         SEAL["seal(payload, prev_hash, key)"]
     end
 
-    AR["AuditRecord\ntimestamp · rule · measured_value\nregulation_citation · sensor_hash\nprev_hash · signature"]
+    AR["AuditRecord<br/>timestamp · rule · measured_value<br/>regulation_citation · sensor_hash<br/>prev_hash · signature"]
 
     subgraph Output["Output Adapter"]
-        DASH["Alert dashboard\n+ MOM Report PDF"]
-        CHAIN["Tamper-proof\nAuditRecord chain"]
-        API["Webhook / MQTT\n→ PSA CITOS / VTS"]
+        DASH["Alert dashboard<br/>+ MOM Report PDF"]
+        CHAIN["Tamper-proof<br/>AuditRecord chain"]
+        API["Webhook / MQTT<br/>→ PSA CITOS / VTS"]
     end
 
     U --> ES
