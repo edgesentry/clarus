@@ -40,7 +40,7 @@ done
 
 PROFILE="profiles/sg-port-safety"
 FIXTURE="fixtures/forklift_approach.csv"
-OLLAMA_URL="http://localhost:11434"
+LLM_URL="http://localhost:8080"
 UDP_ADDR="127.0.0.1:9100"   # use 9100 to avoid conflicting with other processes
 
 echo -e "${BOLD}clarus end-to-end test${NC}"
@@ -102,23 +102,18 @@ header "Stage 4 — CSV replay with --explain (Ollama)"
 if [[ "$SKIP_EXPLAIN" -eq 1 ]]; then
   warn "Skipped (--no-explain)"
 else
-  # check Ollama is reachable
-  if ! curl -sf "$OLLAMA_URL/api/tags" > /dev/null 2>&1; then
-    warn "Ollama not reachable at $OLLAMA_URL — skipping explain stage"
-    warn "To start: ollama serve && ollama pull $MODEL"
+  # check llama-server is reachable
+  if ! curl -sf "$LLM_URL/v1/models" > /dev/null 2>&1; then
+    warn "llama-server not reachable at $LLM_URL — skipping explain stage"
+    warn "To start: ./scripts/run_llama.sh"
   else
-    # check model is pulled
-    if ! curl -sf "$OLLAMA_URL/api/tags" | grep -q "\"$MODEL\""; then
-      warn "Model '$MODEL' not found locally — pulling (this may take a while)…"
-      ollama pull "$MODEL"
-    fi
-    pass "Ollama reachable, model $MODEL available"
+    pass "llama-server reachable at $LLM_URL"
 
-    # run only the first frame to keep the test fast
     EXPLAIN_OUT=$(cargo run --bin clarus -- \
       --input "file://$FIXTURE" \
       --profile "$PROFILE" \
       --explain \
+      --llm-url "$LLM_URL" \
       --model "$MODEL" 2>&1)
 
     EXPLAIN_LINES=$(echo "$EXPLAIN_OUT" | grep -c "\\[EXPLANATION" || true)

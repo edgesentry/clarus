@@ -3,7 +3,7 @@ use std::fs;
 use std::process;
 
 use clarus_engine::rules::{evaluate, load_rules};
-use clarus_explanation::{Explainer, KnowledgeBase, OllamaClient};
+use clarus_explanation::{Explainer, KnowledgeBase, LlmClient};
 
 mod file_replay;
 mod sealer;
@@ -20,9 +20,9 @@ const USAGE: &str = "Usage: clarus --input <source> --profile <dir> [options]
 
   --profile DIR               path to a profile directory containing rules.json
 
-  --explain                   generate plain-language explanation for each RiskEvent via local Ollama
-  --ollama-url URL            Ollama base URL (default: http://localhost:11434)
-  --model MODEL               Ollama model name (default: llama3.2)
+  --explain                   generate plain-language explanation for each RiskEvent via local LLM
+  --llm-url URL               LLM server base URL (default: http://localhost:8080)
+  --model MODEL               model name (default: llama3.2)
 
   --audit-key HEX             Ed25519 private key (32 bytes, 64 hex chars); enables AuditRecord output
   --device-id ID              device identifier written into each AuditRecord (default: clarus-dev)
@@ -44,8 +44,9 @@ fn main() {
         process::exit(1);
     });
     let explain = args.contains(&"--explain".to_string());
-    let ollama_url = flag(&args, "--ollama-url")
-        .unwrap_or_else(|| "http://localhost:11434".to_string());
+    let ollama_url = flag(&args, "--llm-url")
+        .or_else(|| flag(&args, "--ollama-url"))  // backward-compat alias
+        .unwrap_or_else(|| "http://localhost:8080".to_string());
     let model = flag(&args, "--model").unwrap_or_else(|| "llama3.2".to_string());
     let audit_key = flag(&args, "--audit-key");
     let device_id = flag(&args, "--device-id").unwrap_or_else(|| "clarus-dev".to_string());
@@ -66,8 +67,8 @@ fn main() {
             eprintln!("Cannot load KB from {profile_dir}/kb/: {e}");
             process::exit(1);
         });
-        let llm = OllamaClient::new(ollama_url, model);
-        println!("Explanation enabled (Ollama)");
+        let llm = LlmClient::new(ollama_url, model);
+        println!("Explanation enabled (llama-server)");
         Some(Explainer::new(kb, llm))
     } else {
         None
