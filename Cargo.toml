@@ -3,6 +3,10 @@ name = "clarus"
 version = "0.0.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
+description = "Physics-based safety and security engine — deterministic risk detection with cryptographic audit trail"
+repository = "https://github.com/edgesentry/clarus"
+keywords = ["safety", "physics", "audit", "edge", "iot"]
+categories = ["science", "embedded"]
 
 [dependencies]
 edgesentry-audit = "0.2.0"
