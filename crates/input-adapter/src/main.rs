@@ -51,6 +51,15 @@ fn main() {
     let audit_key = flag(&args, "--audit-key");
     let device_id = flag(&args, "--device-id").unwrap_or_else(|| "clarus-dev".to_string());
 
+    // Accept either a profile directory or a direct path to rules.json.
+    let profile_dir = {
+        let p = std::path::Path::new(&profile_dir);
+        if p.is_file() {
+            p.parent().unwrap_or(p).to_string_lossy().into_owned()
+        } else {
+            profile_dir
+        }
+    };
     let rules_path = format!("{profile_dir}/rules.json");
     let rules_json = fs::read_to_string(&rules_path).unwrap_or_else(|e| {
         eprintln!("Cannot read {rules_path}: {e}");
