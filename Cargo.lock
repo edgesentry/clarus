@@ -353,6 +353,8 @@ dependencies = [
 [[package]]
 name = "edgesentry-audit"
 version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "403b706551c7e6741444badd4ffb046674457d37f5e9d09f046a4ce0723d2213"
 dependencies = [
  "blake3",
  "clap",
