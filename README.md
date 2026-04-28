@@ -83,10 +83,63 @@ See [`docs/roadmap1-poc.md`](docs/roadmap1-poc.md) for the week-by-week build pl
 
 ---
 
+## Quick start
+
+```bash
+# Run the demo profile (generic rules, no jurisdiction-specific content)
+cargo run --bin clarus -- \
+  --input file://fixtures/forklift_approach.csv \
+  --profile profiles/demo
+
+# With LLM explanation (requires llama-server — see scripts/run_llama.sh)
+cargo run --bin clarus -- \
+  --input file://fixtures/forklift_approach.csv \
+  --profile profiles/demo \
+  --explain
+
+# End-to-end test
+./scripts/test-e2e.sh
+```
+
+## Using a jurisdiction-specific profile
+
+Commercial profiles are not included in this repo — they are licensed separately.
+To use one, point `--profile` at any directory containing a `rules.json` and a `kb/` folder:
+
+```bash
+cargo run --bin clarus -- \
+  --input file://fixtures/forklift_approach.csv \
+  --profile /path/to/your/profile
+```
+
+### Profile format
+
+```
+my-profile/
+├── rules.json          # rule conditions, severities, and regulation citations
+└── kb/
+    ├── RULE_ID_1.txt   # regulatory text snippet for LLM grounding
+    └── RULE_ID_2.txt
+```
+
+`rules.json` example:
+
+```json
+[
+  { "rule_id": "MIN_CLEARANCE", "condition": "distance < 5.0",
+    "severity": "HIGH", "regulation": "Your Regulation §3.1" },
+  { "rule_id": "TTC_WARNING",   "condition": "ttc < 3.0",
+    "severity": "HIGH", "regulation": "Your Regulation §3.2" }
+]
+```
+
+Supported conditions: `distance < N`, `ttc < N`, `zone_member` (requires a `zone` polygon field).
+
+---
+
 ## Docs
 
 | Document | Contents |
 |---|---|
 | [`docs/roadmap1-poc.md`](docs/roadmap1-poc.md) | Week-by-week build plan: Phase 0 (submission) → Phase 1 (deployment prep) → Phase 2 (PoC execution) |
-
-Commercial strategy, competitive analysis, and submission documents are in [`clarus-commercial`](https://github.com/edgesentry/clarus-commercial).
+| [`docs/demo-guide.md`](docs/demo-guide.md) | Step-by-step demo walkthrough |
