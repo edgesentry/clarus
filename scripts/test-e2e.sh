@@ -106,8 +106,9 @@ else
   else
     pass "llama-server reachable at $LLM_URL"
 
+    # Use a single-frame fixture to keep the LLM stage fast (1 frame = ~4 events)
     EXPLAIN_OUT=$(cargo run --bin clarus -- \
-      --input "file://$FIXTURE" \
+      --input "file://fixtures/forklift_approach_1frame.csv" \
       --profile "$PROFILE" \
       --explain \
       --llm-url "$LLM_URL" 2>&1)
