@@ -1,17 +1,19 @@
 #!/usr/bin/env bash
 # End-to-end test script for clarus.
 #
-# Runs three test stages in order:
+# Stages:
 #   1. Build        — cargo build
 #   2. Unit tests   — cargo test
 #   3. CSV replay   — fixture file without Ollama (always runs)
 #   4. Explain      — CSV replay with --explain via Ollama (skipped if Ollama unavailable)
 #   5. Live UDP     — sim-unity-udp.py sends packets; clarus reads them (skipped if Python absent)
+#   6. Audit seal   — replay with --audit-key; verify AuditRecord chain linkage
 #
 # Usage:
 #   ./scripts/test-e2e.sh                  # run all stages
 #   ./scripts/test-e2e.sh --no-explain     # skip Ollama stage
 #   ./scripts/test-e2e.sh --no-udp         # skip live UDP stage
+#   ./scripts/test-e2e.sh --no-audit       # skip audit seal stage
 #   ./scripts/test-e2e.sh --model mistral  # use a different Ollama model
 
 set -euo pipefail
@@ -25,11 +27,12 @@ fail()  { echo -e "${RED}  ✗ $*${NC}"; }
 header(){ echo -e "\n${BOLD}━━ $* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"; }
 
 # ── arg parsing ───────────────────────────────────────────────────────────────
-SKIP_EXPLAIN=0; SKIP_UDP=0; MODEL="llama3.2"
+SKIP_EXPLAIN=0; SKIP_UDP=0; SKIP_AUDIT=0; MODEL="llama3.2"
 for arg in "$@"; do
   case $arg in
     --no-explain) SKIP_EXPLAIN=1 ;;
     --no-udp)     SKIP_UDP=1 ;;
+    --no-audit)   SKIP_AUDIT=1 ;;
     --model)      shift; MODEL="$1" ;;
     --model=*)    MODEL="${arg#*=}" ;;
   esac
@@ -174,6 +177,65 @@ else
       fail "Live UDP: no risk events processed"
       cat /tmp/clarus-udp.log
       ERRORS=$((ERRORS+1))
+    fi
+  fi
+fi
+
+# ── stage 6: audit seal ───────────────────────────────────────────────────────
+header "Stage 6 — Audit seal (RiskEvent → AuditRecord chain)"
+if [[ "$SKIP_AUDIT" -eq 1 ]]; then
+  warn "Skipped (--no-audit)"
+elif ! command -v python3 &>/dev/null; then
+  warn "python3 not found — skipping audit stage"
+else
+  # deterministic test vector (01 × 32 bytes) — fine for CI, never use in production
+  AUDIT_KEY="0101010101010101010101010101010101010101010101010101010101010101"
+  CHAIN_FILE="/tmp/clarus-audit-chain.json"
+
+  AUDIT_OUT=$(cargo run --bin clarus -- \
+    --input "file://$FIXTURE" \
+    --profile "$PROFILE" \
+    --audit-key "$AUDIT_KEY" \
+    --device-id "clarus-e2e" 2>&1)
+
+  RECORD_COUNT=$(echo "$AUDIT_OUT" | grep -c "^\s*\[AUDIT\]" || true)
+  if [[ "$RECORD_COUNT" -eq 0 ]]; then
+    fail "No AuditRecords produced"; ERRORS=$((ERRORS+1))
+  else
+    pass "$RECORD_COUNT AuditRecord(s) sealed"
+
+    # extract chain to JSON
+    echo "$AUDIT_OUT" \
+      | grep "^\s*\[AUDIT\]" \
+      | sed 's/.*\[AUDIT\] //' \
+      | python3 -c "import sys,json; print(json.dumps([json.loads(l) for l in sys.stdin]))" \
+      > "$CHAIN_FILE"
+
+    # verify sequence ordering and prev_record_hash linkage
+    if python3 - "$CHAIN_FILE" <<'PYEOF'
+import sys, json
+records = json.load(open(sys.argv[1]))
+for i, rec in enumerate(records):
+    assert rec["sequence"] == i + 1, f"record {i}: sequence mismatch"
+    if i > 0:
+        assert rec["prev_record_hash"] != [0]*32, f"record {i}: prev_hash is zero"
+PYEOF
+    then
+      pass "Chain linkage verified (${RECORD_COUNT} records, sequences + prev_record_hash)"
+    else
+      fail "Chain linkage check failed"; ERRORS=$((ERRORS+1))
+    fi
+
+    # spot-check rule IDs appear in object_ref
+    if python3 -c "import json,sys; d=json.load(open('$CHAIN_FILE')); sys.exit(0 if any('MPA_CLEARANCE_5M' in r['object_ref'] for r in d) else 1)"; then
+      pass "MPA_CLEARANCE_5M sealed in chain"
+    else
+      fail "MPA_CLEARANCE_5M missing from chain"; ERRORS=$((ERRORS+1))
+    fi
+    if python3 -c "import json,sys; d=json.load(open('$CHAIN_FILE')); sys.exit(0 if any('TTC_CRITICAL_3S' in r['object_ref'] for r in d) else 1)"; then
+      pass "TTC_CRITICAL_3S sealed in chain"
+    else
+      fail "TTC_CRITICAL_3S missing from chain"; ERRORS=$((ERRORS+1))
     fi
   fi
 fi
