@@ -53,15 +53,7 @@ fn main() {
     let audit_key = flag(&args, "--audit-key");
     let device_id = flag(&args, "--device-id").unwrap_or_else(|| "clarus-dev".to_string());
 
-    // Accept either a profile directory or a direct path to rules.json.
-    let profile_dir = {
-        let p = std::path::Path::new(&profile_dir);
-        if p.is_file() {
-            p.parent().unwrap_or(p).to_string_lossy().into_owned()
-        } else {
-            profile_dir
-        }
-    };
+    let profile_dir = resolve_profile_dir(&profile_dir);
     let rules_path = format!("{profile_dir}/rules.json");
     let rules_json = fs::read_to_string(&rules_path).unwrap_or_else(|e| {
         eprintln!("Cannot read {rules_path}: {e}");
@@ -93,14 +85,9 @@ fn main() {
         ClarusSealer::new(device_id, key)
     });
 
-    if let Some(addr) = input.strip_prefix("udp://") {
-        run_udp(addr, &rules, explainer.as_ref(), sealer.as_mut());
-    } else {
-        // Accept file://path or a bare file path (no scheme required).
-        let path = input
-            .strip_prefix("file://")
-            .unwrap_or(&input);
-        run_file(path, &rules, explainer.as_ref(), sealer.as_mut());
+    match resolve_input(&input) {
+        Input::Udp(addr) => run_udp(&addr, &rules, explainer.as_ref(), sealer.as_mut()),
+        Input::File(path) => run_file(&path, &rules, explainer.as_ref(), sealer.as_mut()),
     }
 }
 
@@ -204,4 +191,142 @@ fn flag(args: &[String], name: &str) -> Option<String> {
     args.windows(2)
         .find(|w| w[0] == name)
         .map(|w| w[1].clone())
+}
+
+/// If `path` points to a file (e.g. `profiles/demo/rules.json`), return its
+/// parent directory. Otherwise return `path` unchanged.
+fn resolve_profile_dir(path: &str) -> String {
+    let p = std::path::Path::new(path);
+    if p.is_file() {
+        p.parent().unwrap_or(p).to_string_lossy().into_owned()
+    } else {
+        path.to_string()
+    }
+}
+
+enum Input {
+    Udp(String),
+    File(String),
+}
+
+/// Parse the `--input` argument: `udp://…` → UDP, everything else → file path.
+/// Both `file://path` and bare `path` are accepted for file inputs.
+fn resolve_input(input: &str) -> Input {
+    if let Some(addr) = input.strip_prefix("udp://") {
+        Input::Udp(addr.to_string())
+    } else {
+        let path = input.strip_prefix("file://").unwrap_or(input);
+        Input::File(path.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    // ── resolve_input ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn udp_scheme_parsed_as_udp() {
+        let Input::Udp(addr) = resolve_input("udp://127.0.0.1:9100") else {
+            panic!("expected Udp");
+        };
+        assert_eq!(addr, "127.0.0.1:9100");
+    }
+
+    #[test]
+    fn file_scheme_stripped() {
+        let Input::File(path) = resolve_input("file://fixtures/foo.csv") else {
+            panic!("expected File");
+        };
+        assert_eq!(path, "fixtures/foo.csv");
+    }
+
+    #[test]
+    fn bare_path_accepted_as_file() {
+        let Input::File(path) = resolve_input("fixtures/foo.csv") else {
+            panic!("expected File");
+        };
+        assert_eq!(path, "fixtures/foo.csv");
+    }
+
+    #[test]
+    fn absolute_bare_path_accepted_as_file() {
+        let Input::File(path) = resolve_input("/data/sensor/stream.csv") else {
+            panic!("expected File");
+        };
+        assert_eq!(path, "/data/sensor/stream.csv");
+    }
+
+    #[test]
+    fn relative_dotdot_path_accepted_as_file() {
+        let Input::File(path) = resolve_input("../fixtures/forklift.csv") else {
+            panic!("expected File");
+        };
+        assert_eq!(path, "../fixtures/forklift.csv");
+    }
+
+    // ── resolve_profile_dir ───────────────────────────────────────────────────
+
+    #[test]
+    fn directory_path_returned_unchanged() {
+        // A path that doesn't exist as a file on disk → returned as-is.
+        let result = resolve_profile_dir("profiles/demo");
+        assert_eq!(result, "profiles/demo");
+    }
+
+    #[test]
+    fn file_path_resolves_to_parent_dir() {
+        let tmp = TempDir::new().unwrap();
+        let rules = tmp.path().join("rules.json");
+        fs::write(&rules, "[]").unwrap();
+
+        let result = resolve_profile_dir(rules.to_str().unwrap());
+        assert_eq!(result, tmp.path().to_string_lossy());
+    }
+
+    #[test]
+    fn directory_path_with_trailing_content_unchanged_when_not_a_file() {
+        // A non-existent path (not a real file) is returned as-is.
+        let result = resolve_profile_dir("profiles/sg-port-safety");
+        assert_eq!(result, "profiles/sg-port-safety");
+    }
+
+    #[test]
+    fn nested_file_path_resolves_to_correct_parent() {
+        let tmp = TempDir::new().unwrap();
+        let sub = tmp.path().join("sg-port-safety");
+        fs::create_dir(&sub).unwrap();
+        let rules = sub.join("rules.json");
+        fs::write(&rules, "[]").unwrap();
+
+        let result = resolve_profile_dir(rules.to_str().unwrap());
+        assert_eq!(result, sub.to_string_lossy());
+    }
+
+    // ── flag ──────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn flag_finds_value() {
+        let args = vec!["clarus".to_string(), "--profile".to_string(), "profiles/demo".to_string()];
+        assert_eq!(flag(&args, "--profile"), Some("profiles/demo".to_string()));
+    }
+
+    #[test]
+    fn flag_returns_none_when_absent() {
+        let args = vec!["clarus".to_string(), "--input".to_string(), "foo.csv".to_string()];
+        assert_eq!(flag(&args, "--profile"), None);
+    }
+
+    #[test]
+    fn flag_picks_first_occurrence() {
+        let args = vec![
+            "clarus".to_string(),
+            "--model".to_string(), "mistral".to_string(),
+            "--model".to_string(), "llama3.2".to_string(),
+        ];
+        assert_eq!(flag(&args, "--model"), Some("mistral".to_string()));
+    }
 }
