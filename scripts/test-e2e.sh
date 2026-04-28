@@ -38,7 +38,7 @@ for arg in "$@"; do
   esac
 done
 
-PROFILE="profiles/sg-port-safety"
+PROFILE="profiles/demo"
 FIXTURE="fixtures/forklift_approach.csv"
 LLM_URL="http://localhost:8080"
 UDP_ADDR="127.0.0.1:9100"
@@ -101,8 +101,8 @@ info "No LLM is involved — this validates the physics and rule evaluation pipe
 info "end-to-end using a deterministic fixture (15 frames, 2 entities)."
 info ""
 info "Spot-checks:"
-info "  · MPA_CLEARANCE_5M  — clearance drops below 5 m threshold"
-info "  · TTC_CRITICAL_3S   — time-to-collision drops below 3 s threshold"
+info "  · PROXIMITY_ALERT  — clearance drops below 5 m threshold"
+info "  · TTC_ALERT   — time-to-collision drops below 3 s threshold"
 echo ""
 if [[ ! -f "$FIXTURE" ]]; then
   fail "Fixture not found: $FIXTURE"
@@ -113,15 +113,15 @@ else
   REPLAY_COMPLETE=$(echo "$REPLAY_OUT" | grep -c "Replay complete" || true)
   if [[ "$REPLAY_COMPLETE" -eq 1 && "$RULE_LINES" -gt 0 ]]; then
     pass "Replay complete — $RULE_LINES risk events fired across 15 frames"
-    if echo "$REPLAY_OUT" | grep -q "MPA_CLEARANCE_5M"; then
-      pass "MPA_CLEARANCE_5M fired — forklift breached 5 m minimum clearance"
+    if echo "$REPLAY_OUT" | grep -q "PROXIMITY_ALERT"; then
+      pass "PROXIMITY_ALERT fired — forklift breached 5 m minimum clearance"
     else
-      fail "MPA_CLEARANCE_5M did not fire"; ERRORS=$((ERRORS+1))
+      fail "PROXIMITY_ALERT did not fire"; ERRORS=$((ERRORS+1))
     fi
-    if echo "$REPLAY_OUT" | grep -q "TTC_CRITICAL_3S"; then
-      pass "TTC_CRITICAL_3S fired — time-to-collision dropped below 3 s"
+    if echo "$REPLAY_OUT" | grep -q "TTC_ALERT"; then
+      pass "TTC_ALERT fired — time-to-collision dropped below 3 s"
     else
-      fail "TTC_CRITICAL_3S did not fire"; ERRORS=$((ERRORS+1))
+      fail "TTC_ALERT did not fire"; ERRORS=$((ERRORS+1))
     fi
   else
     fail "Replay did not complete or no risk events fired"
@@ -287,15 +287,15 @@ PYEOF
       fail "Chain linkage check failed"; ERRORS=$((ERRORS+1))
     fi
 
-    if python3 -c "import json,sys; d=json.load(open('$CHAIN_FILE')); sys.exit(0 if any('MPA_CLEARANCE_5M' in r['object_ref'] for r in d) else 1)"; then
-      pass "MPA_CLEARANCE_5M events are in the sealed chain"
+    if python3 -c "import json,sys; d=json.load(open('$CHAIN_FILE')); sys.exit(0 if any('PROXIMITY_ALERT' in r['object_ref'] for r in d) else 1)"; then
+      pass "PROXIMITY_ALERT events are in the sealed chain"
     else
-      fail "MPA_CLEARANCE_5M missing from chain"; ERRORS=$((ERRORS+1))
+      fail "PROXIMITY_ALERT missing from chain"; ERRORS=$((ERRORS+1))
     fi
-    if python3 -c "import json,sys; d=json.load(open('$CHAIN_FILE')); sys.exit(0 if any('TTC_CRITICAL_3S' in r['object_ref'] for r in d) else 1)"; then
-      pass "TTC_CRITICAL_3S events are in the sealed chain"
+    if python3 -c "import json,sys; d=json.load(open('$CHAIN_FILE')); sys.exit(0 if any('TTC_ALERT' in r['object_ref'] for r in d) else 1)"; then
+      pass "TTC_ALERT events are in the sealed chain"
     else
-      fail "TTC_CRITICAL_3S missing from chain"; ERRORS=$((ERRORS+1))
+      fail "TTC_ALERT missing from chain"; ERRORS=$((ERRORS+1))
     fi
 
     echo ""

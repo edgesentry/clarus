@@ -1,0 +1,261 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+
+jobs:
+  create_tag:
+    name: Bump version and create tag
+    uses: ./.github/workflows/auto-version-tag.yml
+    secrets: inherit
+    permissions:
+      contents: write
+
+  quality_gate:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    needs: create_tag
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+        with:
+          ref: ${{ needs.create_tag.outputs.tag_name }}
+
+      - name: Setup Rust
+        run: rustup update stable && rustup default stable
+
+      - name: Cache Rust artifacts
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Build (release, locked)
+        run: cargo build --release --locked
+
+      - name: Unit tests
+        run: cargo test --locked
+
+      - name: Clippy (deny warnings)
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Install cargo-deny
+        run: cargo deny --version 2>/dev/null || cargo install cargo-deny --locked
+
+      - name: License check
+        run: cargo deny check licenses
+
+      - name: Security advisories
+        run: cargo deny check advisories
+
+      - name: Policy check (bans + sources)
+        run: cargo deny check bans sources
+
+  publish_crates:
+    name: Publish crates.io
+    runs-on: ubuntu-latest
+    needs: [create_tag, quality_gate]
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+        with:
+          ref: ${{ needs.create_tag.outputs.tag_name }}
+
+      - name: Setup Rust
+        run: rustup update stable && rustup default stable
+
+      - name: Cache Rust artifacts
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Verify crates.io token
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+        run: |
+          if [ -z "${CARGO_REGISTRY_TOKEN}" ]; then
+            echo "CRATES_IO_TOKEN secret is required for release"
+            exit 1
+          fi
+
+      - name: Publish clarus (skip if version already exists)
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+        run: |
+          VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          URL="https://crates.io/api/v1/crates/edgesentry-clarus/${VERSION}"
+          if curl --silent --show-error --fail "$URL" >/dev/null 2>&1; then
+            echo "edgesentry-clarus@${VERSION} already on crates.io — skipping."
+          else
+            echo "Publishing edgesentry-clarus@${VERSION}…"
+            cargo publish --locked
+          fi
+
+  build_binaries:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    needs: [create_tag, quality_gate]
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            archive_ext: tar.gz
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            archive_ext: tar.gz
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            archive_ext: zip
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+        with:
+          ref: ${{ needs.create_tag.outputs.tag_name }}
+
+      - name: Setup Rust
+        run: rustup update stable && rustup default stable && rustup target add ${{ matrix.target }}
+
+      - name: Cache Rust artifacts
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-${{ matrix.target }}-cargo-
+
+      - name: Build release binaries
+        run: cargo build --release --locked --target ${{ matrix.target }}
+
+      - name: Package (unix)
+        if: runner.os != 'Windows'
+        env:
+          TAG_NAME: ${{ needs.create_tag.outputs.tag_name }}
+        run: |
+          ASSET="clarus-${TAG_NAME}-${{ matrix.target }}.tar.gz"
+          mkdir -p dist
+          cp target/${{ matrix.target }}/release/clarus          dist/
+          cp target/${{ matrix.target }}/release/clarus-validate dist/
+          tar -C dist -czf "$ASSET" clarus clarus-validate
+          echo "ASSET=$ASSET" >> "$GITHUB_ENV"
+
+      - name: Package (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          TAG_NAME: ${{ needs.create_tag.outputs.tag_name }}
+        run: |
+          $asset = "clarus-${env:TAG_NAME}-${{ matrix.target }}.zip"
+          New-Item -ItemType Directory -Path dist -Force | Out-Null
+          Copy-Item "target/${{ matrix.target }}/release/clarus.exe"          "dist/clarus.exe"
+          Copy-Item "target/${{ matrix.target }}/release/clarus-validate.exe" "dist/clarus-validate.exe"
+          Compress-Archive -Path "dist/clarus.exe","dist/clarus-validate.exe" -DestinationPath $asset -Force
+          "ASSET=$asset" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Attest build provenance (SLSA)
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be  # v2
+        with:
+          subject-path: ${{ env.ASSET }}
+
+      - name: Upload asset
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: ${{ matrix.target }}-asset
+          path: ${{ env.ASSET }}
+
+  generate_sbom:
+    name: Generate SBOM (CycloneDX)
+    runs-on: ubuntu-latest
+    needs: [create_tag, quality_gate]
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+        with:
+          ref: ${{ needs.create_tag.outputs.tag_name }}
+
+      - name: Setup Rust
+        run: rustup update stable && rustup default stable
+
+      - name: Install cargo-cyclonedx
+        run: cargo install cargo-cyclonedx --locked
+
+      - name: Generate CycloneDX SBOM
+        run: cargo cyclonedx --format json
+
+      - name: Collect SBOM artifact
+        env:
+          TAG_NAME: ${{ needs.create_tag.outputs.tag_name }}
+        run: |
+          mkdir -p sbom-dist
+          find . -name "*.cdx.json" -not -path "*/target/*" \
+            -exec cp {} "sbom-dist/clarus-${TAG_NAME}.cdx.json" \;
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: sbom
+          path: sbom-dist/*.cdx.json
+
+  publish_github_release:
+    name: Publish GitHub Release
+    runs-on: ubuntu-latest
+    needs: [create_tag, publish_crates, build_binaries, generate_sbom]
+    if: ${{ needs.publish_crates.result == 'success' && needs.build_binaries.result == 'success' }}
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
+        with:
+          path: dist
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ needs.create_tag.outputs.tag_name }}
+        run: |
+          gh release create "${TAG_NAME}" \
+            --repo "${{ github.repository }}" \
+            --title "${TAG_NAME}" \
+            --generate-notes \
+            dist/**/*.tar.gz dist/**/*.zip dist/sbom/*.cdx.json

@@ -1,6 +1,6 @@
 use std::net::UdpSocket;
 
-use clarus_engine::entity::{Entity, EntityClass, Vec2};
+use crate::engine::entity::{Entity, EntityClass, Vec2};
 use serde::Deserialize;
 
 /// A single entity frame as exported by Unity at 10 Hz via UDP.
@@ -88,7 +88,7 @@ mod tests {
         assert_eq!(entities.len(), 1);
         let e = &entities[0];
         assert_eq!(e.id, "forklift_01");
-        assert_eq!(e.class, clarus_engine::entity::EntityClass::Forklift);
+        assert_eq!(e.class, crate::engine::entity::EntityClass::Forklift);
         assert!((e.position.x - 14.2).abs() < 1e-5);
         assert!((e.position.y - 31.7).abs() < 1e-5);
         assert!((e.velocity.y - 2.1).abs() < 1e-5);
@@ -103,17 +103,17 @@ mod tests {
         ]}"#;
         let entities = parse(json);
         assert_eq!(entities.len(), 2);
-        assert_eq!(entities[1].class, clarus_engine::entity::EntityClass::Person);
+        assert_eq!(entities[1].class, crate::engine::entity::EntityClass::Person);
     }
 
     #[test]
     fn parse_all_entity_classes() {
         for (class_str, expected) in &[
-            ("Forklift", clarus_engine::entity::EntityClass::Forklift),
-            ("ReachStacker", clarus_engine::entity::EntityClass::ReachStacker),
-            ("TerminalTractor", clarus_engine::entity::EntityClass::TerminalTractor),
-            ("Vessel", clarus_engine::entity::EntityClass::Vessel),
-            ("Person", clarus_engine::entity::EntityClass::Person),
+            ("Forklift", crate::engine::entity::EntityClass::Forklift),
+            ("ReachStacker", crate::engine::entity::EntityClass::ReachStacker),
+            ("TerminalTractor", crate::engine::entity::EntityClass::TerminalTractor),
+            ("Vessel", crate::engine::entity::EntityClass::Vessel),
+            ("Person", crate::engine::entity::EntityClass::Person),
         ] {
             let json = format!(
                 r#"{{"entities":[{{"id":"x","class":"{class_str}","x":0.0,"y":0.0,"vx":0.0,"vy":0.0,"timestamp_ms":0}}]}}"#

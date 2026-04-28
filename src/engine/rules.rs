@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
-use crate::entity::{Entity, Vec2};
-use crate::physics::{euclidean_distance, relative_velocity, time_to_collision, zone_membership};
+use super::entity::{Entity, Vec2};
+use super::physics::{euclidean_distance, relative_velocity, time_to_collision, zone_membership};
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -180,7 +180,7 @@ pub fn evaluate(rules: &[Rule], entities: &[Entity], timestamp_ms: u64) -> Vec<R
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::entity::{Entity, EntityClass, Vec2};
+    use crate::engine::entity::{Entity, EntityClass, Vec2};
 
     fn entity(id: &str, x: f32, y: f32, vx: f32, vy: f32) -> Entity {
         Entity {
@@ -192,38 +192,38 @@ mod tests {
         }
     }
 
-    const SG_PORT_SAFETY_JSON: &str = r#"[
-        {"rule_id":"MPA_CLEARANCE_5M","condition":"distance < 5.0","severity":"HIGH","regulation":"MPA Port Safety Circular No. 14 of 2023 §3.1"},
-        {"rule_id":"EXCLUSION_ZONE_BREACH","condition":"zone_member","severity":"CRITICAL","regulation":"PSA Terminal Safety Rules §4.2","zone":[[0,0],[10,0],[10,10],[0,10]]},
-        {"rule_id":"TTC_CRITICAL_3S","condition":"ttc < 3.0","severity":"HIGH","regulation":"MPA Port Safety Circular No. 14 of 2023 §3.2"}
+    const DEMO_RULES_JSON: &str = r#"[
+        {"rule_id":"PROXIMITY_ALERT","condition":"distance < 5.0","severity":"HIGH","regulation":"Site Safety Procedure §3.1"},
+        {"rule_id":"EXCLUSION_ZONE_BREACH","condition":"zone_member","severity":"CRITICAL","regulation":"Site Safety Procedure §4.1","zone":[[0,0],[10,0],[10,10],[0,10]]},
+        {"rule_id":"TTC_ALERT","condition":"ttc < 3.0","severity":"HIGH","regulation":"Site Safety Procedure §3.2"}
     ]"#;
 
     // ── load_rules ────────────────────────────────────────────────────────
 
     #[test]
     fn load_parses_three_rules() {
-        let rules = load_rules(SG_PORT_SAFETY_JSON).unwrap();
+        let rules = load_rules(DEMO_RULES_JSON).unwrap();
         assert_eq!(rules.len(), 3);
     }
 
     #[test]
     fn load_rule_ids_correct() {
-        let rules = load_rules(SG_PORT_SAFETY_JSON).unwrap();
-        assert_eq!(rules[0].rule_id, "MPA_CLEARANCE_5M");
+        let rules = load_rules(DEMO_RULES_JSON).unwrap();
+        assert_eq!(rules[0].rule_id, "PROXIMITY_ALERT");
         assert_eq!(rules[1].rule_id, "EXCLUSION_ZONE_BREACH");
-        assert_eq!(rules[2].rule_id, "TTC_CRITICAL_3S");
+        assert_eq!(rules[2].rule_id, "TTC_ALERT");
     }
 
     #[test]
     fn load_severities_correct() {
-        let rules = load_rules(SG_PORT_SAFETY_JSON).unwrap();
+        let rules = load_rules(DEMO_RULES_JSON).unwrap();
         assert_eq!(rules[0].severity, Severity::High);
         assert_eq!(rules[1].severity, Severity::Critical);
     }
 
     #[test]
     fn load_condition_distance_threshold() {
-        let rules = load_rules(SG_PORT_SAFETY_JSON).unwrap();
+        let rules = load_rules(DEMO_RULES_JSON).unwrap();
         match &rules[0].condition {
             Condition::DistanceLt(t) => assert!((*t - 5.0).abs() < 1e-5),
             other => panic!("expected DistanceLt, got {other:?}"),
@@ -232,7 +232,7 @@ mod tests {
 
     #[test]
     fn load_condition_zone_has_polygon() {
-        let rules = load_rules(SG_PORT_SAFETY_JSON).unwrap();
+        let rules = load_rules(DEMO_RULES_JSON).unwrap();
         match &rules[1].condition {
             Condition::ZoneMember(polygon) => assert_eq!(polygon.len(), 4),
             other => panic!("expected ZoneMember, got {other:?}"),
@@ -241,7 +241,7 @@ mod tests {
 
     #[test]
     fn load_condition_ttc_threshold() {
-        let rules = load_rules(SG_PORT_SAFETY_JSON).unwrap();
+        let rules = load_rules(DEMO_RULES_JSON).unwrap();
         match &rules[2].condition {
             Condition::TtcLt(t) => assert!((*t - 3.0).abs() < 1e-5),
             other => panic!("expected TtcLt, got {other:?}"),
@@ -269,13 +269,13 @@ mod tests {
 
     #[test]
     fn evaluate_distance_breach_fires_event() {
-        let rules = load_rules(SG_PORT_SAFETY_JSON).unwrap();
+        let rules = load_rules(DEMO_RULES_JSON).unwrap();
         let entities = vec![
             entity("FL-01", 0.0, 0.0, 1.4, 0.0),
             entity("W-03", 3.2, 0.0, 0.0, 0.0),
         ];
         let events = evaluate(&rules, &entities, 1000);
-        let evt = events.iter().find(|e| e.rule_id == "MPA_CLEARANCE_5M").unwrap();
+        let evt = events.iter().find(|e| e.rule_id == "PROXIMITY_ALERT").unwrap();
         assert!((evt.measured_value - 3.2).abs() < 1e-4);
         assert_eq!(evt.threshold, 5.0);
         assert_eq!(evt.entity_ids, vec!["FL-01", "W-03"]);
@@ -284,19 +284,19 @@ mod tests {
 
     #[test]
     fn evaluate_distance_no_breach_when_safe() {
-        let rules = load_rules(SG_PORT_SAFETY_JSON).unwrap();
+        let rules = load_rules(DEMO_RULES_JSON).unwrap();
         let entities = vec![
             entity("FL-01", 0.0, 0.0, 0.0, 0.0),
             entity("W-03", 6.0, 0.0, 0.0, 0.0),
         ];
         let events = evaluate(&rules, &entities, 0);
-        assert!(!events.iter().any(|e| e.rule_id == "MPA_CLEARANCE_5M"));
+        assert!(!events.iter().any(|e| e.rule_id == "PROXIMITY_ALERT"));
     }
 
     #[test]
     fn evaluate_distance_multiple_pairs() {
         // Three entities, two pairs breach clearance
-        let rules = load_rules(SG_PORT_SAFETY_JSON).unwrap();
+        let rules = load_rules(DEMO_RULES_JSON).unwrap();
         let entities = vec![
             entity("A", 0.0, 0.0, 0.0, 0.0),
             entity("B", 1.0, 0.0, 0.0, 0.0), // A-B: 1m → breach
@@ -304,7 +304,7 @@ mod tests {
         ];
         let events: Vec<_> = evaluate(&rules, &entities, 0)
             .into_iter()
-            .filter(|e| e.rule_id == "MPA_CLEARANCE_5M")
+            .filter(|e| e.rule_id == "PROXIMITY_ALERT")
             .collect();
         assert_eq!(events.len(), 3);
     }
@@ -313,7 +313,7 @@ mod tests {
 
     #[test]
     fn evaluate_zone_breach_fires_for_entity_inside() {
-        let rules = load_rules(SG_PORT_SAFETY_JSON).unwrap();
+        let rules = load_rules(DEMO_RULES_JSON).unwrap();
         let entities = vec![entity("V-01", 5.0, 5.0, 0.0, 0.0)]; // inside [0,0]-[10,10]
         let events = evaluate(&rules, &entities, 0);
         assert!(events.iter().any(|e| e.rule_id == "EXCLUSION_ZONE_BREACH"));
@@ -321,7 +321,7 @@ mod tests {
 
     #[test]
     fn evaluate_zone_no_breach_when_outside() {
-        let rules = load_rules(SG_PORT_SAFETY_JSON).unwrap();
+        let rules = load_rules(DEMO_RULES_JSON).unwrap();
         let entities = vec![entity("V-01", 15.0, 5.0, 0.0, 0.0)]; // outside zone
         let events = evaluate(&rules, &entities, 0);
         assert!(!events.iter().any(|e| e.rule_id == "EXCLUSION_ZONE_BREACH"));
@@ -331,45 +331,45 @@ mod tests {
 
     #[test]
     fn evaluate_ttc_breach_fires_when_fast_approach() {
-        let rules = load_rules(SG_PORT_SAFETY_JSON).unwrap();
+        let rules = load_rules(DEMO_RULES_JSON).unwrap();
         // 2m gap, 5 m/s approach → TTC = 0.4 s < 3.0 s
         let entities = vec![
             entity("FL-01", 0.0, 0.0, 5.0, 0.0),
             entity("W-03", 2.0, 0.0, 0.0, 0.0),
         ];
         let events = evaluate(&rules, &entities, 0);
-        assert!(events.iter().any(|e| e.rule_id == "TTC_CRITICAL_3S"));
+        assert!(events.iter().any(|e| e.rule_id == "TTC_ALERT"));
     }
 
     #[test]
     fn evaluate_ttc_no_breach_when_slow_approach() {
-        let rules = load_rules(SG_PORT_SAFETY_JSON).unwrap();
+        let rules = load_rules(DEMO_RULES_JSON).unwrap();
         // 20m gap, 1 m/s approach → TTC = 20 s > 3.0 s
         let entities = vec![
             entity("FL-01", 0.0, 0.0, 1.0, 0.0),
             entity("W-03", 20.0, 0.0, 0.0, 0.0),
         ];
         let events = evaluate(&rules, &entities, 0);
-        assert!(!events.iter().any(|e| e.rule_id == "TTC_CRITICAL_3S"));
+        assert!(!events.iter().any(|e| e.rule_id == "TTC_ALERT"));
     }
 
     #[test]
     fn evaluate_ttc_no_breach_when_receding() {
-        let rules = load_rules(SG_PORT_SAFETY_JSON).unwrap();
+        let rules = load_rules(DEMO_RULES_JSON).unwrap();
         // Moving away — TTC = ∞
         let entities = vec![
             entity("FL-01", 0.0, 0.0, -3.0, 0.0),
             entity("W-03", 2.0, 0.0, 0.0, 0.0),
         ];
         let events = evaluate(&rules, &entities, 0);
-        assert!(!events.iter().any(|e| e.rule_id == "TTC_CRITICAL_3S"));
+        assert!(!events.iter().any(|e| e.rule_id == "TTC_ALERT"));
     }
 
     // ── evaluate — empty inputs ───────────────────────────────────────────
 
     #[test]
     fn evaluate_empty_entities_returns_no_events() {
-        let rules = load_rules(SG_PORT_SAFETY_JSON).unwrap();
+        let rules = load_rules(DEMO_RULES_JSON).unwrap();
         assert!(evaluate(&rules, &[], 0).is_empty());
     }
 
@@ -381,30 +381,30 @@ mod tests {
 
     // ── Scenario: roadmap demo ────────────────────────────────────────────
     // Forklift FL-01 at (0,0) moving at 1.4 m/s toward Worker W-03 at (3.2,0).
-    // Expects MPA_CLEARANCE_5M and TTC_CRITICAL_3S to fire.
+    // Expects PROXIMITY_ALERT and TTC_ALERT to fire.
 
     #[test]
     fn scenario_roadmap_demo_fires_clearance_and_ttc() {
-        let rules = load_rules(SG_PORT_SAFETY_JSON).unwrap();
+        let rules = load_rules(DEMO_RULES_JSON).unwrap();
         let entities = vec![
             entity("FL-01", 0.0, 0.0, 1.4, 0.0),
             entity("W-03", 3.2, 0.0, 0.0, 0.0),
         ];
         let events = evaluate(&rules, &entities, 14230000);
         let rule_ids: Vec<&str> = events.iter().map(|e| e.rule_id.as_str()).collect();
-        assert!(rule_ids.contains(&"MPA_CLEARANCE_5M"), "clearance rule should fire");
-        assert!(rule_ids.contains(&"TTC_CRITICAL_3S"), "TTC rule should fire");
+        assert!(rule_ids.contains(&"PROXIMITY_ALERT"), "clearance rule should fire");
+        assert!(rule_ids.contains(&"TTC_ALERT"), "TTC rule should fire");
     }
 
     #[test]
     fn scenario_roadmap_demo_clearance_event_values() {
-        let rules = load_rules(SG_PORT_SAFETY_JSON).unwrap();
+        let rules = load_rules(DEMO_RULES_JSON).unwrap();
         let entities = vec![
             entity("FL-01", 0.0, 0.0, 1.4, 0.0),
             entity("W-03", 3.2, 0.0, 0.0, 0.0),
         ];
         let events = evaluate(&rules, &entities, 14230000);
-        let evt = events.iter().find(|e| e.rule_id == "MPA_CLEARANCE_5M").unwrap();
+        let evt = events.iter().find(|e| e.rule_id == "PROXIMITY_ALERT").unwrap();
         assert!((evt.measured_value - 3.2).abs() < 1e-4);
         assert_eq!(evt.severity, Severity::High);
         assert!(evt.regulation.contains("§3.1"));

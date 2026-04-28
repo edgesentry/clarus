@@ -1,21 +1,21 @@
 [
   {
-    "rule_id": "MPA_CLEARANCE_5M",
+    "rule_id": "PROXIMITY_ALERT",
     "condition": "distance < 5.0",
     "severity": "HIGH",
-    "regulation": "MPA Port Safety Circular No. 14 of 2023 §3.1"
+    "regulation": "Site Safety Procedure §3.1"
   },
   {
     "rule_id": "EXCLUSION_ZONE_BREACH",
     "condition": "zone_member",
     "severity": "CRITICAL",
-    "regulation": "PSA Terminal Safety Rules §4.2",
+    "regulation": "Site Safety Procedure §4.1",
     "zone": [[0, 0], [10, 0], [10, 10], [0, 10]]
   },
   {
-    "rule_id": "TTC_CRITICAL_3S",
+    "rule_id": "TTC_ALERT",
     "condition": "ttc < 3.0",
     "severity": "HIGH",
-    "regulation": "MPA Port Safety Circular No. 14 of 2023 §3.2"
+    "regulation": "Site Safety Procedure §3.2"
   }
 ]

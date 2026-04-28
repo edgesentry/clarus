@@ -58,12 +58,12 @@ mod tests {
     fn make_kb() -> KnowledgeBase {
         let mut m = HashMap::new();
         m.insert(
-            "MPA_CLEARANCE_5M".to_string(),
-            "Minimum 5 m clearance from pedestrians — MPA §3.1".to_string(),
+            "PROXIMITY_ALERT".to_string(),
+            "Minimum 5 m clearance from pedestrians — Site Safety §3.1".to_string(),
         );
         m.insert(
-            "TTC_CRITICAL_3S".to_string(),
-            "TTC below 3 s requires immediate stop — MPA §3.2".to_string(),
+            "TTC_ALERT".to_string(),
+            "TTC below 3 s requires immediate stop — Site Safety §3.2".to_string(),
         );
         KnowledgeBase::from_map(m)
     }
@@ -71,7 +71,7 @@ mod tests {
     #[test]
     fn known_rule_returns_snippet() {
         let kb = make_kb();
-        assert!(kb.get("MPA_CLEARANCE_5M").unwrap().contains("5 m"));
+        assert!(kb.get("PROXIMITY_ALERT").unwrap().contains("5 m"));
     }
 
     #[test]
@@ -85,6 +85,6 @@ mod tests {
         let kb = make_kb();
         let mut ids: Vec<&str> = kb.rule_ids().collect();
         ids.sort();
-        assert_eq!(ids, vec!["MPA_CLEARANCE_5M", "TTC_CRITICAL_3S"]);
+        assert_eq!(ids, vec!["PROXIMITY_ALERT", "TTC_ALERT"]);
     }
 }

@@ -1,7 +1,26 @@
-[workspace]
-members = [
-    "crates/engine",
-    "crates/input-adapter",
-    "crates/explanation",
-]
-resolver = "2"
+[package]
+name = "edgesentry-clarus"
+version = "0.0.1"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "Physics-based safety and security engine — deterministic risk detection with cryptographic audit trail"
+repository = "https://github.com/edgesentry/clarus"
+keywords = ["safety", "physics", "audit", "edge", "iot"]
+categories = ["science", "embedded"]
+
+[dependencies]
+edgesentry-audit = "0.2.0"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+ureq = { version = "2", features = ["json"] }
+
+[dev-dependencies]
+tempfile = "3"
+
+[[bin]]
+name = "clarus"
+path = "src/main.rs"
+
+[[bin]]
+name = "clarus-validate"
+path = "src/validate_profile.rs"

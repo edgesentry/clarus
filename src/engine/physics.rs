@@ -1,4 +1,4 @@
-use crate::entity::{Entity, EntityClass, Vec2};
+use super::entity::{Entity, EntityClass, Vec2};
 
 /// Straight-line distance between two entities in metres.
 pub fn euclidean_distance(a: &Entity, b: &Entity) -> f32 {
@@ -74,7 +74,7 @@ pub fn zone_membership(pos: Vec2, polygon: &[Vec2]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::entity::{Entity, EntityClass, Vec2};
+    use crate::engine::entity::{Entity, EntityClass, Vec2};
 
     fn entity(x: f32, y: f32, vx: f32, vy: f32) -> Entity {
         Entity {
@@ -266,7 +266,7 @@ mod tests {
     // ── Realistic scenario: MPA clearance breach ──────────────────────────
     //
     // Forklift FL-01 at (0, 0) moving toward Worker W-03 at (3.2, 0) at 1.4 m/s.
-    // MPA Port Safety Circular No. 14 of 2023 §3.1 requires ≥ 5.0 m clearance.
+    // A typical site safety rule requires ≥ 5.0 m clearance.
     //
     // Expected outputs from the roadmap demo:
     //   distance          = 3.2 m   (< 5.0 m threshold → rule fires)
