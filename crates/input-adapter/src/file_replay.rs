@@ -66,6 +66,7 @@ impl FileReplayAdapter {
     }
 
     /// Reset replay to the beginning.
+    #[allow(dead_code)]
     pub fn reset(&mut self) {
         self.cursor = 0;
     }
