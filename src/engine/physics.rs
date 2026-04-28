@@ -1,4 +1,4 @@
-use crate::entity::{Entity, EntityClass, Vec2};
+use super::entity::{Entity, EntityClass, Vec2};
 
 /// Straight-line distance between two entities in metres.
 pub fn euclidean_distance(a: &Entity, b: &Entity) -> f32 {
@@ -74,7 +74,7 @@ pub fn zone_membership(pos: Vec2, polygon: &[Vec2]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::entity::{Entity, EntityClass, Vec2};
+    use crate::engine::entity::{Entity, EntityClass, Vec2};
 
     fn entity(x: f32, y: f32, vx: f32, vy: f32) -> Entity {
         Entity {

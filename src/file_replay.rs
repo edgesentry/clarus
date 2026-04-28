@@ -1,4 +1,4 @@
-use clarus_engine::entity::{Entity, EntityClass, Vec2};
+use crate::engine::entity::{Entity, EntityClass, Vec2};
 
 /// Replay entities from a newline-delimited JSON file (one `UnityPacket` JSON per line)
 /// or a CSV file with columns: id,class,x,y,vx,vy,timestamp_ms.
@@ -103,7 +103,7 @@ FL-01,Forklift,0.14,0.0,1.4,0.0,2000\n";
         let mut adapter = FileReplayAdapter::from_csv(SAMPLE_CSV).unwrap();
         let frame = adapter.next_frame().unwrap();
         let fl = frame.iter().find(|e| e.id == "FL-01").unwrap();
-        assert_eq!(fl.class, clarus_engine::entity::EntityClass::Forklift);
+        assert_eq!(fl.class, crate::engine::entity::EntityClass::Forklift);
         assert!((fl.velocity.x - 1.4).abs() < 1e-5);
         assert_eq!(fl.timestamp_ms, 1000);
     }

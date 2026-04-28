@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
-use crate::entity::{Entity, Vec2};
-use crate::physics::{euclidean_distance, relative_velocity, time_to_collision, zone_membership};
+use super::entity::{Entity, Vec2};
+use super::physics::{euclidean_distance, relative_velocity, time_to_collision, zone_membership};
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -180,7 +180,7 @@ pub fn evaluate(rules: &[Rule], entities: &[Entity], timestamp_ms: u64) -> Vec<R
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::entity::{Entity, EntityClass, Vec2};
+    use crate::engine::entity::{Entity, EntityClass, Vec2};
 
     fn entity(id: &str, x: f32, y: f32, vx: f32, vy: f32) -> Entity {
         Entity {

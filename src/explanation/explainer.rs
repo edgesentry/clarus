@@ -1,7 +1,7 @@
-use clarus_engine::rules::RiskEvent;
+use crate::engine::rules::RiskEvent;
 
-use crate::kb::KnowledgeBase;
-use crate::llm::OllamaClient;
+use crate::explanation::kb::KnowledgeBase;
+use crate::explanation::llm::OllamaClient;
 
 /// The explanation produced for a single RiskEvent.
 #[derive(Debug, Clone)]
@@ -149,7 +149,7 @@ mod tests {
 
     #[test]
     fn build_prompt_contains_key_fields() {
-        use clarus_engine::rules::{RiskEvent, Severity};
+        use crate::engine::rules::{RiskEvent, Severity};
         let event = RiskEvent {
             rule_id: "PROXIMITY_ALERT".to_string(),
             severity: Severity::High,

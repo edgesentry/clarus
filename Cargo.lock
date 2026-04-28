@@ -174,33 +174,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8d4a3bb8b1e0c1050499d1815f5ab16d04f0959b233085fb31653fbfc9d98f9"
 
 [[package]]
-name = "clarus-engine"
+name = "clarus"
 version = "0.1.0"
 dependencies = [
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "clarus-explanation"
-version = "0.1.0"
-dependencies = [
- "clarus-engine",
- "serde",
- "serde_json",
- "ureq",
-]
-
-[[package]]
-name = "clarus-input-adapter"
-version = "0.1.0"
-dependencies = [
- "clarus-engine",
- "clarus-explanation",
  "edgesentry-audit",
  "serde",
  "serde_json",
  "tempfile",
+ "ureq",
 ]
 
 [[package]]

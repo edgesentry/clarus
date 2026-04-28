@@ -1,5 +1,5 @@
-use clarus_engine::rules::RiskEvent;
-use clarus_explanation::Explanation;
+use crate::engine::rules::RiskEvent;
+use crate::explanation::Explanation;
 use edgesentry_audit::{sign_record, AuditRecord, Hash32};
 use serde::Serialize;
 
@@ -91,7 +91,7 @@ impl ClarusSealer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use clarus_engine::rules::{RiskEvent, Severity};
+    use crate::engine::rules::{RiskEvent, Severity};
     use edgesentry_audit::{generate_keypair, verify_chain_records, verify_record};
 
     fn sample_event(rule_id: &str, ts: u64) -> RiskEvent {
