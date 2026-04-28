@@ -15,10 +15,12 @@ use unity_udp::UnityUdpAdapter;
 
 const USAGE: &str = "Usage: clarus --input <source> --profile <dir> [options]
 
-  --input udp://HOST:PORT     receive live entity stream from Unity via UDP
-  --input file://PATH.csv     replay entities from a CSV fixture file
+  --input udp://HOST:PORT          receive live entity stream from Unity via UDP
+  --input file://PATH.csv          replay entities from a CSV fixture file
+  --input PATH.csv                 bare file path also accepted (no scheme needed)
 
-  --profile DIR               path to a profile directory containing rules.json
+  --profile DIR                    directory containing rules.json (path relative to CWD)
+  --profile DIR/rules.json         direct path to rules.json also accepted
 
   --explain                   generate plain-language explanation for each RiskEvent via local LLM
   --llm-url URL               LLM server base URL (default: http://localhost:8080)
@@ -93,12 +95,12 @@ fn main() {
 
     if let Some(addr) = input.strip_prefix("udp://") {
         run_udp(addr, &rules, explainer.as_ref(), sealer.as_mut());
-    } else if let Some(path) = input.strip_prefix("file://") {
-        run_file(path, &rules, explainer.as_ref(), sealer.as_mut());
     } else {
-        eprintln!("Unknown input scheme: {input}");
-        eprintln!("{USAGE}");
-        process::exit(1);
+        // Accept file://path or a bare file path (no scheme required).
+        let path = input
+            .strip_prefix("file://")
+            .unwrap_or(&input);
+        run_file(path, &rules, explainer.as_ref(), sealer.as_mut());
     }
 }
 
