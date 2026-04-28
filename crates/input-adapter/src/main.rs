@@ -47,7 +47,7 @@ fn main() {
     let ollama_url = flag(&args, "--llm-url")
         .or_else(|| flag(&args, "--ollama-url"))  // backward-compat alias
         .unwrap_or_else(|| "http://localhost:8080".to_string());
-    let model = flag(&args, "--model").unwrap_or_else(|| "llama3.2".to_string());
+    let model = flag(&args, "--model"); // None → auto-discover from /v1/models
     let audit_key = flag(&args, "--audit-key");
     let device_id = flag(&args, "--device-id").unwrap_or_else(|| "clarus-dev".to_string());
 
@@ -67,7 +67,10 @@ fn main() {
             eprintln!("Cannot load KB from {profile_dir}/kb/: {e}");
             process::exit(1);
         });
-        let llm = LlmClient::new(ollama_url, model);
+        let llm = match model {
+            Some(m) => LlmClient::new(ollama_url, m),
+            None    => LlmClient::new_autodiscover(ollama_url),
+        };
         println!("Explanation enabled (llama-server)");
         Some(Explainer::new(kb, llm))
     } else {
