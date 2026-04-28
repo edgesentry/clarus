@@ -2,11 +2,11 @@ use std::env;
 use std::fs;
 use std::process;
 
-use clarus::engine::rules::{evaluate, load_rules};
-use clarus::explanation::{Explainer, KnowledgeBase, LlmClient};
-use clarus::file_replay::FileReplayAdapter;
-use clarus::sealer::ClarusSealer;
-use clarus::unity_udp::UnityUdpAdapter;
+use edgesentry_clarus::engine::rules::{evaluate, load_rules};
+use edgesentry_clarus::explanation::{Explainer, KnowledgeBase, LlmClient};
+use edgesentry_clarus::file_replay::FileReplayAdapter;
+use edgesentry_clarus::sealer::ClarusSealer;
+use edgesentry_clarus::unity_udp::UnityUdpAdapter;
 
 const USAGE: &str = "Usage: clarus --input <source> --profile <dir> [options]
 
@@ -88,7 +88,7 @@ fn main() {
 
 fn run_udp(
     addr: &str,
-    rules: &[clarus::engine::rules::Rule],
+    rules: &[edgesentry_clarus::engine::rules::Rule],
     explainer: Option<&Explainer>,
     sealer: Option<&mut ClarusSealer>,
 ) {
@@ -110,7 +110,7 @@ fn run_udp(
 
 fn run_file(
     path: &str,
-    rules: &[clarus::engine::rules::Rule],
+    rules: &[edgesentry_clarus::engine::rules::Rule],
     explainer: Option<&Explainer>,
     sealer: Option<&mut ClarusSealer>,
 ) {
@@ -131,8 +131,8 @@ fn run_file(
 }
 
 fn process_frame(
-    entities: Vec<clarus::engine::entity::Entity>,
-    rules: &[clarus::engine::rules::Rule],
+    entities: Vec<edgesentry_clarus::engine::entity::Entity>,
+    rules: &[edgesentry_clarus::engine::rules::Rule],
     explainer: Option<&Explainer>,
     mut sealer: Option<&mut ClarusSealer>,
 ) {

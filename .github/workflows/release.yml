@@ -109,11 +109,11 @@ jobs:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
         run: |
           VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
-          URL="https://crates.io/api/v1/crates/clarus/${VERSION}"
+          URL="https://crates.io/api/v1/crates/edgesentry-clarus/${VERSION}"
           if curl --silent --show-error --fail "$URL" >/dev/null 2>&1; then
-            echo "clarus@${VERSION} already on crates.io — skipping."
+            echo "edgesentry-clarus@${VERSION} already on crates.io — skipping."
           else
-            echo "Publishing clarus@${VERSION}…"
+            echo "Publishing edgesentry-clarus@${VERSION}…"
             cargo publish --locked
           fi
 
