@@ -11,10 +11,9 @@
 #
 # Usage:
 #   ./scripts/test-e2e.sh                  # run all stages
-#   ./scripts/test-e2e.sh --no-explain     # skip Ollama stage
+#   ./scripts/test-e2e.sh --no-explain     # skip llama-server stage
 #   ./scripts/test-e2e.sh --no-udp         # skip live UDP stage
 #   ./scripts/test-e2e.sh --no-audit       # skip audit seal stage
-#   ./scripts/test-e2e.sh --model mistral  # use a different Ollama model
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -27,14 +26,12 @@ fail()  { echo -e "${RED}  ✗ $*${NC}"; }
 header(){ echo -e "\n${BOLD}━━ $* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"; }
 
 # ── arg parsing ───────────────────────────────────────────────────────────────
-SKIP_EXPLAIN=0; SKIP_UDP=0; SKIP_AUDIT=0; MODEL="llama3.2"
+SKIP_EXPLAIN=0; SKIP_UDP=0; SKIP_AUDIT=0
 for arg in "$@"; do
   case $arg in
     --no-explain) SKIP_EXPLAIN=1 ;;
     --no-udp)     SKIP_UDP=1 ;;
     --no-audit)   SKIP_AUDIT=1 ;;
-    --model)      shift; MODEL="$1" ;;
-    --model=*)    MODEL="${arg#*=}" ;;
   esac
 done
 
@@ -46,7 +43,7 @@ UDP_ADDR="127.0.0.1:9100"   # use 9100 to avoid conflicting with other processes
 echo -e "${BOLD}clarus end-to-end test${NC}"
 echo    "  profile : $PROFILE"
 echo    "  fixture : $FIXTURE"
-echo    "  model   : $MODEL"
+echo    "  llm-url : $LLM_URL (model auto-discovered)"
 ERRORS=0
 
 # ── stage 1: build ────────────────────────────────────────────────────────────
@@ -98,7 +95,7 @@ else
 fi
 
 # ── stage 4: CSV replay with --explain ───────────────────────────────────────
-header "Stage 4 — CSV replay with --explain (Ollama)"
+header "Stage 4 — CSV replay with --explain (llama-server)"
 if [[ "$SKIP_EXPLAIN" -eq 1 ]]; then
   warn "Skipped (--no-explain)"
 else
@@ -113,8 +110,7 @@ else
       --input "file://$FIXTURE" \
       --profile "$PROFILE" \
       --explain \
-      --llm-url "$LLM_URL" \
-      --model "$MODEL" 2>&1)
+      --llm-url "$LLM_URL" 2>&1)
 
     EXPLAIN_LINES=$(echo "$EXPLAIN_OUT" | grep -c "\\[EXPLANATION" || true)
     UNGROUNDED=$(echo "$EXPLAIN_OUT" | grep -c "ungrounded" || true)
