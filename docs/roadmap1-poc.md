@@ -82,6 +82,7 @@ Categories are defined by **data modality** (what the signal is), not by use cas
 | Source | Phase | Notes |
 |---|---|---|
 | Video file upload | Phase 0 demo | Offline analysis; same adapter as RTSP without live streaming |
+| Webcam / smartphone IP camera | Phase 0 dev | Home miniature verification; same YOLOv8 + tracker pipeline as RTSP; scale defined in `profiles/home-test/params.toml` |
 | RTSP stream — IP camera | Phase 2 | Existing CCTV; vision model (YOLOv8) + tracker → EntityStream |
 | RTSP stream — thermal camera | Phase 2 | Same adapter as IP camera; perimeter / night operations |
 
