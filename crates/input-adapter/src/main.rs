@@ -28,9 +28,9 @@ const USAGE: &str = "Usage: clarus --input <source> --profile <dir> [options]
   --device-id ID              device identifier written into each AuditRecord (default: clarus-dev)
 
 Examples:
-  clarus --input file://fixtures/forklift_approach.csv --profile profiles/sg-port-safety
-  clarus --input udp://127.0.0.1:9000 --profile profiles/sg-port-safety --explain
-  clarus --input file://fixtures/forklift_approach.csv --profile profiles/sg-port-safety --explain --audit-key <HEX>
+  clarus --input file://fixtures/forklift_approach.csv --profile profiles/demo
+  clarus --input udp://127.0.0.1:9000 --profile profiles/demo --explain
+  clarus --input file://fixtures/forklift_approach.csv --profile profiles/demo --explain --audit-key <HEX>
 ";
 
 fn main() {

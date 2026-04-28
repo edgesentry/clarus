@@ -132,7 +132,7 @@ Goal: `EntityStream` → `RiskEvent`. No vision, no LLM. Deterministic and testa
 - [x] Unity scene: C# scripts + setup guide — `ClarusUdpExporter.cs`, `ClarusEntity.cs`, `ForkliftPath.cs` ([PR #14](https://github.com/edgesentry/clarus/pull/14), see `unity/README.md`)
 - [x] CLI binary (`main.rs`) + CSV file replay (`file_replay.rs`) — ([PR #10](https://github.com/edgesentry/clarus/pull/10))
 
-**Deliverable:** ✅ `cargo run --bin clarus -- --input file://fixtures/forklift_approach.csv --profile profiles/sg-port-safety` fires `MPA_CLEARANCE_5M` (HIGH) + `TTC_CRITICAL_3S` (HIGH) across all 15 frames; TTC drops 2.29 s → 0.89 s as FL-01 closes to 1.24 m. (86 tests passing across engine + adapter)
+**Deliverable:** ✅ `cargo run --bin clarus -- --input file://fixtures/forklift_approach.csv --profile profiles/demo` fires `MPA_CLEARANCE_5M` (HIGH) + `TTC_CRITICAL_3S` (HIGH) across all 15 frames; TTC drops 2.29 s → 0.89 s as FL-01 closes to 1.24 m. (86 tests passing across engine + adapter)
 
 **Live UDP:** `--input udp://127.0.0.1:9000` ready; requires Unity scene (issue #6 — pending).
 
@@ -152,7 +152,7 @@ Goal: `RiskEvent` → natural-language explanation with verifiable regulation ci
 - [x] `--explain` flag wired into `clarus` binary — `--ollama-url` and `--model` configurable ([PR #13](https://github.com/edgesentry/clarus/pull/13))
 - [ ] Pipe `RiskEvent + explanation` into `edgesentry-audit::seal()` → `AuditRecord`
 
-**Deliverable:** ✅ `cargo run --bin clarus -- --input file://fixtures/forklift_approach.csv --profile profiles/sg-port-safety --explain` calls local Ollama for each RiskEvent and prints a grounded plain-language alert with `✓` / `⚠ ungrounded` marker. (97 tests passing: 60 engine + 11 explanation + 26 adapter)
+**Deliverable:** ✅ `cargo run --bin clarus -- --input file://fixtures/forklift_approach.csv --profile profiles/demo --explain` calls local Ollama for each RiskEvent and prints a grounded plain-language alert with `✓` / `⚠ ungrounded` marker. (97 tests passing: 60 engine + 11 explanation + 26 adapter)
 
 **Remaining:** `AuditRecord` seal (blocked on `edgesentry-audit` integration — Week 3–4 follow-on).
 
@@ -214,18 +214,20 @@ Goal: end-to-end screen-recordable demo showing the split-screen comparison and 
 
 ### Production-quality profile
 
-- [ ] `profiles/sg-port-safety/rules.json` — expand from 3 demo rules to full set:
+> Profiles are commercial IP and live in `clarus-commercial` (private repo). See issue #24.
+
+- [ ] `clarus-commercial/profiles/sg-port-safety/rules.json` — expand from 3 seed rules to full set:
   - All MPA Port Safety Circular No. 14 of 2023 rules (§§3–7)
   - MOM WSH (Docks) Regulations §§12, 14, 18
   - Crane exclusion zone rules (swing radius by crane class)
   - Mooring line snap-back zone geometry
   - Gangway boarding swell check (if wave height sensor available)
-- [ ] `profiles/sg-port-safety/params.toml` — validated per-class braking distances:
+- [ ] `clarus-commercial/profiles/sg-port-safety/params.toml` — validated per-class braking distances:
   - Forklift 3.5T @ 10 km/h: 4.1 m
   - Reach stacker @ 15 km/h: 8.2 m
   - Terminal tractor @ 20 km/h: 12.4 m
   - Person (pedestrian): 0 (static threshold)
-- [ ] `profiles/sg-port-safety/manifest.toml`:
+- [ ] `clarus-commercial/profiles/sg-port-safety/manifest.toml`:
   ```toml
   jurisdiction = "SG"
   regulations = ["MPA-Circular-14-2023", "MOM-WSH-Docks-Regs-2020"]
@@ -311,7 +313,7 @@ Build the Actuarial Simulation Environment CLI:
 # Insurer feeds historical incident CSV → physics engine re-runs each event
 clarus actuarial-sim \
   --incidents historical_incidents_2022_2024.csv \
-  --profile profiles/sg-port-safety \
+  --profile profiles/demo \
   --output actuarial_forecast_gard_2026.pdf
 ```
 

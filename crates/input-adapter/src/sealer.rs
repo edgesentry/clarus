@@ -98,7 +98,7 @@ mod tests {
         RiskEvent {
             rule_id: rule_id.to_string(),
             severity: Severity::High,
-            regulation: "MPA §3.1".to_string(),
+            regulation: "Site Safety §3.1".to_string(),
             entity_ids: vec!["FL-01".to_string(), "W-03".to_string()],
             measured_value: 3.2,
             threshold: 5.0,
@@ -110,7 +110,7 @@ mod tests {
     fn seal_produces_verifiable_record() {
         let kp = generate_keypair();
         let mut sealer = ClarusSealer::new("clarus-test".to_string(), kp.private_key_hex.clone());
-        let event = sample_event("MPA_CLEARANCE_5M", 1000);
+        let event = sample_event("PROXIMITY_ALERT", 1000);
         let record = sealer.seal(&event, None).expect("seal should succeed");
         let valid = edgesentry_audit::verify_record(&record, &kp.public_key_hex)
             .expect("verify should run");
@@ -121,7 +121,7 @@ mod tests {
     fn seal_with_explanation_produces_verifiable_record() {
         let kp = generate_keypair();
         let mut sealer = ClarusSealer::new("clarus-test".to_string(), kp.private_key_hex.clone());
-        let event = sample_event("MPA_CLEARANCE_5M", 1000);
+        let event = sample_event("PROXIMITY_ALERT", 1000);
         let explanation = Explanation {
             rule_id: event.rule_id.clone(),
             kb_snippet: "Minimum 5 m clearance required.".to_string(),
@@ -140,9 +140,9 @@ mod tests {
         let kp = generate_keypair();
         let mut sealer = ClarusSealer::new("clarus-test".to_string(), kp.private_key_hex.clone());
         let events = [
-            sample_event("MPA_CLEARANCE_5M", 1000),
-            sample_event("TTC_CRITICAL_3S", 2000),
-            sample_event("MPA_CLEARANCE_5M", 3000),
+            sample_event("PROXIMITY_ALERT", 1000),
+            sample_event("TTC_ALERT", 2000),
+            sample_event("PROXIMITY_ALERT", 3000),
         ];
         let records: Vec<AuditRecord> = events
             .iter()

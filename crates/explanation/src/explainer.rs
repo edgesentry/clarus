@@ -128,21 +128,21 @@ mod tests {
 
     #[test]
     fn grounded_when_all_refs_in_kb() {
-        let kb = "MPA §3.1 requires 5 m clearance.";
+        let kb = "Site Safety §3.1 requires 5 m clearance.";
         let llm = "According to §3.1, clearance was breached.";
         assert!(is_grounded(llm, kb));
     }
 
     #[test]
     fn not_grounded_when_extra_ref_hallucinated() {
-        let kb = "MPA §3.1 requires 5 m clearance.";
+        let kb = "Site Safety §3.1 requires 5 m clearance.";
         let llm = "According to §3.1 and §7.4, clearance was breached.";
         assert!(!is_grounded(llm, kb));
     }
 
     #[test]
     fn grounded_when_no_refs_in_output() {
-        let kb = "MPA §3.1 requires 5 m clearance.";
+        let kb = "Site Safety §3.1 requires 5 m clearance.";
         let llm = "The clearance was breached. Immediate action required.";
         assert!(is_grounded(llm, kb));
     }
@@ -151,16 +151,16 @@ mod tests {
     fn build_prompt_contains_key_fields() {
         use clarus_engine::rules::{RiskEvent, Severity};
         let event = RiskEvent {
-            rule_id: "MPA_CLEARANCE_5M".to_string(),
+            rule_id: "PROXIMITY_ALERT".to_string(),
             severity: Severity::High,
-            regulation: "MPA §3.1".to_string(),
+            regulation: "Site Safety §3.1".to_string(),
             entity_ids: vec!["FL-01".to_string(), "W-03".to_string()],
             measured_value: 3.2,
             threshold: 5.0,
             timestamp_ms: 1000,
         };
         let prompt = build_prompt(&event, "FL-01 and W-03", "Minimum 5 m clearance.");
-        assert!(prompt.contains("MPA_CLEARANCE_5M"));
+        assert!(prompt.contains("PROXIMITY_ALERT"));
         assert!(prompt.contains("3.20"));
         assert!(prompt.contains("5.00"));
         assert!(prompt.contains("FL-01 and W-03"));

@@ -47,24 +47,24 @@ Replays `fixtures/forklift_approach.csv`: FL-01 (forklift at 1.4 m/s) closes on 
 ```bash
 cargo run --bin clarus -- \
   --input file://fixtures/forklift_approach.csv \
-  --profile profiles/sg-port-safety
+  --profile profiles/demo
 ```
 
 Expected output (first and last frames):
 
 ```
-Loaded 3 rules from profiles/sg-port-safety/rules.json
+Loaded 3 rules from profiles/demo/rules.json
 Replaying 15 frames from fixtures/forklift_approach.csv
-[t=1000ms] RISK High  rule=MPA_CLEARANCE_5M  entities=["FL-01","W-03"]  value=3.20  threshold=5.00  reg=MPA Port Safety Circular No. 14 of 2023 §3.1
-[t=1000ms] RISK High  rule=TTC_CRITICAL_3S   entities=["FL-01","W-03"]  value=2.29  threshold=3.00  reg=MPA Port Safety Circular No. 14 of 2023 §3.2
+[t=1000ms] RISK High  rule=PROXIMITY_ALERT  entities=["FL-01","W-03"]  value=3.20  threshold=5.00  reg=Site Safety Procedure §3.1
+[t=1000ms] RISK High  rule=TTC_ALERT   entities=["FL-01","W-03"]  value=2.29  threshold=3.00  reg=Site Safety Procedure §3.1
 ...
-[t=2400ms] RISK High  rule=TTC_CRITICAL_3S   entities=["FL-01","W-03"]  value=0.89  threshold=3.00  ...
+[t=2400ms] RISK High  rule=TTC_ALERT   entities=["FL-01","W-03"]  value=0.89  threshold=3.00  ...
 Replay complete.
 ```
 
 What to look for:
-- `MPA_CLEARANCE_5M` fires every frame (distance stays below 5 m throughout)
-- `TTC_CRITICAL_3S` fires with decreasing value (2.29 s → 0.89 s) as FL-01 closes in
+- `PROXIMITY_ALERT` fires every frame (distance stays below 5 m throughout)
+- `TTC_ALERT` fires with decreasing value (2.29 s → 0.89 s) as FL-01 closes in
 - `EXCLUSION_ZONE_BREACH` fires because both entities start inside the seed zone polygon
 
 ---
@@ -83,16 +83,16 @@ Then run clarus with the `--explain` flag:
 ```bash
 cargo run --bin clarus -- \
   --input file://fixtures/forklift_approach.csv \
-  --profile profiles/sg-port-safety \
+  --profile profiles/demo \
   --explain
 ```
 
 Each RiskEvent now gets a plain-language explanation line:
 
 ```
-[t=1000ms] RISK High  rule=MPA_CLEARANCE_5M  entities=["FL-01","W-03"]  value=3.20  threshold=5.00  ...
+[t=1000ms] RISK High  rule=PROXIMITY_ALERT  entities=["FL-01","W-03"]  value=3.20  threshold=5.00  ...
   [EXPLANATION ✓] Forklift FL-01 is 3.20 m from worker W-03, which is below the 5-metre minimum
-  clearance required by MPA Port Safety Circular No. 14 of 2023 §3.1. The vehicle operator must
+  clearance required by Site Safety Procedure §3.1. The vehicle operator must
   stop immediately or a banksman must be appointed before movement resumes.
 ```
 
@@ -104,14 +104,14 @@ The `✓` means the explanation is grounded — every regulation clause it cites
 # Use Mistral instead of Llama 3.2
 cargo run --bin clarus -- \
   --input file://fixtures/forklift_approach.csv \
-  --profile profiles/sg-port-safety \
+  --profile profiles/demo \
   --explain \
   --model mistral
 
 # Point to Ollama on another machine
 cargo run --bin clarus -- \
   --input file://fixtures/forklift_approach.csv \
-  --profile profiles/sg-port-safety \
+  --profile profiles/demo \
   --explain \
   --ollama-url http://192.168.1.10:11434
 ```
@@ -127,7 +127,7 @@ Simulates Unity sending entity data in real time. Open two terminal windows in t
 ```bash
 cargo run --bin clarus -- \
   --input udp://127.0.0.1:9000 \
-  --profile profiles/sg-port-safety
+  --profile profiles/demo
 ```
 
 Output: `Listening on udp://127.0.0.1:9000 …`  (blocks, waiting for packets)
@@ -166,7 +166,7 @@ Terminal 1 will print RiskEvents in real time as each packet arrives.
 # Terminal 1
 cargo run --bin clarus -- \
   --input udp://127.0.0.1:9000 \
-  --profile profiles/sg-port-safety \
+  --profile profiles/demo \
   --explain
 
 # Terminal 2
@@ -179,7 +179,7 @@ python3 scripts/sim-unity-udp.py --interval 0.5  # slower, easier to read
 
 | Scenario | Command | Rules expected to fire |
 |---|---|---|
-| `approach` | `--scenario approach` | `MPA_CLEARANCE_5M`, `TTC_CRITICAL_3S` |
+| `approach` | `--scenario approach` | `PROXIMITY_ALERT`, `TTC_ALERT` |
 | `exclusion` | `--scenario exclusion` | `EXCLUSION_ZONE_BREACH` |
 | `safe` | `--scenario safe` | none |
 
@@ -190,11 +190,11 @@ python3 scripts/sim-unity-udp.py --interval 0.5  # slower, easier to read
 The `--profile` flag points to a directory containing:
 
 ```
-profiles/sg-port-safety/
+profiles/demo/
   rules.json        ← rule definitions (condition, severity, regulation citation)
   kb/
-    MPA_CLEARANCE_5M.txt      ← regulation text retrieved for LLM prompt
-    TTC_CRITICAL_3S.txt
+    PROXIMITY_ALERT.txt      ← regulation text retrieved for LLM prompt
+    TTC_ALERT.txt
     EXCLUSION_ZONE_BREACH.txt
 ```
 
@@ -210,4 +210,4 @@ To test a different rule set, create a new profile directory with its own `rules
 | `[EXPLANATION ERROR] Ollama request failed` | Ollama not running | `ollama serve` in a separate terminal |
 | `Model 'llama3.2' not found` | Model not pulled | `ollama pull llama3.2` |
 | No events printed during UDP test | Packets sent before listener ready | Wait for `Listening on udp://…` before sending |
-| `Cannot read profiles/sg-port-safety/rules.json` | Run from wrong directory | Run commands from repo root, not from `crates/` |
+| `Cannot read profiles/demo/rules.json` | Run from wrong directory | Run commands from repo root, not from `crates/` |

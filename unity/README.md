@@ -64,15 +64,15 @@ Open a terminal in the `clarus` repo root and start the listener **before** pres
 ```bash
 cargo run --bin clarus -- \
   --input udp://127.0.0.1:9000 \
-  --profile profiles/sg-port-safety
+  --profile profiles/demo
 ```
 
 Press **Play** in the Unity Editor. You should immediately see risk events in the terminal:
 
 ```
 Listening on udp://127.0.0.1:9000 …
-[t=1714209600123ms] RISK High  rule=MPA_CLEARANCE_5M  entities=["FL-01","W-03"]  value=3.20  threshold=5.00
-[t=1714209600223ms] RISK High  rule=TTC_CRITICAL_3S   entities=["FL-01","W-03"]  value=2.29  threshold=3.00
+[t=1714209600123ms] RISK High  rule=PROXIMITY_ALERT  entities=["FL-01","W-03"]  value=3.20  threshold=5.00
+[t=1714209600223ms] RISK High  rule=TTC_ALERT   entities=["FL-01","W-03"]  value=2.29  threshold=3.00
 ```
 
 ---
@@ -131,8 +131,8 @@ Attach to the forklift alongside `ClarusEntity`. Drives a looping straight-line 
 The scene meets the issue #6 acceptance criteria when:
 
 1. Unity Play mode starts and the exporter logs `Streaming to udp://127.0.0.1:9000 at 10 Hz`
-2. `clarus` prints `MPA_CLEARANCE_5M` (distance < 5 m) within the first packet
-3. `TTC_CRITICAL_3S` fires with a value below 3.0 s as FL-01 accelerates toward W-03
+2. `clarus` prints `PROXIMITY_ALERT` (distance < 5 m) within the first packet
+3. `TTC_ALERT` fires with a value below 3.0 s as FL-01 accelerates toward W-03
 4. After the forklift reaches the end position and pauses, no TTC event fires (approach rate = 0)
 
 Run the automated end-to-end test to confirm:

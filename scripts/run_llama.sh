@@ -93,7 +93,7 @@ for i in $(seq 1 30); do
     echo "Run clarus with --explain:"
     echo "  cargo run --bin clarus -- \\"
     echo "    --input file://fixtures/forklift_approach.csv \\"
-    echo "    --profile profiles/sg-port-safety \\"
+    echo "    --profile profiles/demo \\"
     echo "    --explain --llm-url http://localhost:${PORT}"
     break
   fi
