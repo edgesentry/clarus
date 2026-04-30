@@ -15,6 +15,7 @@
     "rule_id": "EXCLUSION_ZONE_BREACH",
     "condition": "zone_member",
     "severity": "CRITICAL",
-    "regulation": "Site Safety Procedure §4.2 — exclusion zone violation"
+    "regulation": "Site Safety Procedure §4.2 — exclusion zone violation",
+    "zone": [[20, 5], [30, 5], [30, 15], [20, 15]]
   }
 ]
