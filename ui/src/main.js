@@ -4,186 +4,263 @@ import { createSplitScreen } from "./panels/SplitScreen.js";
 import { createReportPanel } from "./panels/ReportPanel.js";
 import { createVerifyPanel } from "./panels/VerifyPanel.js";
 
+// Paths are relative to the user's clarus checkout.
+// Production: sealed chain pulled from Cloudflare R2 — same pipeline, no local CSV.
+const FIXTURES_BASE = "/Users/yoheionishi/work/edgesentry/clarus/fixtures";
+const PROFILES_BASE = "/Users/yoheionishi/work/edgesentry/clarus/profiles";
+
+const SCENARIOS = [
+  {
+    id: "A",
+    label: "A — Safe Pass",
+    title: "Forklift FL-01 approaches Worker W-03",
+    story: [
+      "FL-01 enters at 1 m/s. Generic AI fires 4 alerts during the safe approach.",
+      "clarus stays silent — braking distance (0.3 m) is well within the remaining gap.",
+      "At t = 6 s, FL-01 accelerates to 3 m/s. TTC drops to 2.0 s → clarus fires once.",
+      "Result: 4 false alarms vs 1 correct alert.",
+    ],
+    regulation: "MPA Port Safety Circular 2024-07 §3.1 — 5 m minimum clearance",
+    csvPath: `${FIXTURES_BASE}/forklift_approach.csv`,
+    profileDir: `${PROFILES_BASE}/demo`,
+  },
+  {
+    id: "B",
+    label: "B — High Speed",
+    title: "Forklift FL-01 entering at 14 km/h (4 m/s)",
+    story: [
+      "At 4 m/s, braking distance = 5.3 m. Physics detects danger from 11.5 m — before the 8 m generic zone.",
+      "clarus fires at t = 2 s. Generic doesn't fire until t = 3 s — 1 second later, gap only 7.5 m remaining.",
+      "A system that waits for 8 m clearance gives insufficient warning at high speed.",
+      "Result: physics warns 1 s earlier, with physics rationale attached.",
+    ],
+    regulation: "MPA Port Safety Circular 2024-07 §3.1 — braking distance exceeds gap",
+    csvPath: `${FIXTURES_BASE}/high_speed_entry.csv`,
+    profileDir: `${PROFILES_BASE}/demo`,
+  },
+  {
+    id: "C",
+    label: "C — Fleet Coverage",
+    title: "Two forklifts converging on Worker W-03 from opposite sides",
+    story: [
+      "FL-01 approaches from the left, FL-02 from the right. W-03 is in the centre.",
+      "Generic AI fires independently for each entity pair as they enter 8 m — producing many alerts.",
+      "clarus evaluates all 3 entity pairs simultaneously: FL-01 ↔ W-03, FL-02 ↔ W-03, FL-01 ↔ FL-02.",
+      "Result: 3 targeted physics alerts at the moment all three pairs are simultaneously dangerous.",
+    ],
+    regulation: "MPA Port Safety Circular 2024-07 §3.1 — all powered vehicle / pedestrian pairs",
+    csvPath: `${FIXTURES_BASE}/dual_forklift.csv`,
+    profileDir: `${PROFILES_BASE}/demo`,
+  },
+];
+
 document.addEventListener("DOMContentLoaded", () => {
   const app = document.getElementById("app");
 
-  // ── Toolbar ──────────────────────────────────────────────────────────────
+  // ── Toolbar ───────────────────────────────────────────────────────────────
   const toolbar = document.createElement("div");
   toolbar.id = "toolbar";
   toolbar.innerHTML = `
     <h1>clarus</h1>
-    <span class="toolbar-label">CSV path</span>
-    <input class="toolbar-input" id="csv-path" type="text"
-           placeholder="/path/to/forklift_approach.csv"
-           value="/Users/yoheionishi/work/edgesentry/clarus/fixtures/forklift_approach.csv" />
-    <span class="toolbar-label">Profile dir</span>
-    <input class="toolbar-input" id="profile-dir" type="text"
-           placeholder="/path/to/profiles/demo"
-           value="/Users/yoheionishi/work/edgesentry/clarus/profiles/demo" />
     <span class="toolbar-label">LLM URL</span>
     <input class="toolbar-input" id="llm-url" type="text"
            placeholder="http://localhost:8080"
            value="http://localhost:8080"
-           style="min-width:160px" />
-    <button class="run-btn" id="run-btn">Run Demo</button>
+           style="min-width:170px" />
+    <span class="toolbar-label" style="color:#4a5068;font-size:10px">
+      LLM off? run <code style="color:#8b949e">./scripts/run_llama.sh</code>
+    </span>
+    <div style="flex:1"></div>
     <span class="toolbar-label">Speed</span>
     <select class="speed-select" id="speed-select">
-      <option value="600">0.2x</option>
-      <option value="300" selected>0.5x</option>
-      <option value="150">1x</option>
-      <option value="75">2x</option>
+      <option value="600">0.2×</option>
+      <option value="300" selected>0.5×</option>
+      <option value="150">1×</option>
+      <option value="75">2×</option>
     </select>
+    <button class="run-btn" id="run-btn">▶ Run Demo</button>
   `;
   app.appendChild(toolbar);
 
-  // ── Tab bar ──────────────────────────────────────────────────────────────
+  // ── Main tab bar ──────────────────────────────────────────────────────────
   const tabBar = document.createElement("div");
   tabBar.id = "tab-bar";
-
-  const tabs = [
-    { id: "tab-demo",   label: "Demo" },
-    { id: "tab-report", label: "Report" },
-    { id: "tab-verify", label: "Verify" },
-  ];
-
-  const tabBtns = {};
-  tabs.forEach(({ id, label }, i) => {
+  ["Demo", "Report", "Verify"].forEach((label, i) => {
     const btn = document.createElement("button");
     btn.className = "tab-btn" + (i === 0 ? " active" : "");
-    btn.id = id;
+    btn.dataset.tab = label.toLowerCase();
     btn.textContent = label;
     tabBar.appendChild(btn);
-    tabBtns[id] = btn;
   });
   app.appendChild(tabBar);
 
-  // ── Content area ─────────────────────────────────────────────────────────
+  // ── Content area ──────────────────────────────────────────────────────────
   const content = document.createElement("div");
   content.id = "content";
   app.appendChild(content);
 
-  // Demo tab panel
-  const demoPanel = document.createElement("div");
-  demoPanel.className = "tab-panel active";
-  demoPanel.id = "panel-demo";
-  content.appendChild(demoPanel);
-
-  // Report tab panel
-  const reportPanel = document.createElement("div");
-  reportPanel.className = "tab-panel";
-  reportPanel.id = "panel-report";
-  content.appendChild(reportPanel);
-
-  // Verify tab panel
-  const verifyPanel = document.createElement("div");
-  verifyPanel.className = "tab-panel";
-  verifyPanel.id = "panel-verify";
-  content.appendChild(verifyPanel);
-
-  // Tab switching
-  const panels = {
-    "tab-demo":   demoPanel,
-    "tab-report": reportPanel,
-    "tab-verify": verifyPanel,
-  };
-
-  Object.entries(tabBtns).forEach(([id, btn]) => {
-    btn.addEventListener("click", () => {
-      Object.values(tabBtns).forEach((b) => b.classList.remove("active"));
-      Object.values(panels).forEach((p) => p.classList.remove("active"));
-      btn.classList.add("active");
-      panels[id].classList.add("active");
-    });
-  });
-
-  // ── Mount panels ─────────────────────────────────────────────────────────
-  const splitScreen = createSplitScreen();
-  demoPanel.appendChild(splitScreen.el);
-
-  const reportPanelComp = createReportPanel();
-  reportPanel.appendChild(reportPanelComp.el);
-
-  const verifyPanelComp = createVerifyPanel();
-  verifyPanel.appendChild(verifyPanelComp.el);
-
-  // ── Status bar ───────────────────────────────────────────────────────────
+  // Status bar
   const statusBar = document.createElement("div");
   statusBar.id = "status-bar";
-  statusBar.textContent = "Ready — load a CSV to start the demo.";
+  statusBar.textContent = "Select a scenario and press Run Demo.";
   app.appendChild(statusBar);
 
-  function setStatus(msg) {
-    statusBar.textContent = msg;
-  }
+  function setStatus(msg) { statusBar.textContent = msg; }
 
-  // ── Run Demo ─────────────────────────────────────────────────────────────
+  // ── Demo panel (contains scenario sub-tabs + split-screens) ───────────────
+  const demoPanel = document.createElement("div");
+  demoPanel.className = "tab-panel active";
+  demoPanel.style.flexDirection = "column";
+
+  // Scenario sub-tab bar
+  const scenarioBar = document.createElement("div");
+  scenarioBar.id = "scenario-bar";
+  SCENARIOS.forEach((s, i) => {
+    const btn = document.createElement("button");
+    btn.className = "scenario-btn" + (i === 0 ? " active" : "");
+    btn.dataset.sid = s.id;
+    btn.textContent = s.label;
+    scenarioBar.appendChild(btn);
+  });
+  demoPanel.appendChild(scenarioBar);
+
+  // Create one split-screen per scenario
+  const scenarioPanels = {};
+  const splitScreens = {};
+
+  SCENARIOS.forEach((s, i) => {
+    const panel = document.createElement("div");
+    panel.className = "scenario-panel" + (i === 0 ? " active" : "");
+    panel.dataset.sid = s.id;
+
+    // Scenario story card
+    const storyCard = document.createElement("div");
+    storyCard.className = "story-card";
+    storyCard.innerHTML = `
+      <div class="story-title">${s.title}</div>
+      <ul class="story-bullets">
+        ${s.story.map(line => `<li>${line}</li>`).join("")}
+      </ul>
+      <div class="story-reg">${s.regulation}</div>
+      <div class="story-source">
+        Demo: local fixture replay.
+        Production: sealed records pulled from Cloudflare R2 — same pipeline, edge-signed with BLAKE3 + Ed25519.
+      </div>
+    `;
+    panel.appendChild(storyCard);
+
+    // Split-screen component
+    const ss = createSplitScreen();
+    panel.appendChild(ss.el);
+
+    scenarioPanels[s.id] = panel;
+    splitScreens[s.id] = ss;
+    demoPanel.appendChild(panel);
+  });
+
+  content.appendChild(demoPanel);
+
+  // ── Report panel ──────────────────────────────────────────────────────────
+  const reportPanel = document.createElement("div");
+  reportPanel.className = "tab-panel";
+  const reportComp = createReportPanel();
+  reportPanel.appendChild(reportComp.el);
+  content.appendChild(reportPanel);
+
+  // ── Verify panel ──────────────────────────────────────────────────────────
+  const verifyPanel = document.createElement("div");
+  verifyPanel.className = "tab-panel";
+  const verifyComp = createVerifyPanel();
+  verifyPanel.appendChild(verifyComp.el);
+  content.appendChild(verifyPanel);
+
+  // ── Tab switching ─────────────────────────────────────────────────────────
+  const mainPanels = {
+    demo: demoPanel,
+    report: reportPanel,
+    verify: verifyPanel,
+  };
+  tabBar.addEventListener("click", (e) => {
+    const btn = e.target.closest(".tab-btn");
+    if (!btn) return;
+    tabBar.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    Object.values(mainPanels).forEach(p => p.classList.remove("active"));
+    btn.classList.add("active");
+    mainPanels[btn.dataset.tab].classList.add("active");
+  });
+
+  // ── Scenario sub-tab switching ────────────────────────────────────────────
+  let activeScenarioId = SCENARIOS[0].id;
+
+  scenarioBar.addEventListener("click", (e) => {
+    const btn = e.target.closest(".scenario-btn");
+    if (!btn) return;
+    const sid = btn.dataset.sid;
+    scenarioBar.querySelectorAll(".scenario-btn").forEach(b => b.classList.remove("active"));
+    Object.values(scenarioPanels).forEach(p => p.classList.remove("active"));
+    btn.classList.add("active");
+    scenarioPanels[sid].classList.add("active");
+    activeScenarioId = sid;
+  });
+
+  // ── Run Demo ──────────────────────────────────────────────────────────────
   let animHandle = null;
   let collectedPhysicsEvents = [];
 
   document.getElementById("run-btn").addEventListener("click", async () => {
-    const csvPath = document.getElementById("csv-path").value.trim();
-    const profileDir = document.getElementById("profile-dir").value.trim();
+    const scenario = SCENARIOS.find(s => s.id === activeScenarioId);
     const llmUrl = document.getElementById("llm-url").value.trim();
     const speedMs = parseInt(document.getElementById("speed-select").value, 10);
+    const ss = splitScreens[activeScenarioId];
 
-    if (!csvPath) {
-      setStatus("Error: CSV path is required.");
-      return;
-    }
-
-    // Cancel any running animation
     if (animHandle !== null) {
       clearTimeout(animHandle);
       animHandle = null;
     }
 
-    splitScreen.reset();
-    splitScreen.setConfig(profileDir, llmUrl);
+    ss.reset();
+    ss.setConfig(scenario.profileDir, llmUrl);
     collectedPhysicsEvents = [];
 
     const runBtn = document.getElementById("run-btn");
     runBtn.disabled = true;
-    setStatus("Running replay…");
+    runBtn.textContent = "Running…";
+    setStatus(`Scenario ${scenario.id}: loading replay…`);
 
     try {
       const result = await invoke("run_replay", {
-        csvPath,
-        profileDir,
+        csvPath: scenario.csvPath,
+        profileDir: scenario.profileDir,
       });
 
-      setStatus(
-        `Loaded ${result.frames.length} frames — animating at ${1000 / speedMs}x speed…`
-      );
+      setStatus(`Scenario ${scenario.id}: ${result.frames.length} frames loaded — playing at ${(1000 / speedMs).toFixed(1)}× speed…`);
 
-      // Animate frames
       let frameIndex = 0;
-
       function nextFrame() {
         if (frameIndex >= result.frames.length) {
+          const g = result.total_generic_alerts;
+          const p = result.total_physics_alerts;
           setStatus(
-            `Done — Generic AI fired ${result.total_generic_alerts} alert${result.total_generic_alerts !== 1 ? "s" : ""} · clarus fired ${result.total_physics_alerts} alert${result.total_physics_alerts !== 1 ? "s" : ""} · Click any clarus event on the right to see the physics explanation`
+            `Scenario ${scenario.id} done — Generic AI: ${g} alert${g !== 1 ? "s" : ""} · clarus: ${p} alert${p !== 1 ? "s" : ""} · Click any clarus event for physics explanation`
           );
           runBtn.disabled = false;
-          // Update report panel with collected events
-          reportPanelComp.updateEvents(collectedPhysicsEvents, "Demo Site");
+          runBtn.textContent = "▶ Run Demo";
+          reportComp.updateEvents(collectedPhysicsEvents, `Scenario ${scenario.id} — ${scenario.title}`);
           return;
         }
-
         const frame = result.frames[frameIndex++];
-        splitScreen.applyFrame(frame);
-
-        // Collect physics events
+        ss.applyFrame(frame);
         for (const evt of frame.physics_events || []) {
           collectedPhysicsEvents.push(evt);
         }
-
         animHandle = setTimeout(nextFrame, speedMs);
       }
-
       nextFrame();
+
     } catch (err) {
       setStatus(`Error: ${err}`);
       runBtn.disabled = false;
+      runBtn.textContent = "▶ Run Demo";
     }
   });
 });

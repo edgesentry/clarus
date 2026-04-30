@@ -399,6 +399,10 @@ export function createSplitScreen() {
       rightFeed.append(evt, false, (e) => {
         eventDetail.show(e, currentProfileDir, currentLlmUrl);
       });
+      // Auto-explain the first physics alert (LLM call fires automatically)
+      if (physicsCount === 1) {
+        eventDetail.show(evt, currentProfileDir, currentLlmUrl);
+      }
     }
   }
 
