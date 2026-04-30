@@ -1,154 +1,154 @@
 # clarus — User Personas
 
-4人のユーザーがいる。それぞれが抱える問題は異なる。clarusが解決するのは「記録がない」という問題ではない。「記録が信用されない」という問題だ。
+There are four users. Each has a different problem. clarus does not solve "we have no records." It solves "our records are not trusted."
 
 ---
 
 ## Persona 1 — Kenny Lim, Port Safety Manager
 
-**会社:** PSA Singapore, Pasir Panjang Terminal  
-**役職:** Safety & Health Manager  
-**年齢:** 44歳  
-**経験:** 港湾安全管理15年
+- **Company:** PSA Singapore, Pasir Panjang Terminal
+- **Role:** Safety & Health Manager
+- **Age:** 44
+- **Experience:** 15 years in port safety management
 
-### 背景
+### Background
 
-Kennyのターミナルでは月に数百台のフォークリフトと数千人の作業員が同じ空間で働く。安全ルールは厳格で、MPA Port Safety Circular 2024-07は5mクリアランスを義務付けている。しかし人間のオペレーターが毎秒それを確認することは不可能だ。
+Kenny's terminal runs hundreds of forklifts and thousands of workers in the same space every month. The rules are clear — MPA Port Safety Circular 2024-07 mandates 5m clearance between powered vehicles and pedestrians. But no human operator can verify that in real time, every second, across every zone.
 
-昨年、ヒヤリハット事故が1件起きた。MOMから報告書の提出を求められた。Kenny は「監視システムは稼働していた」と答えたが、証拠がなかった。ログはあったが、そのログが「事後に書かれていないという証明」ができなかった。
+Last year a near-miss incident occurred. MOM requested a report. Kenny stated that the monitoring system was active at the time. He had logs. But he could not prove those logs were written when the events happened — not after the fact. MOM noted the gap.
 
-### 目的
+### Goal
 
-> 「次にMOMが来たとき、『この時間、このエリアで、監視システムが稼働していて、これだけの違反を記録した』と、改竄不可能な証拠で即答したい。」
+> "The next time MOM arrives, I want to produce a tamper-proof record — timestamped by a third party, sealed against editing — showing exactly what monitoring was active, in which zone, during which shift, and what violations were recorded."
 
-### デモアプリで何をするか
+### How Kenny uses the demo app
 
-1. **Run Demo を押す** → フォークリフトと作業員がシナリオを再生する
-2. 左パネルの「誤報4回」を見て「これが今のシステムの問題だ」と認識する
-3. 右パネルの「正当な警告1回」を見て「これが欲しいものだ」と確信する
-4. HIGH イベントをクリック → `"Forklift FL-01 is 3.2m from Worker W-03 — below the 5m minimum required under MPA Port Safety Circular 2024-07 §3.1"` という説明を読む
-5. **Generate MOM Report を押す** → PDFが開く
-6. PDFを見て `"Generated: 30 Apr 2026 13:50 UTC"` と規制条項が印刷されているのを確認する
+1. **Presses Run Demo** — the forklift-approaches-worker scenario plays back
+2. Sees the left panel fire 4 alerts on a safe pass — recognises "this is the problem with what I have now"
+3. Sees the right panel stay silent until the real danger moment — "this is what I need"
+4. Clicks the HIGH event — reads `"Forklift FL-01 is 3.2m from Worker W-03 — below the 5m minimum required under MPA Port Safety Circular 2024-07 §3.1. Braking distance 4.1m exceeds remaining gap. Collision window: 2.3 seconds."`
+5. **Presses Generate MOM Report** — PDF opens automatically
+6. Reads the PDF: timestamp, regulation citation, measured value, threshold — all present
 
-### 目的が達成された瞬間
+### The moment his goal is achieved
 
-> PDFを手に取って「これをMOMに出せる。日時、規制条項、測定値、全部入っている。しかも私が作ったものじゃない、システムが自動生成して署名した記録だ。」
+> "I can hand this to MOM. The timestamp is in the PDF. The regulation clause is cited. The measured values are there. And I didn't write any of it — the system generated and signed it automatically. This is evidence I didn't produce myself."
 
 ---
 
-## Persona 2 — Sarah Tan, H&M Underwriter
+## Persona 2 — Sarah Tan, Senior H&M Underwriter
 
-**会社:** Britannia P&I Club, Singapore branch  
-**役職:** Senior Underwriter, Marine  
-**年齢:** 38歳  
-**経験:** 海上保険引受け12年
+**Company:** Britannia P&I Club, Singapore branch
+**Role:** Senior Underwriter, Marine
+**Age:** 38
+**Experience:** 12 years in marine insurance underwriting
 
-### 背景
+### Background
 
-Sarah は毎年、ターミナルオペレーターの保険料を再計算する。使えるデータはほぼない。事故件数と業種標準統計だけだ。「このターミナルは安全管理が優れている」という主張は聞くが、証明できる数字を持ってくる顧客は一人もいない。
+Sarah reprices terminal operator policies every renewal cycle. The data she has is almost nothing — incident counts and industry-average loss ratios. Every operator tells her their safety management is excellent. None of them can prove it with numbers.
 
-近年、シンガポールの MOM WSH 罰則が厳しくなり、重大事故後の P&I クレームが増えている。Sarah は「事前のリスク測定データ」があれば保険料率の差別化ができると思っている。しかし現状そのデータが存在しない。
+Singapore's MOM WSH penalties have tightened. P&I claims after serious incidents are increasing. Sarah believes that if she had pre-loss behavioural data — actual near-miss frequencies from actual sites — she could price risk differently. Right now that data does not exist anywhere.
 
-### 目的
+### Goal
 
-> 「このターミナルが実際にどれだけ near-miss を出しているか、時系列で見たい。過去2年分のデータがあれば、業界平均より低いことを数字で示して、保険料を下げる根拠にできる。」
+> "I want to see how many near-misses this terminal actually generates, in a time series. If I have two years of data showing their rate is below the industry average, I have a defensible basis for a premium reduction. Right now I'm pricing on guesswork."
 
-### デモアプリで何をするか
+### How Sarah uses the demo app
 
-1. **Run Demo を押す** → イベントフィードを見る（右パネル）
-2. イベントの `rule_id: PROXIMITY_ALERT, severity: HIGH, measured_value: 3.2, threshold: 5.0, regulation: MPA §3.1` という構造化データを見る
-3. 「このデータが月次で蓄積されれば、near-miss 頻度が計算できる」と理解する
-4. **Verify Audit Chain を押す** → AuditRecord JSON を貼り付けて緑チェックを確認する
-5. 「これは私が編集できないデータだ。オペレーターが改竄できない記録だ。」と理解する
+1. **Presses Run Demo** — watches the right panel event feed
+2. Reads the structured data on each event: `rule_id: PROXIMITY_ALERT, severity: HIGH, measured_value: 3.2, threshold: 5.0, regulation: MPA §3.1`
+3. Understands: "if this accumulates monthly across a site, I can calculate a near-miss frequency and compare it against my book"
+4. **Opens the Verify Audit Chain tab** — pastes an AuditRecord JSON, presses Verify
+5. Sees `"✓ Chain valid — 7 records, no tampering detected"` — understands the data cannot be edited by the operator
 
-### 目的が達成された瞬間
+### The moment her goal is achieved
 
-> 「この監査記録が2年分あれば、このサイトの near-miss 発生率を計算して、業界平均との乖離を数字で出せる。それが保険料の実績ベース割引の根拠になる。既存の顧客に提案できる。」
+> "If a site has two years of this data — structured, timestamped, tamper-proof — I can compute their near-miss rate, compare it to my portfolio average, and put a number on the discount. That's an actuarially defensible premium reduction. I can take that to the chief underwriter. No one has brought me this before."
 
 ---
 
 ## Persona 3 — David Wong, Terminal Operations Manager
 
-**会社:** Jurong Port, Singapore  
-**役職:** Terminal Operations Manager  
-**年齢:** 51歳  
-**経験:** ターミナル運営20年
+**Company:** Jurong Port, Singapore
+**Role:** Terminal Operations Manager
+**Age:** 51
+**Experience:** 20 years in terminal operations
 
-### 背景
+### Background
 
-David はこれまで3つの安全システムを導入して、3つとも失敗した。最初の6ヶ月はオペレーターが従うが、誤報が続くと「またか」とアラートを無視するようになる。最終的にシステムはオフにされ、経営陣への報告だけが残る。
+David has deployed three safety systems. All three failed. For the first six months, operators follow the alerts. Then false alarms accumulate — the system fires every time two entities are within 8 metres, including hundreds of safe passes per shift. Operators stop responding. Within a year the system is disabled, and the only thing left is the management report that says it was deployed.
 
-David は「新しいAI安全システム」という言葉を聞くと反射的に懐疑的になる。コストは現実的で、ROIは疑わしく、現場への導入摩擦は大きい。「動くものを見せてくれ」が口癖だ。
+David's reaction to "new AI safety system" is reflexive scepticism. He has heard the pitch. He knows the total cost of ownership. He knows the change management required to embed a new alert system on the floor. His standing response: "Show me something that works."
 
-### 目的
+### Goal
 
-> 「オペレーターが無視しないシステムが欲しい。誤報がなくなれば、本物の警告に反応するようになる。それだけでいい。」
+> "I need a system that operators won't ignore. If there are no false alarms, the real alert gets attention. That's the entire requirement."
 
-### デモアプリで何をするか
+### How David uses the demo app
 
-1. **Run Demo を押す** → 左パネルの「誤報4回」を見て「これが今使っているシステムだ」と苦笑する
-2. 右パネルの「静か、静か、静か、🚨 STOP」のシーケンスを見て前のめりになる
-3. HIGH イベントをクリック → `"braking distance 4.1m exceeds remaining gap 3.2m — collision window: 2.3 seconds"` を読む
-4. 「これはオペレーターが理解できる言葉だ。距離じゃなくて、止まれるかどうかで判断している。」と気づく
-5. 左パネルの4回と右パネルの1回を比較して「これなら現場が信頼する」と確信する
+1. **Presses Run Demo** — sees the left panel fire 4 times on the same safe pass and grimaces: "that's what I have"
+2. Watches the right panel: silent, silent, silent — then 🚨 STOP. Leans forward.
+3. Clicks the HIGH event — reads `"braking distance 4.1m exceeds remaining gap 3.2m — collision window: 2.3 seconds"`
+4. Realises: "this is physics, not pattern-matching. The system is asking 'can this forklift stop in time?' not 'are these two objects close?'"
+5. Compares 4 false alarms on the left to 1 correct alert on the right — "operators will respond to this"
 
-### 目的が達成された瞬間
+### The moment his goal is achieved
 
-> 「制動距離で判断するなら誤報は物理的に起きない。オペレーターは本物の警告だけを受け取る。6ヶ月で無視されるんじゃなくて、6ヶ月後も動いている。これが欲しかったものだ。」
+> "If the rule is physics — braking distance versus remaining gap — then false alarms are physically impossible on a safe pass. The operator only hears the alarm when the system cannot be wrong. Six months from now the system will still be running. That's what I've been trying to buy for the last decade."
 
 ---
 
 ## Persona 4 — Inspector James Ng, MOM WSH Officer
 
-**会社:** Ministry of Manpower, Singapore  
-**役職:** Workplace Safety & Health Inspector  
-**年齢:** 35歳  
-**経験:** WSH法執行6年
+**Company:** Ministry of Manpower, Singapore
+**Role:** Workplace Safety & Health Inspector
+**Age:** 35
+**Experience:** 6 years in WSH Act enforcement
 
-### 背景
+### Background
 
-James は年間数十件の抜き打ち検査を行う。重大事故後の調査では「事故当時、安全管理システムは本当に稼働していたか」を確認するのが主要な任務だ。
+James conducts dozens of inspections per year. After a serious incident his primary task is to establish whether the operator's safety management system was genuinely active at the time — not installed, not licensed, but running and recording.
 
-ほとんどのケースで、事業者は「稼働していた」と主張するが、証明できるのは自社保管のログだけだ。それが「その日に書かれた」という証明はない。James は何度も事後記録を見てきた。「ログがある」と「改竄されていないログがある」は全く別の話だ。
+In most cases the operator asserts the system was active. The only evidence available is logs held by the operator themselves. James has seen the pattern: operators produce logs that cannot be verified as contemporaneous. "Having a log" and "having a log that was written when the events happened" are not the same thing. James has flagged this distinction in several enforcement proceedings.
 
-### 目的
+### Goal
 
-> 「事故当時、システムが稼働していたことを、第三者が保有する改竄不可能な記録で確認したい。オペレーターが保管しているログは証拠にならない。」
+> "I need to verify that safety monitoring was active at the time of the incident — not from a record the operator controls, but from a record held by an independent third party that the operator cannot modify."
 
-### デモアプリで何をするか
+### How James uses the demo app
 
-1. 事業者からAuditRecord JSONを受け取る
-2. **Verify Audit Chain タブを開く** → JSONを貼り付けて Verify Chain ボタンを押す
-3. `"✓ Chain valid — 7 records, no tampering detected"` を確認する
-4. 各レコードの `timestamp_ms`, `rule_id`, `severity`, `prev_record_hash` を確認する
-5. チェーンが連続していて `prev_record_hash` が繋がっていることを確認する
+1. Receives an AuditRecord JSON from the operator
+2. **Opens the Verify Audit Chain tab** — pastes the JSON, presses Verify Chain
+3. Reads `"✓ Chain valid — 7 records, no tampering detected"`
+4. Inspects individual records: `timestamp_ms`, `rule_id`, `severity`, `prev_record_hash`
+5. Confirms the chain is continuous and each `prev_record_hash` links correctly to the previous record
 
-### 目的が達成された瞬間
+### The moment his goal is achieved
 
-> 「このチェーンは事業者が編集できない。clarus が保持する append-only クラウドに保存されていて、ハッシュ連鎖で改竄が検出される。事故当日の記録が本当にその日に生成されたことを、私が独立して検証できる。これは証拠になる。」
+> "The operator cannot edit this chain. It is held in clarus's append-only cloud store. The hash linkage means any deletion or modification is cryptographically detectable. I can verify independently — without asking the operator — that the record for the day of the incident was generated on that day. This is admissible evidence."
 
 ---
 
-## デモアプリとペルソナの対応表
+## Demo app feature × persona matrix
 
-| 機能 | Kenny (安全管理者) | Sarah (保険引受) | David (運営管理者) | James (MOM検査官) |
+| Feature | Kenny (Safety Manager) | Sarah (Underwriter) | David (Ops Manager) | James (MOM Inspector) |
 |---|---|---|---|---|
-| Run Demo (左右比較) | ✓ 誤報問題を認識 | ✓ データ構造を確認 | ✓ 誤報ゼロを確信 | — |
-| Event Detail (説明文) | ✓ 規制条項を確認 | ✓ 構造化データを確認 | ✓ 物理的根拠を理解 | — |
-| Generate MOM Report | ✓ **核心機能** | ✓ 月次データの形式を確認 | — | ✓ 記録の形式を確認 |
-| Verify Audit Chain | ✓ 改竄不可を理解 | ✓ 独立性を確認 | — | ✓ **核心機能** |
+| Run Demo — split-screen | ✓ Recognises false alarm problem | ✓ Sees data structure | ✓ Confirms zero false alarms | — |
+| Event Detail — explanation | ✓ Reads regulation citation | ✓ Reads structured fields | ✓ Understands physics basis | — |
+| Generate MOM Report | ✓ **Core feature** | ✓ Sees monthly report format | — | ✓ Sees record format |
+| Verify Audit Chain | ✓ Understands tamper-evidence | ✓ Confirms operator cannot edit | — | ✓ **Core feature** |
 
 ---
 
-## 「目的が達成された」の基準
+## What "goal achieved" means across all four
 
-4人全員に共通する一文がある：
+Every persona shares one sentence:
 
-> **「私がこの記録を作っていない」**
+> **"I didn't create this record."**
 
-Kenny：「私が書いたMOMレポートではなく、システムが自動生成した。」  
-Sarah：「オペレーターが編集できないデータだ。」  
-David：「物理演算が判断している。人間の恣意性がない。」  
-James：「第三者保有のチェーンで、私が独立に検証できる。」
+Kenny: "It wasn't written by me — the system generated and signed it."
+Sarah: "The operator cannot edit it — it's independent of the party with a stake in the outcome."
+David: "Physics computed it — no human judgement, no threshold tuning by the operator."
+James: "A third party holds it — I can verify it independently of the operator's claim."
 
-これが clarus の価値の核心だ。記録の存在ではなく、**記録の独立性**。
+This is the core of clarus's value. Not the existence of a record. **The independence of the record.**

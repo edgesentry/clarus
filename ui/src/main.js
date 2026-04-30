@@ -28,9 +28,10 @@ document.addEventListener("DOMContentLoaded", () => {
     <button class="run-btn" id="run-btn">Run Demo</button>
     <span class="toolbar-label">Speed</span>
     <select class="speed-select" id="speed-select">
-      <option value="200">0.5x</option>
-      <option value="100" selected>1x</option>
-      <option value="50">2x</option>
+      <option value="600">0.2x</option>
+      <option value="300" selected>0.5x</option>
+      <option value="150">1x</option>
+      <option value="75">2x</option>
     </select>
   `;
   app.appendChild(toolbar);
@@ -160,7 +161,7 @@ document.addEventListener("DOMContentLoaded", () => {
       function nextFrame() {
         if (frameIndex >= result.frames.length) {
           setStatus(
-            `Done — Generic AI: ${result.total_generic_alerts} alerts | clarus Physics: ${result.total_physics_alerts} alerts`
+            `Done — Generic AI fired ${result.total_generic_alerts} alert${result.total_generic_alerts !== 1 ? "s" : ""} · clarus fired ${result.total_physics_alerts} alert${result.total_physics_alerts !== 1 ? "s" : ""} · Click any clarus event on the right to see the physics explanation`
           );
           runBtn.disabled = false;
           // Update report panel with collected events

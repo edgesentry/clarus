@@ -111,8 +111,35 @@ body {
 /* Split screen */
 #split-screen {
   display: flex;
+  flex-direction: column;
   flex: 1;
-  gap: 0;
+  overflow: hidden;
+}
+
+/* Scenario banner */
+#scenario-banner {
+  padding: 8px 16px;
+  background: #111420;
+  border-bottom: 1px solid #2d3142;
+  flex-shrink: 0;
+}
+
+.scenario-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #c9d1d9;
+}
+
+.scenario-reg {
+  font-size: 10px;
+  color: #6a7080;
+  margin-top: 2px;
+}
+
+/* Split area (columns) */
+#split-area {
+  display: flex;
+  flex: 1;
   overflow: hidden;
 }
 
@@ -121,8 +148,8 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: 14px;
-  gap: 10px;
+  padding: 12px;
+  gap: 8px;
 }
 
 .panel-col.left-col { border-right: 1px solid #2d3142; }
@@ -156,6 +183,16 @@ body {
   font-size: 12px;
   font-weight: 600;
   color: #8b949e;
+}
+
+.counter-bad .counter-num {
+  font-size: 18px;
+  font-weight: 700;
+  color: #ff8787;
+}
+
+.counter-good {
+  color: #69db7c;
 }
 
 /* Event list */
