@@ -1,13 +1,13 @@
-use base64::Engine as _;
 use edgesentry_assess::assess;
 use edgesentry_evaluate::RiskEvent;
 use edgesentry_report::{generate_report, render_pdf, ReportConfig};
 
-/// Generate a MOM-format PDF safety report.
+/// Generate a MOM-format PDF, write it to a temp file, open with the OS
+/// default PDF viewer, and return the file path for display.
 ///
-/// Takes only `events_json` (serialised `Vec<RiskEvent>`) and `site_name`.
-/// Assessment is computed internally so the caller does not need to pass a
-/// pre-built Assessment struct — avoids JS/Rust enum serialisation mismatches.
+/// Tauri WebView intercepts target="_blank" links so blob URLs cannot open
+/// in an external browser. Writing to disk and calling the OS open command
+/// is the correct cross-platform approach.
 #[tauri::command]
 pub fn generate_pdf_report(
     events_json: String,
@@ -24,7 +24,6 @@ pub fn generate_pdf_report(
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_secs())
             .unwrap_or(0);
-        // Format as "Month YYYY" approximation from unix seconds
         let days = secs / 86400;
         let year = 1970 + days / 365;
         let month_idx = (days % 365) * 12 / 365;
@@ -39,8 +38,27 @@ pub fn generate_pdf_report(
         chain_valid: None,
     };
 
-    let report = generate_report(&events, &assessment, config);
+    let report    = generate_report(&events, &assessment, config);
     let pdf_bytes = render_pdf(&report);
 
-    Ok(base64::engine::general_purpose::STANDARD.encode(&pdf_bytes))
+    // Write to temp file
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let pdf_path = std::env::temp_dir().join(format!("clarus-report-{ts}.pdf"));
+    std::fs::write(&pdf_path, &pdf_bytes)
+        .map_err(|e| format!("write PDF: {e}"))?;
+
+    // Open with OS default PDF viewer
+    #[cfg(target_os = "macos")]
+    std::process::Command::new("open").arg(&pdf_path).spawn().ok();
+    #[cfg(target_os = "windows")]
+    std::process::Command::new("cmd")
+        .args(["/c", "start", "", &pdf_path.to_string_lossy().to_string()])
+        .spawn().ok();
+    #[cfg(target_os = "linux")]
+    std::process::Command::new("xdg-open").arg(&pdf_path).spawn().ok();
+
+    Ok(pdf_path.to_string_lossy().to_string())
 }

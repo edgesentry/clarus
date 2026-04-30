@@ -54,31 +54,13 @@ export function createReportPanel() {
     try {
       const eventsJson = JSON.stringify(allPhysicsEvents);
 
-      const b64Pdf = await invoke("generate_pdf_report", {
+      // Returns file path; Rust opens the OS default PDF viewer automatically
+      const pdfPath = await invoke("generate_pdf_report", {
         eventsJson,
         siteName,
       });
 
-      // Decode base64 → Blob → object URL → download link
-      const binary = atob(b64Pdf);
-      const bytes  = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-      const blob   = new Blob([bytes], { type: "application/pdf" });
-      const url    = URL.createObjectURL(blob);
-
-      // Create auto-click download link
-      const a = document.createElement("a");
-      a.href     = url;
-      a.download = `clarus-mom-report-${Date.now()}.pdf`;
-      a.style.display = "none";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-
-      // Also show a preview link
-      statusEl.innerHTML =
-        `✓ PDF generated (${Math.round(bytes.length / 1024)} KB) — ` +
-        `<a href="${url}" target="_blank" style="color:#00d4aa">open in browser</a>`;
+      statusEl.textContent = `✓ PDF opened — saved to: ${pdfPath}`;
       statusEl.style.display = "block";
 
       // Text preview
