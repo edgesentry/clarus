@@ -32,9 +32,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Rust
-        run: rustup update stable && rustup default stable
-
       - name: Prepare git metadata
         run: |
           git config user.name "github-actions[bot]"
@@ -122,32 +119,6 @@ jobs:
         run: |
           echo "Tag v${{ steps.semver.outputs.next_version }} already exists. Merge more commits before releasing."
           exit 1
-
-      - name: Update version in Cargo.toml
-        if: ${{ steps.guard.outputs.is_release_commit != 'true' && steps.tag_check.outputs.tag_exists != 'true' && steps.semver.outputs.next_version != steps.semver.outputs.current_version }}
-        env:
-          NEXT_VERSION: ${{ steps.semver.outputs.next_version }}
-        run: |
-          python3 - <<'PY'
-          import re, os
-          from pathlib import Path
-          next_version = os.environ['NEXT_VERSION']
-          path = Path('Cargo.toml')
-          lines = path.read_text(encoding='utf-8').splitlines()
-          section, updated = None, []
-          for line in lines:
-            s = line.strip()
-            if s.startswith('[') and s.endswith(']'):
-              section = s
-            if section == '[package]' and s.startswith('version = '):
-              line = re.sub(r'"[0-9]+\.[0-9]+\.[0-9]+"', f'"{next_version}"', line)
-            updated.append(line)
-          path.write_text('\n'.join(updated) + '\n', encoding='utf-8')
-          PY
-
-      - name: Sync Cargo.lock
-        if: ${{ steps.guard.outputs.is_release_commit != 'true' && steps.tag_check.outputs.tag_exists != 'true' && steps.semver.outputs.next_version != steps.semver.outputs.current_version }}
-        run: cargo generate-lockfile
 
       - name: Commit version bump
         if: ${{ steps.guard.outputs.is_release_commit != 'true' && steps.tag_check.outputs.tag_exists != 'true' && steps.semver.outputs.next_version != steps.semver.outputs.current_version }}
