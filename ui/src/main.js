@@ -141,10 +141,9 @@ document.addEventListener("DOMContentLoaded", () => {
       <ul class="story-bullets">
         ${s.story.map(line => `<li>${line}</li>`).join("")}
       </ul>
-      <div class="story-reg">${s.regulation}</div>
-      <div class="story-source">
-        Demo: local fixture replay.
-        Production: sealed records pulled from Cloudflare R2 — same pipeline, edge-signed with BLAKE3 + Ed25519.
+      <div class="story-meta">
+        <div class="story-reg">${s.regulation}</div>
+        <div class="story-source">Demo: local replay · Production: edge-signed → R2</div>
       </div>
     `;
     panel.appendChild(storyCard);
@@ -152,6 +151,39 @@ document.addEventListener("DOMContentLoaded", () => {
     // Split-screen component
     const ss = createSplitScreen();
     panel.appendChild(ss.el);
+
+    // Per-scenario PDF button (shown after demo runs)
+    const pdfBar = document.createElement("div");
+    pdfBar.className = "pdf-bar";
+    pdfBar.style.display = "none";
+    pdfBar.innerHTML = `
+      <button class="pdf-btn" data-sid="${s.id}">Generate PDF Report</button>
+      <span class="pdf-status" id="pdf-status-${s.id}"></span>
+    `;
+    panel.appendChild(pdfBar);
+
+    pdfBar.querySelector(".pdf-btn").addEventListener("click", async () => {
+      const btn = pdfBar.querySelector(".pdf-btn");
+      const statusEl = pdfBar.querySelector(".pdf-status");
+      btn.disabled = true;
+      btn.textContent = "Generating…";
+      statusEl.textContent = "";
+      try {
+        const eventsJson = JSON.stringify(scenarioPanels[s.id]._events || []);
+        const explanationsJson = JSON.stringify(ss.getExplanations());
+        const pdfPath = await invoke("generate_pdf_report", {
+          eventsJson,
+          siteName: s.title,
+          explanationsJson,
+        });
+        statusEl.textContent = `✓ Saved: ${pdfPath}`;
+      } catch (err) {
+        statusEl.textContent = `Error: ${err}`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Generate PDF Report";
+      }
+    });
 
     scenarioPanels[s.id] = panel;
     splitScreens[s.id] = ss;
@@ -246,6 +278,10 @@ document.addEventListener("DOMContentLoaded", () => {
           runBtn.disabled = false;
           runBtn.textContent = "▶ Run Demo";
           reportComp.updateEvents(collectedPhysicsEvents, `Scenario ${scenario.id} — ${scenario.title}`);
+          // Show per-scenario PDF button and stash events for it
+          const panel = scenarioPanels[activeScenarioId];
+          panel._events = collectedPhysicsEvents;
+          panel.querySelector(".pdf-bar").style.display = "flex";
           return;
         }
         const frame = result.frames[frameIndex++];

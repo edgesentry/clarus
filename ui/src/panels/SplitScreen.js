@@ -288,15 +288,6 @@ export function createSplitScreen() {
   const container = document.createElement("div");
   container.id = "split-screen";
 
-  // ── Scenario banner ──────────────────────────────────────────────────────
-  const banner = document.createElement("div");
-  banner.id = "scenario-banner";
-  banner.innerHTML = `
-    <div class="scenario-title">Scenario: Forklift FL-01 approaching Worker W-03</div>
-    <div class="scenario-reg">MPA Port Safety Circular 2024-07 §3.1 — 5m minimum clearance between powered vehicles and pedestrians</div>
-  `;
-  container.appendChild(banner);
-
   // ── Split area ────────────────────────────────────────────────────────────
   const splitArea = document.createElement("div");
   splitArea.id = "split-area";
@@ -344,11 +335,21 @@ export function createSplitScreen() {
   rightCountEl.innerHTML = `<span style="color:#69db7c">✓ Monitoring — 0 alerts</span>`;
   rightCol.appendChild(rightCountEl);
 
-  const rightFeed = createEventFeed();
-  rightCol.appendChild(rightFeed.el);
+  // Scroll area: event list + detail scroll together; SVG stays fixed above
+  const rightScrollArea = document.createElement("div");
+  rightScrollArea.className = "right-scroll-area";
 
-  const eventDetail = createEventDetail();
-  rightCol.appendChild(eventDetail.el);
+  const rightFeed = createEventFeed();
+  rightScrollArea.appendChild(rightFeed.el);
+
+  let collectedExplanations = [];
+
+  const eventDetail = createEventDetail((entry) => {
+    collectedExplanations.push(entry);
+  });
+  rightScrollArea.appendChild(eventDetail.el);
+
+  rightCol.appendChild(rightScrollArea);
 
   splitArea.appendChild(leftCol);
   splitArea.appendChild(divider);
@@ -365,9 +366,14 @@ export function createSplitScreen() {
     currentLlmUrl = llmUrl;
   }
 
+  function getExplanations() {
+    return collectedExplanations;
+  }
+
   function reset() {
     genericCount = 0;
     physicsCount = 0;
+    collectedExplanations = [];
     leftFeed.clear();
     rightFeed.clear();
     document.getElementById("left-count").textContent = "0";
@@ -406,5 +412,5 @@ export function createSplitScreen() {
     }
   }
 
-  return { el: container, reset, applyFrame, setConfig };
+  return { el: container, reset, applyFrame, setConfig, getExplanations };
 }
