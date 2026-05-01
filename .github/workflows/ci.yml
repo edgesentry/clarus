@@ -36,14 +36,17 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
         with:
           repository: edgesentry/edgesentry-rs
-          path: ../edgesentry-rs
+          path: edgesentry-rs
 
       - name: Setup Rust
         run: rustup update stable && rustup default stable
 
       - name: Build eds
         run: cargo build -p eds
-        working-directory: ../edgesentry-rs
+        working-directory: edgesentry-rs
+
+      - name: Add eds to PATH
+        run: echo "${{ github.workspace }}/edgesentry-rs/target/debug" >> $GITHUB_PATH
 
       - name: Run e2e (no LLM)
         run: bash scripts/test-e2e.sh --no-pause --no-explain

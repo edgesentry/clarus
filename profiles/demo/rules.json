@@ -3,19 +3,19 @@
     "rule_id": "PROXIMITY_ALERT",
     "condition": "distance < 5.0",
     "severity": "HIGH",
-    "regulation": "Site Safety Procedure §3.1"
-  },
-  {
-    "rule_id": "EXCLUSION_ZONE_BREACH",
-    "condition": "zone_member",
-    "severity": "CRITICAL",
-    "regulation": "Site Safety Procedure §4.1",
-    "zone": [[0, 0], [10, 0], [10, 10], [0, 10]]
+    "regulation": "Site Safety Procedure §3.1 — minimum 5m clearance between powered vehicles and pedestrians"
   },
   {
     "rule_id": "TTC_ALERT",
     "condition": "ttc < 3.0",
     "severity": "HIGH",
-    "regulation": "Site Safety Procedure §3.2"
+    "regulation": "Site Safety Procedure §3.2 — time-to-collision below safe threshold"
+  },
+  {
+    "rule_id": "EXCLUSION_ZONE_BREACH",
+    "condition": "zone_member",
+    "severity": "CRITICAL",
+    "regulation": "Site Safety Procedure §4.2 — exclusion zone violation",
+    "zone": [[20, 5], [30, 5], [30, 15], [20, 15]]
   }
 ]
