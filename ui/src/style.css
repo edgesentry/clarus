@@ -648,9 +648,13 @@ body {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  width: 560px;
+  flex-shrink: 0;
 }
 .canvas-panel canvas {
-  max-width: 100%;
+  width: 560px;
+  height: 380px;
+  display: block;
 }
 .canvas-status {
   font-family: monospace;
@@ -659,6 +663,11 @@ body {
   color: #4a5068;
   background: #0d1017;
   border-radius: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 560px;
+  box-sizing: border-box;
   border: 1px solid #1e2233;
   min-height: 24px;
 }
