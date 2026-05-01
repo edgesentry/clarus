@@ -1,0 +1,9 @@
+profile_version = "1.0.0"
+calibration_status = "reference"   # reference | validated
+jurisdiction = "generic"
+regulations = ["Site-Safety-Procedure"]
+created_date = "2026-05-01"
+
+# Demo profile for OSS development and testing.
+# Uses generic regulation citations ("Site Safety Procedure §N.N").
+# Not intended for production deployment.
