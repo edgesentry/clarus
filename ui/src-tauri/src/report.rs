@@ -12,13 +12,10 @@ use edgesentry_report::{generate_report, render_pdf, ReportConfig};
 pub fn generate_pdf_report(
     events_json: String,
     site_name: String,
-    explanations_json: String,
+    _explanations_json: String,
 ) -> Result<String, String> {
     let events: Vec<RiskEvent> = serde_json::from_str(&events_json)
         .map_err(|e| format!("parse events: {e}"))?;
-
-    let explanations: Vec<edgesentry_report::ExplanationEntry> =
-        serde_json::from_str(&explanations_json).unwrap_or_default();
 
     let assessment = assess(&events, None);
 
@@ -40,7 +37,6 @@ pub fn generate_pdf_report(
         site_name: if site_name.is_empty() { None } else { Some(site_name) },
         report_period: Some(period),
         chain_valid: None,
-        explanations,
     };
 
     let report    = generate_report(&events, &assessment, config);
