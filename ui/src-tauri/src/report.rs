@@ -1,6 +1,13 @@
 use edgesentry_assess::assess;
 use edgesentry_evaluate::RiskEvent;
-use edgesentry_report::{generate_report, render_pdf, ReportConfig};
+use edgesentry_report::{generate_report, render_pdf, ExplanationEntry, ReportConfig};
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+struct ExplanationResult {
+    rule_id: String,
+    text: String,
+}
 
 /// Generate a MOM-format PDF, write it to a temp file, open with the OS
 /// default PDF viewer, and return the file path for display.
@@ -12,10 +19,21 @@ use edgesentry_report::{generate_report, render_pdf, ReportConfig};
 pub fn generate_pdf_report(
     events_json: String,
     site_name: String,
-    _explanations_json: String,
+    explanations_json: String,
 ) -> Result<String, String> {
     let events: Vec<RiskEvent> = serde_json::from_str(&events_json)
         .map_err(|e| format!("parse events: {e}"))?;
+
+    // Map ExplanationResult[] → ExplanationEntry[]; pair each with its event timestamp
+    let raw_expl: Vec<ExplanationResult> =
+        serde_json::from_str(&explanations_json).unwrap_or_default();
+    let explanations: Vec<ExplanationEntry> = raw_expl.into_iter().map(|e| {
+        let ts = events.iter()
+            .find(|ev| ev.rule_id == e.rule_id)
+            .map(|ev| ev.timestamp_ms)
+            .unwrap_or(0);
+        ExplanationEntry { rule_id: e.rule_id, timestamp_ms: ts, text: e.text }
+    }).collect();
 
     let assessment = assess(&events, None);
 
@@ -37,7 +55,7 @@ pub fn generate_pdf_report(
         site_name: if site_name.is_empty() { None } else { Some(site_name) },
         report_period: Some(period),
         chain_valid: None,
-        explanations: vec![],
+        explanations,
     };
 
     let report    = generate_report(&events, &assessment, config);
