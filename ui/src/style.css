@@ -642,3 +642,106 @@ body {
   border-top: 1px solid #2d3142;
   flex-shrink: 0;
 }
+
+/* ── CanvasPanel ────────────────────────────────────────────────────────── */
+.canvas-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.canvas-panel canvas {
+  max-width: 100%;
+}
+.canvas-status {
+  font-family: monospace;
+  font-size: 11px;
+  padding: 5px 8px;
+  color: #4a5068;
+  background: #0d1017;
+  border-radius: 4px;
+  border: 1px solid #1e2233;
+  min-height: 24px;
+}
+
+/* ── Scenario group labels ──────────────────────────────────────────────── */
+.scenario-group-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #4a5068;
+  align-self: center;
+  padding: 0 4px;
+  font-family: monospace;
+}
+.scenario-group-label--maritime {
+  color: #1a8a8a;
+}
+.scenario-group-divider {
+  width: 1px;
+  height: 20px;
+  background: #2d3142;
+  align-self: center;
+  margin: 0 6px;
+}
+.scenario-btn--maritime {
+  border-color: #1a5a5a !important;
+  color: #4ac8c8 !important;
+}
+.scenario-btn--maritime.active,
+.scenario-btn--maritime:hover {
+  background: #0d2a2a !important;
+  border-color: #4ac8c8 !important;
+  color: #7ee8e8 !important;
+}
+
+/* ── Use-case badge ─────────────────────────────────────────────────────── */
+.usecase-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-family: monospace;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 3px 8px;
+  border-radius: 3px;
+  margin-bottom: 8px;
+}
+.usecase-badge--safety {
+  background: rgba(255,169,77,0.1);
+  color: #ffa94d;
+  border: 1px solid rgba(255,169,77,0.25);
+}
+.usecase-badge--maritime {
+  background: rgba(26,138,138,0.12);
+  color: #4ac8c8;
+  border: 1px solid rgba(26,138,138,0.3);
+}
+.story-card--maritime {
+  border-color: #1a3a3a !important;
+  background: #080f10 !important;
+}
+
+/* ── Canvas header ──────────────────────────────────────────────────────── */
+.canvas-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px;
+  background: #080f10;
+  border: 1px solid #1a3a3a;
+  border-radius: 4px;
+  margin-top: 10px;
+}
+.canvas-header-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #4ac8c8;
+  font-family: monospace;
+}
+.canvas-header-sub {
+  font-size: 10px;
+  color: #4a6868;
+  font-family: monospace;
+}
+.canvas-header-sub code {
+  color: #7ea8a8;
+}
