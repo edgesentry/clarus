@@ -458,6 +458,7 @@ dependencies = [
  "edgesentry-ingest",
  "edgesentry-profile",
  "edgesentry-report",
+ "edgesentry-types",
  "hex",
  "serde",
  "serde_json",
@@ -959,7 +960,7 @@ dependencies = [
 name = "edgesentry-compute"
 version = "0.2.0"
 dependencies = [
- "edgesentry-ingest",
+ "edgesentry-types",
  "serde",
  "serde_json",
 ]
@@ -970,6 +971,7 @@ version = "0.2.0"
 dependencies = [
  "edgesentry-compute",
  "edgesentry-ingest",
+ "edgesentry-types",
  "serde",
  "serde_json",
 ]
@@ -989,6 +991,8 @@ dependencies = [
 name = "edgesentry-ingest"
 version = "0.2.0"
 dependencies = [
+ "edgesentry-compute",
+ "edgesentry-types",
  "serde",
  "serde_json",
 ]
@@ -1018,6 +1022,13 @@ name = "edgesentry-store"
 version = "0.2.0"
 dependencies = [
  "edgesentry-evaluate",
+ "serde",
+]
+
+[[package]]
+name = "edgesentry-types"
+version = "0.2.0"
+dependencies = [
  "serde",
 ]
 
