@@ -111,9 +111,6 @@ body {
 .tab-panel {
   display: none;
   width: 100%;
-  height: 100%;
-  overflow: hidden;
-  min-height: 0;
 }
 .tab-panel.active { display: flex; flex-direction: column; }
 
@@ -142,13 +139,10 @@ body {
 .scenario-btn:hover { color: #c9d1d9; background: #222535; }
 .scenario-btn.active { color: #00d4aa; background: #0f1117; border-color: #2d3142; }
 
-/* Scenario panels */
+/* Scenario panels — scrollable */
 .scenario-panel {
   display: none;
   flex-direction: column;
-  flex: 1;
-  overflow: hidden;
-  min-height: 0;
 }
 .scenario-panel.active { display: flex; }
 
@@ -181,26 +175,20 @@ body {
 #split-screen {
   display: flex;
   flex-direction: column;
-  flex: 1;
-  overflow: hidden;
 }
-
 
 /* Split area (columns) */
 #split-area {
   display: flex;
-  flex: 1;
-  overflow: hidden;
+  min-height: 220px;
 }
 
 .panel-col {
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
   padding: 12px;
   gap: 8px;
-  min-height: 0;
 }
 
 .panel-col.left-col { border-right: 1px solid #2d3142; }
@@ -1001,3 +989,36 @@ body {
 }
 .audit-verify-ok   { background: rgba(105,219,124,0.08); color: #69db7c; }
 .audit-verify-fail { background: rgba(255,100,100,0.08); color: #ff8787; }
+
+/* ── Toolbar PDF button ──────────────────────────────────────────────────── */
+.pdf-btn-toolbar {
+  background: rgba(255,169,77,0.1);
+  border: 1px solid rgba(255,169,77,0.3);
+  border-radius: 5px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffa94d;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pdf-btn-toolbar:hover:not(:disabled) { background: rgba(255,169,77,0.2); }
+.pdf-btn-toolbar:disabled { opacity: 0.35; cursor: not-allowed; }
+.pdf-status-toolbar {
+  font-family: monospace;
+  font-size: 10px;
+  color: #69db7c;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Scrollable scenario panel ───────────────────────────────────────────── */
+.audit-chain-empty {
+  font-family: monospace;
+  font-size: 11px;
+  color: #2a3a4a;
+  padding: 8px 0;
+  text-align: center;
+}

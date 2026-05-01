@@ -83,14 +83,6 @@ document.addEventListener("DOMContentLoaded", () => {
   toolbar.id = "toolbar";
   toolbar.innerHTML = `
     <h1>clarus</h1>
-    <span class="toolbar-label">LLM URL</span>
-    <input class="toolbar-input" id="llm-url" type="text"
-           placeholder="http://localhost:8080"
-           value="http://localhost:8080"
-           style="min-width:170px" />
-    <span class="toolbar-label" style="color:#4a5068;font-size:10px">
-      LLM off? run <code style="color:#8b949e">./scripts/run_llama.sh</code>
-    </span>
     <div style="flex:1"></div>
     <span class="toolbar-label">Speed</span>
     <select class="speed-select" id="speed-select">
@@ -100,6 +92,8 @@ document.addEventListener("DOMContentLoaded", () => {
       <option value="75">2×</option>
     </select>
     <button class="run-btn" id="run-btn">▶ Run Demo</button>
+    <button class="pdf-btn-toolbar" id="pdf-btn-toolbar" disabled>📄 PDF</button>
+    <span class="pdf-status-toolbar" id="pdf-status-toolbar"></span>
   `;
   app.appendChild(toolbar);
 
@@ -116,9 +110,10 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   app.appendChild(tabBar);
 
-  // ── Content area ──────────────────────────────────────────────────────────
+  // ── Content area (scrollable) ─────────────────────────────────────────────
   const content = document.createElement("div");
   content.id = "content";
+  content.style.cssText = "flex:1;overflow-y:auto;min-height:0";
   app.appendChild(content);
 
   // Status bar
@@ -257,40 +252,6 @@ document.addEventListener("DOMContentLoaded", () => {
       panel.appendChild(sliderBar);
     }
 
-    // Per-scenario PDF button (shown after demo runs)
-    const pdfBar = document.createElement("div");
-    pdfBar.className = "pdf-bar";
-    pdfBar.style.display = "none";
-    pdfBar.innerHTML = `
-      <button class="pdf-btn" data-sid="${s.id}">Generate PDF Report</button>
-      <span class="pdf-status" id="pdf-status-${s.id}"></span>
-    `;
-    panel.appendChild(pdfBar);
-
-    pdfBar.querySelector(".pdf-btn").addEventListener("click", async () => {
-      const btn = pdfBar.querySelector(".pdf-btn");
-      const statusEl = pdfBar.querySelector(".pdf-status");
-      btn.disabled = true;
-      btn.textContent = "Generating…";
-      statusEl.textContent = "";
-      try {
-        const eventsJson = JSON.stringify(scenarioPanels[s.id]._events || []);
-        const explanationsJson = JSON.stringify(
-          splitScreens[s.id] ? splitScreens[s.id].getExplanations() : []
-        );
-        const pdfPath = await invoke("generate_pdf_report", {
-          eventsJson,
-          siteName: s.title,
-          explanationsJson,
-        });
-        statusEl.textContent = `✓ Saved: ${pdfPath}`;
-      } catch (err) {
-        statusEl.textContent = `Error: ${err}`;
-      } finally {
-        btn.disabled = false;
-        btn.textContent = "Generate PDF Report";
-      }
-    });
 
     // Audit chain panel (shown after demo run)
     const auditPanel = createAuditChainPanel();
@@ -440,10 +401,14 @@ document.addEventListener("DOMContentLoaded", () => {
           runBtn.disabled = false;
           runBtn.textContent = "▶ Run Demo";
 
-          // Seal events into audit chain and show inline
-          if (collectedPhysicsEvents.length > 0) {
-            auditPanels[activeScenarioId].seal(collectedPhysicsEvents);
-          }
+          // Seal events into audit chain
+          auditPanels[activeScenarioId].seal(collectedPhysicsEvents);
+
+          // Enable PDF toolbar button
+          const pdfBtn = document.getElementById("pdf-btn-toolbar");
+          pdfBtn.disabled = false;
+          const panel = scenarioPanels[activeScenarioId];
+          panel._events = collectedPhysicsEvents;
 
           // Unlock threshold slider after first successful run
           if (!scenario.useCanvas) {
@@ -457,10 +422,6 @@ document.addEventListener("DOMContentLoaded", () => {
               hint.style.color = "#4a8068";
             }
           }
-
-          const panel = scenarioPanels[activeScenarioId];
-          panel._events = collectedPhysicsEvents;
-          panel.querySelector(".pdf-bar").style.display = "flex";
           return;
         }
         const frame = result.frames[frameIndex++];
@@ -485,6 +446,32 @@ document.addEventListener("DOMContentLoaded", () => {
       setStatus(`Error: ${err}`);
       runBtn.disabled = false;
       runBtn.textContent = "▶ Run Demo";
+    }
+  });
+
+  // ── PDF toolbar button ────────────────────────────────────────────────────
+  document.getElementById("pdf-btn-toolbar").addEventListener("click", async () => {
+    const btn = document.getElementById("pdf-btn-toolbar");
+    const statusEl = document.getElementById("pdf-status-toolbar");
+    const scenario = SCENARIOS.find(s => s.id === activeScenarioId);
+    const events = scenarioPanels[activeScenarioId]?._events || [];
+    btn.disabled = true;
+    btn.textContent = "…";
+    statusEl.textContent = "";
+    try {
+      const pdfPath = await invoke("generate_pdf_report", {
+        eventsJson: JSON.stringify(events),
+        siteName: scenario?.title || "Demo",
+        explanationsJson: JSON.stringify(
+          splitScreens[activeScenarioId]?.getExplanations?.() || []
+        ),
+      });
+      statusEl.textContent = `✓ ${pdfPath.split("/").pop()}`;
+    } catch (err) {
+      statusEl.textContent = `Error: ${err}`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "📄 PDF";
     }
   });
 });

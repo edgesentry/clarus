@@ -3,16 +3,16 @@ import { invoke } from "@tauri-apps/api/core";
 export function createAuditChainPanel() {
   const el = document.createElement("div");
   el.className = "audit-chain-panel";
-  el.style.display = "none";
 
   let chainJson = null;
 
   el.innerHTML = `
     <div class="audit-chain-header">
       <span class="audit-chain-title">Audit Chain</span>
-      <span class="audit-chain-sub">sealed with BLAKE3 + Ed25519</span>
+      <span class="audit-chain-sub">BLAKE3 + Ed25519 · each RiskEvent sealed on evaluation</span>
     </div>
-    <table class="audit-chain-table">
+    <div class="audit-chain-empty" id="audit-empty">Run Demo to populate chain</div>
+    <table class="audit-chain-table" id="audit-table" style="display:none">
       <thead>
         <tr>
           <th>#</th><th>t (ms)</th><th>rule</th>
@@ -21,7 +21,7 @@ export function createAuditChainPanel() {
       </thead>
       <tbody id="audit-chain-rows"></tbody>
     </table>
-    <div class="audit-chain-actions">
+    <div class="audit-chain-actions" id="audit-actions" style="visibility:hidden">
       <button class="audit-action-btn audit-action-btn--verify" id="btn-verify">
         ▶ Verify chain
       </button>
@@ -48,14 +48,21 @@ export function createAuditChainPanel() {
     resultEl.className = "audit-verify-result";
     statusEl.textContent = "";
 
-    if (!events || events.length === 0) { el.style.display = "none"; return; }
+    const emptyEl = el.querySelector("#audit-empty");
+    const tableEl = el.querySelector("#audit-table");
+    const actionsEl = el.querySelector("#audit-actions");
+
+    if (!events || events.length === 0) {
+      emptyEl.style.display = "block";
+      tableEl.style.display = "none";
+      actionsEl.style.visibility = "hidden";
+      return;
+    }
 
     try {
       const eventsJson = JSON.stringify(events);
       const result = await invoke("seal_events", { eventsJson });
       chainJson = result.chain_json;
-
-      // Save original value for tamper demo
       originalValue = result.records[0]?.measured_value;
 
       tbody.innerHTML = result.records.map(r => `
@@ -69,7 +76,9 @@ export function createAuditChainPanel() {
         </tr>
       `).join("");
 
-      el.style.display = "block";
+      emptyEl.style.display = "none";
+      tableEl.style.display = "table";
+      actionsEl.style.visibility = "visible";
       el.querySelector("#btn-tamper").textContent = "✎ Tamper record 1 value";
       el.querySelector("#btn-tamper").classList.remove("audit-action-btn--restore");
     } catch (err) {
