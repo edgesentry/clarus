@@ -298,8 +298,6 @@ document.addEventListener("DOMContentLoaded", () => {
       animHandle = null;
     }
 
-    ss.reset();
-    ss.setConfig(scenario.profileDir, llmUrl);
     collectedPhysicsEvents = [];
 
     const runBtn = document.getElementById("run-btn");
