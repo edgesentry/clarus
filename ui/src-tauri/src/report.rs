@@ -9,6 +9,18 @@ struct ExplanationResult {
     text: String,
 }
 
+/// Match each explanation to its event's timestamp by rule_id.
+/// Falls back to timestamp_ms = 0 when no matching event is found.
+fn map_explanations(raw: Vec<ExplanationResult>, events: &[RiskEvent]) -> Vec<ExplanationEntry> {
+    raw.into_iter().map(|e| {
+        let ts = events.iter()
+            .find(|ev| ev.rule_id == e.rule_id)
+            .map(|ev| ev.timestamp_ms)
+            .unwrap_or(0);
+        ExplanationEntry { rule_id: e.rule_id, timestamp_ms: ts, text: e.text }
+    }).collect()
+}
+
 /// Generate a MOM-format PDF, write it to a temp file, open with the OS
 /// default PDF viewer, and return the file path for display.
 ///
@@ -28,13 +40,8 @@ pub fn generate_pdf_report(
     // Map ExplanationResult[] → ExplanationEntry[]; pair each with its event timestamp
     let raw_expl: Vec<ExplanationResult> =
         serde_json::from_str(&explanations_json).unwrap_or_default();
-    let explanations: Vec<ExplanationEntry> = raw_expl.into_iter().map(|e| {
-        let ts = events.iter()
-            .find(|ev| ev.rule_id == e.rule_id)
-            .map(|ev| ev.timestamp_ms)
-            .unwrap_or(0);
-        ExplanationEntry { rule_id: e.rule_id, timestamp_ms: ts, text: e.text }
-    }).collect();
+    let explanations: Vec<ExplanationEntry> =
+        map_explanations(raw_expl, &events);
 
     let assessment = assess(&events, None);
 
@@ -83,4 +90,56 @@ pub fn generate_pdf_report(
     std::process::Command::new("xdg-open").arg(&pdf_path).spawn().ok();
 
     Ok(pdf_path.to_string_lossy().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use edgesentry_evaluate::Severity;
+
+    fn make_event(rule_id: &str, ts: u64) -> RiskEvent {
+        RiskEvent {
+            rule_id: rule_id.to_string(),
+            severity: Severity::High,
+            regulation: "Test §1".to_string(),
+            entity_ids: vec!["FL-01".to_string()],
+            measured_value: 3.0,
+            threshold: 5.0,
+            timestamp_ms: ts,
+        }
+    }
+
+    #[test]
+    fn map_explanations_matches_timestamp_by_rule_id() {
+        let events = vec![
+            make_event("PROXIMITY_ALERT", 5000),
+            make_event("TTC_ALERT", 8000),
+        ];
+        let raw = vec![
+            ExplanationResult { rule_id: "TTC_ALERT".to_string(), text: "TTC explanation".to_string() },
+            ExplanationResult { rule_id: "PROXIMITY_ALERT".to_string(), text: "Proximity explanation".to_string() },
+        ];
+        let entries = map_explanations(raw, &events);
+        assert_eq!(entries.len(), 2);
+        let ttc = entries.iter().find(|e| e.rule_id == "TTC_ALERT").unwrap();
+        assert_eq!(ttc.timestamp_ms, 8000);
+        let prox = entries.iter().find(|e| e.rule_id == "PROXIMITY_ALERT").unwrap();
+        assert_eq!(prox.timestamp_ms, 5000);
+    }
+
+    #[test]
+    fn map_explanations_unknown_rule_gets_zero_timestamp() {
+        let events = vec![make_event("RULE_A", 3000)];
+        let raw = vec![
+            ExplanationResult { rule_id: "UNKNOWN_RULE".to_string(), text: "text".to_string() },
+        ];
+        let entries = map_explanations(raw, &events);
+        assert_eq!(entries[0].timestamp_ms, 0);
+    }
+
+    #[test]
+    fn map_explanations_empty_input_returns_empty() {
+        let entries = map_explanations(vec![], &[make_event("R", 1000)]);
+        assert!(entries.is_empty());
+    }
 }
