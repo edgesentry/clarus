@@ -12,8 +12,8 @@ export function createCanvasPanel({ zonePolygon = null, worldW = 800, worldH = 7
   canvas.width = CANVAS_W;
   canvas.height = CANVAS_H;
   canvas.style.cssText =
-    "display:block;border-radius:6px;border:1.5px solid #2d3142;" +
-    "background:#070a14;transition:border-color 0.25s,box-shadow 0.25s";
+    "display:block;border-radius:6px;border:1.5px solid #1a3a3a;" +
+    "background:#040d0e;transition:border-color 0.25s,box-shadow 0.25s";
   container.appendChild(canvas);
 
   const statusEl = document.createElement("div");
@@ -36,7 +36,7 @@ export function createCanvasPanel({ zonePolygon = null, worldW = 800, worldH = 7
   let flashTimer = null;
 
   function drawBackground() {
-    ctx.fillStyle = "#070a14";
+    ctx.fillStyle = "#040d0e";
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
     // Grid

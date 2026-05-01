@@ -137,9 +137,26 @@ document.addEventListener("DOMContentLoaded", () => {
   // Scenario sub-tab bar
   const scenarioBar = document.createElement("div");
   scenarioBar.id = "scenario-bar";
+
+  // Group label: Port Safety
+  const portLabel = document.createElement("span");
+  portLabel.className = "scenario-group-label";
+  portLabel.textContent = "PORT SAFETY";
+  scenarioBar.appendChild(portLabel);
+
   SCENARIOS.forEach((s, i) => {
+    // Group divider before first canvas scenario
+    if (s.useCanvas) {
+      const divider = document.createElement("span");
+      divider.className = "scenario-group-divider";
+      scenarioBar.appendChild(divider);
+      const maritimeLabel = document.createElement("span");
+      maritimeLabel.className = "scenario-group-label scenario-group-label--maritime";
+      maritimeLabel.textContent = "MARITIME SECURITY";
+      scenarioBar.appendChild(maritimeLabel);
+    }
     const btn = document.createElement("button");
-    btn.className = "scenario-btn" + (i === 0 ? " active" : "");
+    btn.className = "scenario-btn" + (i === 0 ? " active" : "") + (s.useCanvas ? " scenario-btn--maritime" : "");
     btn.dataset.sid = s.id;
     btn.textContent = s.label;
     scenarioBar.appendChild(btn);
@@ -156,10 +173,13 @@ document.addEventListener("DOMContentLoaded", () => {
     panel.className = "scenario-panel" + (i === 0 ? " active" : "");
     panel.dataset.sid = s.id;
 
-    // Scenario story card
+    // Use-case badge + story card
     const storyCard = document.createElement("div");
-    storyCard.className = "story-card";
+    storyCard.className = "story-card" + (s.useCanvas ? " story-card--maritime" : "");
     storyCard.innerHTML = `
+      <div class="usecase-badge ${s.useCanvas ? "usecase-badge--maritime" : "usecase-badge--safety"}">
+        ${s.useCanvas ? "⚓ Maritime Security · PIER71-07 / CAP Vista Tier-2" : "🏗 Port Safety · PIER71-14"}
+      </div>
       <div class="story-title">${s.title}</div>
       <ul class="story-bullets">
         ${s.story.map(line => `<li>${line}</li>`).join("")}
@@ -173,8 +193,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (s.useCanvas) {
       // ── Canvas scenario (zone / vessel) ──────────────────────────────────
+      const canvasHeader = document.createElement("div");
+      canvasHeader.className = "canvas-header";
+      canvasHeader.innerHTML = `
+        <span class="canvas-header-title">Top-down vessel track · Singapore port waters</span>
+        <span class="canvas-header-sub">Zone polygon from <code>sg-maritime-security/rules.json</code> · Reg: IPA Cap. 136A §18</span>
+      `;
+      panel.appendChild(canvasHeader);
+
       const canvasWrapper = document.createElement("div");
-      canvasWrapper.style.cssText = "display:flex;gap:16px;align-items:flex-start;margin-top:10px";
+      canvasWrapper.style.cssText = "display:flex;gap:16px;align-items:flex-start;margin-top:8px";
 
       const cp = createCanvasPanel(s.canvasOptions || {});
       canvasWrapper.appendChild(cp.el);
