@@ -3,7 +3,6 @@ import { invoke } from "@tauri-apps/api/core";
 import { createSplitScreen } from "./panels/SplitScreen.js";
 import { createCanvasPanel } from "./panels/CanvasPanel.js";
 import { createEventFeed } from "./panels/EventFeed.js";
-import { createReportPanel } from "./panels/ReportPanel.js";
 import { createVerifyPanel } from "./panels/VerifyPanel.js";
 
 // Paths are relative to the user's clarus checkout.
@@ -107,7 +106,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // ── Main tab bar ──────────────────────────────────────────────────────────
   const tabBar = document.createElement("div");
   tabBar.id = "tab-bar";
-  ["Demo", "Report", "Verify"].forEach((label, i) => {
+  ["Demo", "Verify"].forEach((label, i) => {
     const btn = document.createElement("button");
     btn.className = "tab-btn" + (i === 0 ? " active" : "");
     btn.dataset.tab = label.toLowerCase();
@@ -303,13 +302,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   content.appendChild(demoPanel);
 
-  // ── Report panel ──────────────────────────────────────────────────────────
-  const reportPanel = document.createElement("div");
-  reportPanel.className = "tab-panel";
-  const reportComp = createReportPanel();
-  reportPanel.appendChild(reportComp.el);
-  content.appendChild(reportPanel);
-
   // ── Verify panel ──────────────────────────────────────────────────────────
   const verifyPanel = document.createElement("div");
   verifyPanel.className = "tab-panel";
@@ -320,7 +312,6 @@ document.addEventListener("DOMContentLoaded", () => {
   // ── Tab switching ─────────────────────────────────────────────────────────
   const mainPanels = {
     demo: demoPanel,
-    report: reportPanel,
     verify: verifyPanel,
   };
   tabBar.addEventListener("click", (e) => {
@@ -455,7 +446,6 @@ document.addEventListener("DOMContentLoaded", () => {
           }
           runBtn.disabled = false;
           runBtn.textContent = "▶ Run Demo";
-          reportComp.updateEvents(collectedPhysicsEvents, `Scenario ${scenario.id} — ${scenario.title}`);
 
           // Unlock threshold slider after first successful run
           if (!scenario.useCanvas) {
