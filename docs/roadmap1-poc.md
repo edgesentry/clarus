@@ -195,7 +195,7 @@ Goal: end-to-end screen-recordable demo showing the split-screen comparison and 
   - `AIS_TRACK_GAP` — AIS silence > 8 min within port limits
 - [ ] Swap KB to `profiles/sg-maritime-security/kb/` (COLREGs, Infrastructure Protection Act zones)
 - [ ] Adjust LLM prompt for security context ("threat actor" framing vs "worker safety" framing)
-- [ ] Complete application form narrative (from `clarus-commercial/docs/analysis/capvista-proposal-draft.md`)
+- [ ] Complete application form narrative
 - [ ] **Submit by 30 June, 13:00 SGT**
 
 **PIER71 (due 15 June — only if incorporation confirmed by 8 June):**
@@ -214,20 +214,21 @@ Goal: end-to-end screen-recordable demo showing the split-screen comparison and 
 
 ### Production-quality profile
 
-> Profiles are commercial IP and live in `clarus-commercial` (private repo). See issue #24.
+> Production profiles with jurisdiction-specific regulatory citations are commercial IP
+> and distributed separately. The profile format is documented in `edgesentry-rs/docs/pipeline/profile-authoring.md`.
 
-- [ ] `clarus-commercial/profiles/sg-port-safety/rules.json` — expand from 3 seed rules to full set:
+- [ ] Expand sg-port-safety profile from 3 seed rules to full set:
   - All MPA Port Safety Circular No. 14 of 2023 rules (§§3–7)
   - MOM WSH (Docks) Regulations §§12, 14, 18
   - Crane exclusion zone rules (swing radius by crane class)
   - Mooring line snap-back zone geometry
   - Gangway boarding swell check (if wave height sensor available)
-- [ ] `clarus-commercial/profiles/sg-port-safety/params.toml` — validated per-class braking distances:
+- [ ] Add `params.toml` — validated per-class braking distances:
   - Forklift 3.5T @ 10 km/h: 4.1 m
   - Reach stacker @ 15 km/h: 8.2 m
   - Terminal tractor @ 20 km/h: 12.4 m
   - Person (pedestrian): 0 (static threshold)
-- [ ] `clarus-commercial/profiles/sg-port-safety/manifest.toml`:
+- [ ] Add `manifest.toml`:
   ```toml
   jurisdiction = "SG"
   regulations = ["MPA-Circular-14-2023", "MOM-WSH-Docks-Regs-2020"]

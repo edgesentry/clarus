@@ -1,5 +1,5 @@
 use edgesentry_compute::euclidean_distance;
-use edgesentry_evaluate::evaluate;
+use edgesentry_evaluate::{evaluate, load_rules};
 use edgesentry_ingest::csv_replay::FileReplayAdapter;
 use edgesentry_profile::load_profile;
 
@@ -55,27 +55,17 @@ fn class_string(class: &edgesentry_ingest::entity::EntityClass) -> String {
     }
 }
 
-#[tauri::command]
-pub fn run_replay(csv_path: String, profile_dir: String) -> Result<ReplayResult, String> {
-    // Read CSV
-    let content = std::fs::read_to_string(&csv_path)
-        .map_err(|e| format!("Cannot read CSV '{}': {e}", csv_path))?;
+// ── Shared evaluation core ────────────────────────────────────────────────────
 
-    let adapter = FileReplayAdapter::from_csv(&content)
+fn run_core(
+    csv_content: &str,
+    rules: Vec<edgesentry_evaluate::Rule>,
+) -> Result<ReplayResult, String> {
+    let adapter = FileReplayAdapter::from_csv(csv_content)
         .map_err(|e| format!("CSV parse error: {e}"))?;
-
     let all_frames = adapter.frames();
 
-    // Load physics rules (optional — if profile_dir is empty, skip physics evaluation)
-    let rules: Vec<edgesentry_evaluate::Rule> = if profile_dir.is_empty() {
-        vec![]
-    } else {
-        let profile_path = std::path::Path::new(&profile_dir);
-        load_profile(profile_path).unwrap_or_default()
-    };
-
     const GENERIC_THRESHOLD: f32 = 8.0;
-
     let mut frames = Vec::with_capacity(all_frames.len());
     let mut total_generic_alerts = 0usize;
     let mut total_physics_alerts = 0usize;
@@ -84,7 +74,6 @@ pub fn run_replay(csv_path: String, profile_dir: String) -> Result<ReplayResult,
         let ts = ef.timestamp_ms;
         let entities = &ef.entities;
 
-        // Build entity snapshots
         let entity_snaps: Vec<EntitySnapshot> = entities
             .iter()
             .map(|e| EntitySnapshot {
@@ -97,7 +86,6 @@ pub fn run_replay(csv_path: String, profile_dir: String) -> Result<ReplayResult,
             })
             .collect();
 
-        // Generic events: all pairs within GENERIC_THRESHOLD metres
         let mut generic_events: Vec<RiskEventSnapshot> = Vec::new();
         for i in 0..entities.len() {
             for j in (i + 1)..entities.len() {
@@ -116,40 +104,108 @@ pub fn run_replay(csv_path: String, profile_dir: String) -> Result<ReplayResult,
             }
         }
 
-        // Physics events via edgesentry-evaluate
-        let physics_risk_events = if rules.is_empty() {
+        let physics_events: Vec<RiskEventSnapshot> = if rules.is_empty() {
             vec![]
         } else {
             evaluate(&rules, entities, ts)
+                .iter()
+                .map(|e| RiskEventSnapshot {
+                    rule_id: e.rule_id.clone(),
+                    severity: severity_string(&e.severity),
+                    entity_ids: e.entity_ids.clone(),
+                    measured_value: e.measured_value,
+                    threshold: e.threshold,
+                    regulation: e.regulation.clone(),
+                    timestamp_ms: e.timestamp_ms,
+                })
+                .collect()
         };
-
-        let physics_events: Vec<RiskEventSnapshot> = physics_risk_events
-            .iter()
-            .map(|e| RiskEventSnapshot {
-                rule_id: e.rule_id.clone(),
-                severity: severity_string(&e.severity),
-                entity_ids: e.entity_ids.clone(),
-                measured_value: e.measured_value,
-                threshold: e.threshold,
-                regulation: e.regulation.clone(),
-                timestamp_ms: e.timestamp_ms,
-            })
-            .collect();
 
         total_generic_alerts += generic_events.len();
         total_physics_alerts += physics_events.len();
 
-        frames.push(FrameResult {
-            timestamp_ms: ts,
-            entities: entity_snaps,
-            generic_events,
-            physics_events,
-        });
+        frames.push(FrameResult { timestamp_ms: ts, entities: entity_snaps, generic_events, physics_events });
     }
 
-    Ok(ReplayResult {
-        frames,
-        total_generic_alerts,
-        total_physics_alerts,
-    })
+    Ok(ReplayResult { frames, total_generic_alerts, total_physics_alerts })
 }
+
+// ── Commands ──────────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub fn run_replay(csv_path: String, profile_dir: String) -> Result<ReplayResult, String> {
+    let content = std::fs::read_to_string(&csv_path)
+        .map_err(|e| format!("Cannot read CSV '{}': {e}", csv_path))?;
+
+    let rules: Vec<edgesentry_evaluate::Rule> = if profile_dir.is_empty() {
+        vec![]
+    } else {
+        load_profile(std::path::Path::new(&profile_dir)).unwrap_or_default()
+    };
+
+    run_core(&content, rules)
+}
+
+/// Run replay with rules supplied as a JSON string — used by the threshold slider demo.
+#[tauri::command]
+pub fn run_replay_with_rules(csv_path: String, rules_json: String) -> Result<ReplayResult, String> {
+    let content = std::fs::read_to_string(&csv_path)
+        .map_err(|e| format!("Cannot read CSV '{}': {e}", csv_path))?;
+
+    let rules = load_rules(&rules_json)
+        .map_err(|e| format!("rules_json parse error: {e}"))?;
+
+    run_core(&content, rules)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const SIMPLE_CSV: &str = "\
+id,class,x,y,vx,vy,timestamp_ms
+FL-01,Forklift,0.5,0.0,1.0,0.0,500
+W-03,Person,12.0,0.0,0.0,0.0,500
+FL-01,Forklift,3.0,0.0,1.0,0.0,1000
+W-03,Person,12.0,0.0,0.0,0.0,1000
+";
+
+    #[test]
+    fn run_core_no_rules_produces_no_physics_alerts() {
+        let result = run_core(SIMPLE_CSV, vec![]).unwrap();
+        assert_eq!(result.frames.len(), 2);
+        assert_eq!(result.total_physics_alerts, 0, "no rules → no physics alerts");
+    }
+
+    #[test]
+    fn run_core_proximity_rule_silent_when_gap_exceeds_threshold() {
+        // gap at both frames: 11.5m and 9.0m — both exceed 5m threshold
+        let rules_json = r#"[{"rule_id":"PROXIMITY_ALERT","condition":"distance < 5.0","severity":"HIGH","regulation":"Test §1"}]"#;
+        let rules = load_rules(rules_json).unwrap();
+        let result = run_core(SIMPLE_CSV, rules).unwrap();
+        assert_eq!(result.total_physics_alerts, 0);
+    }
+
+    #[test]
+    fn run_core_proximity_rule_fires_at_wide_threshold() {
+        // gap at both frames: 11.5m and 9.0m — both inside 15m threshold
+        let rules_json = r#"[{"rule_id":"PROXIMITY_ALERT","condition":"distance < 15.0","severity":"HIGH","regulation":"Test §1"}]"#;
+        let rules = load_rules(rules_json).unwrap();
+        let result = run_core(SIMPLE_CSV, rules).unwrap();
+        assert!(result.total_physics_alerts > 0, "15m threshold should fire on both frames");
+    }
+
+    #[test]
+    fn run_core_returns_entity_snapshots_with_correct_positions() {
+        let result = run_core(SIMPLE_CSV, vec![]).unwrap();
+        assert_eq!(result.frames[0].entities.len(), 2);
+        let fl = result.frames[0].entities.iter().find(|e| e.id == "FL-01").unwrap();
+        assert!((fl.x - 0.5).abs() < 0.01, "FL-01 x should be 0.5m at frame 0");
+    }
+
+    #[test]
+    fn run_core_invalid_csv_returns_err() {
+        assert!(run_core("not,a,csv\nbad,data,here", vec![]).is_err());
+    }
+}
+

@@ -9,11 +9,10 @@ Runbook for AI agents working in this repository.
 ```
 edgesentry-rs/          OSS — Rust crates + eds CLI (no deps on other repos)
 clarus/                 OSS — Tauri GUI app (depends on edgesentry-rs via path)
-clarus-commercial/      Private — commercial profiles + KB (config only, no code)
 ```
 
-**Dependency rule:** OSS repos (`edgesentry-rs`, `clarus`) must never import from `clarus-commercial`.
-The commercial profiles are loaded at **runtime** via `--profile <path>`, not compiled in.
+The binary is profile-agnostic. Commercial profiles with jurisdiction-specific regulatory
+content are loaded at **runtime** via `--profile <path>` and are not part of this repo.
 
 ---
 
@@ -25,7 +24,6 @@ Both repos must be checked out as siblings:
 edgesentry/
   edgesentry-rs/        ← Rust engine + eds CLI
   clarus/               ← this repo (GUI)
-  clarus-commercial/    ← commercial profiles (optional for OSS demo)
 ```
 
 The Tauri backend uses `path = "../../../edgesentry-rs/crates/..."` — this resolves
@@ -81,11 +79,8 @@ The GUI and CLI use `--profile <dir>` to select the regulatory profile:
 # OSS demo (generic rules, no real regulation citations)
 --profile ../clarus/profiles/demo
 
-# Commercial (Singapore port safety — requires clarus-commercial checkout)
---profile ../clarus-commercial/profiles/sg-port-safety
-
-# Commercial (Singapore maritime security)
---profile ../clarus-commercial/profiles/sg-maritime-security
+# Commercial profiles are supplied separately and passed via --profile <path>
+--profile /path/to/commercial-profiles/sg-port-safety
 ```
 
 ---
@@ -94,7 +89,7 @@ The GUI and CLI use `--profile <dir>` to select the regulatory profile:
 
 ```bash
 # From edgesentry-rs/
-PROFILE=../clarus-commercial/profiles/sg-port-safety   # or profiles/demo
+PROFILE=../clarus/profiles/demo   # use your own profile path for production
 
 # 1. Ingest
 ./target/debug/eds ingest replay \
@@ -135,7 +130,7 @@ PROFILE=../clarus-commercial/profiles/sg-port-safety   # or profiles/demo
 
 ```bash
 # From edgesentry-rs/
-PROFILE=../clarus-commercial/profiles/sg-port-compliance
+PROFILE=/path/to/port-compliance-profile   # supply a profile with document compliance rules
 
 # TC1 — compliant
 ./target/debug/eds parse maritime \
@@ -158,7 +153,7 @@ PROFILE=../clarus-commercial/profiles/sg-port-compliance
 
 ```bash
 # From edgesentry-rs/
-PROFILE=../clarus-commercial/profiles/sg-maritime-security
+PROFILE=/path/to/maritime-security-profile   # supply a profile with zone_member rules
 
 ./target/debug/eds ingest replay \
   --source crates/edgesentry-ingest/fixtures/vessel_zone_approach.csv \
@@ -214,5 +209,5 @@ clarus/
 |---|---|
 | Path deps to edgesentry-rs | `clarus/ui/src-tauri/Cargo.toml` uses `path = "../../../edgesentry-rs/crates/..."`. Both repos must be siblings. |
 | Profiles loaded at runtime | No commercial content is compiled into the binary. `--profile <path>` is a runtime argument. |
-| OSS → commercial boundary | `clarus` and `edgesentry-rs` must never `use` anything from `clarus-commercial`. The binary is profile-agnostic. |
+| OSS boundary | `clarus` and `edgesentry-rs` contain no commercial regulatory content. The binary is profile-agnostic. |
 | GUI calls eds via Tauri commands | The Tauri backend calls edgesentry-rs crates directly (not the CLI binary). |

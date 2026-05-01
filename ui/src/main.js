@@ -3,8 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { createSplitScreen } from "./panels/SplitScreen.js";
 import { createCanvasPanel } from "./panels/CanvasPanel.js";
 import { createEventFeed } from "./panels/EventFeed.js";
-import { createReportPanel } from "./panels/ReportPanel.js";
-import { createVerifyPanel } from "./panels/VerifyPanel.js";
+import { createAuditChainPanel } from "./panels/AuditChainPanel.js";
 
 // Paths are relative to the user's clarus checkout.
 // Production: sealed chain pulled from Cloudflare R2 — same pipeline, no local CSV.
@@ -84,14 +83,7 @@ document.addEventListener("DOMContentLoaded", () => {
   toolbar.id = "toolbar";
   toolbar.innerHTML = `
     <h1>clarus</h1>
-    <span class="toolbar-label">LLM URL</span>
-    <input class="toolbar-input" id="llm-url" type="text"
-           placeholder="http://localhost:8080"
-           value="http://localhost:8080"
-           style="min-width:170px" />
-    <span class="toolbar-label" style="color:#4a5068;font-size:10px">
-      LLM off? run <code style="color:#8b949e">./scripts/run_llama.sh</code>
-    </span>
+    <div id="toolbar-scenario-bar"></div>
     <div style="flex:1"></div>
     <span class="toolbar-label">Speed</span>
     <select class="speed-select" id="speed-select">
@@ -101,13 +93,16 @@ document.addEventListener("DOMContentLoaded", () => {
       <option value="75">2×</option>
     </select>
     <button class="run-btn" id="run-btn">▶ Run Demo</button>
+    <button class="pdf-btn-toolbar" id="pdf-btn-toolbar" disabled>📄 PDF</button>
+    <span class="pdf-status-toolbar" id="pdf-status-toolbar"></span>
   `;
   app.appendChild(toolbar);
 
   // ── Main tab bar ──────────────────────────────────────────────────────────
   const tabBar = document.createElement("div");
   tabBar.id = "tab-bar";
-  ["Demo", "Report", "Verify"].forEach((label, i) => {
+  tabBar.style.display = "none";
+  [].forEach((label, i) => {
     const btn = document.createElement("button");
     btn.className = "tab-btn" + (i === 0 ? " active" : "");
     btn.dataset.tab = label.toLowerCase();
@@ -116,9 +111,10 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   app.appendChild(tabBar);
 
-  // ── Content area ──────────────────────────────────────────────────────────
+  // ── Content area (scrollable) ─────────────────────────────────────────────
   const content = document.createElement("div");
   content.id = "content";
+  content.style.cssText = "flex:1;overflow-y:auto;min-height:0";
   app.appendChild(content);
 
   // Status bar
@@ -134,18 +130,16 @@ document.addEventListener("DOMContentLoaded", () => {
   demoPanel.className = "tab-panel active";
   demoPanel.style.flexDirection = "column";
 
-  // Scenario sub-tab bar
+  // Scenario bar — lives inside toolbar
   const scenarioBar = document.createElement("div");
   scenarioBar.id = "scenario-bar";
 
-  // Group label: Port Safety
   const portLabel = document.createElement("span");
   portLabel.className = "scenario-group-label";
   portLabel.textContent = "PORT SAFETY";
   scenarioBar.appendChild(portLabel);
 
   SCENARIOS.forEach((s, i) => {
-    // Group divider before first canvas scenario
     if (s.useCanvas) {
       const divider = document.createElement("span");
       divider.className = "scenario-group-divider";
@@ -161,33 +155,28 @@ document.addEventListener("DOMContentLoaded", () => {
     btn.textContent = s.label;
     scenarioBar.appendChild(btn);
   });
-  demoPanel.appendChild(scenarioBar);
+  document.getElementById("toolbar-scenario-bar").appendChild(scenarioBar);
 
   // Create one panel per scenario (SplitScreen or CanvasPanel depending on scenario type)
   const scenarioPanels = {};
   const splitScreens  = {};
   const canvasPanels  = {};
+  const auditPanels   = {};
 
   SCENARIOS.forEach((s, i) => {
     const panel = document.createElement("div");
     panel.className = "scenario-panel" + (i === 0 ? " active" : "");
     panel.dataset.sid = s.id;
 
-    // Use-case badge + story card
+    // Compact scenario header — badge · title · regulation on two lines
     const storyCard = document.createElement("div");
     storyCard.className = "story-card" + (s.useCanvas ? " story-card--maritime" : "");
     storyCard.innerHTML = `
-      <div class="usecase-badge ${s.useCanvas ? "usecase-badge--maritime" : "usecase-badge--safety"}">
-        ${s.useCanvas ? "⚓ Maritime Security · PIER71-07 / CAP Vista Tier-2" : "🏗 Port Safety · PIER71-14"}
-      </div>
-      <div class="story-title">${s.title}</div>
-      <ul class="story-bullets">
-        ${s.story.map(line => `<li>${line}</li>`).join("")}
-      </ul>
-      <div class="story-meta">
-        <div class="story-reg">${s.regulation}</div>
-        <div class="story-source">Demo: local replay · Production: edge-signed → R2</div>
-      </div>
+      <span class="usecase-badge ${s.useCanvas ? "usecase-badge--maritime" : "usecase-badge--safety"}">
+        ${s.useCanvas ? "⚓ Maritime Security" : "🏗 Port Safety"}
+      </span>
+      <span class="story-title">${s.title}</span>
+      <span class="story-reg">${s.regulation}</span>
     `;
     panel.appendChild(storyCard);
 
@@ -219,48 +208,54 @@ document.addEventListener("DOMContentLoaded", () => {
       canvasWrapper.appendChild(feedWrapper);
 
       panel.appendChild(canvasWrapper);
+
+      // Zone rule explanation (replaces slider for maritime scenario)
+      const zoneNote = document.createElement("div");
+      zoneNote.className = "threshold-bar threshold-bar--zone";
+      zoneNote.innerHTML = `
+        <div class="threshold-rule-label">
+          <span class="threshold-rule-prefix">RESTRICTED_ZONE_APPROACH fires when</span>
+          <code class="threshold-rule-expr">vessel position ∈ zone polygon</code>
+        </div>
+        <div class="threshold-result" style="color:#4a8068">
+          Zone boundary defined in <code>sg-maritime-security/rules.json</code> —
+          not a distance threshold. Edit the polygon coordinates to change which area is restricted.
+        </div>
+      `;
+      panel.appendChild(zoneNote);
       canvasPanels[s.id] = { cp, feed };
     } else {
       // ── Split-screen scenario (forklift / proximity) ──────────────────
       const ss = createSplitScreen();
       panel.appendChild(ss.el);
       splitScreens[s.id] = ss;
+
+      // Threshold slider — disabled until Run Demo completes
+      const sliderBar = document.createElement("div");
+      sliderBar.className = "threshold-bar threshold-bar--locked";
+      sliderBar.id = `thresh-bar-${s.id}`;
+      sliderBar.innerHTML = `
+        <div class="threshold-rule-label">
+          <span class="threshold-rule-prefix">PROXIMITY_ALERT fires when</span>
+          <code class="threshold-rule-expr">distance &lt; <span id="thresh-val-${s.id}">5.0</span> m</code>
+        </div>
+        <div class="threshold-controls">
+          <span class="threshold-min">1 m</span>
+          <input class="threshold-slider" type="range"
+                 min="1" max="12" step="0.5" value="5"
+                 data-sid="${s.id}" disabled />
+          <span class="threshold-max">12 m</span>
+        </div>
+        <div class="threshold-result" id="thresh-hint-${s.id}">Run Demo first to enable</div>
+      `;
+      panel.appendChild(sliderBar);
     }
 
-    // Per-scenario PDF button (shown after demo runs)
-    const pdfBar = document.createElement("div");
-    pdfBar.className = "pdf-bar";
-    pdfBar.style.display = "none";
-    pdfBar.innerHTML = `
-      <button class="pdf-btn" data-sid="${s.id}">Generate PDF Report</button>
-      <span class="pdf-status" id="pdf-status-${s.id}"></span>
-    `;
-    panel.appendChild(pdfBar);
 
-    pdfBar.querySelector(".pdf-btn").addEventListener("click", async () => {
-      const btn = pdfBar.querySelector(".pdf-btn");
-      const statusEl = pdfBar.querySelector(".pdf-status");
-      btn.disabled = true;
-      btn.textContent = "Generating…";
-      statusEl.textContent = "";
-      try {
-        const eventsJson = JSON.stringify(scenarioPanels[s.id]._events || []);
-        const explanationsJson = JSON.stringify(
-          splitScreens[s.id] ? splitScreens[s.id].getExplanations() : []
-        );
-        const pdfPath = await invoke("generate_pdf_report", {
-          eventsJson,
-          siteName: s.title,
-          explanationsJson,
-        });
-        statusEl.textContent = `✓ Saved: ${pdfPath}`;
-      } catch (err) {
-        statusEl.textContent = `Error: ${err}`;
-      } finally {
-        btn.disabled = false;
-        btn.textContent = "Generate PDF Report";
-      }
-    });
+    // Audit chain panel (shown after demo run)
+    const auditPanel = createAuditChainPanel();
+    panel.appendChild(auditPanel.el);
+    auditPanels[s.id] = auditPanel;
 
     scenarioPanels[s.id] = panel;
     demoPanel.appendChild(panel);
@@ -268,25 +263,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   content.appendChild(demoPanel);
 
-  // ── Report panel ──────────────────────────────────────────────────────────
-  const reportPanel = document.createElement("div");
-  reportPanel.className = "tab-panel";
-  const reportComp = createReportPanel();
-  reportPanel.appendChild(reportComp.el);
-  content.appendChild(reportPanel);
-
-  // ── Verify panel ──────────────────────────────────────────────────────────
-  const verifyPanel = document.createElement("div");
-  verifyPanel.className = "tab-panel";
-  const verifyComp = createVerifyPanel();
-  verifyPanel.appendChild(verifyComp.el);
-  content.appendChild(verifyPanel);
-
   // ── Tab switching ─────────────────────────────────────────────────────────
   const mainPanels = {
     demo: demoPanel,
-    report: reportPanel,
-    verify: verifyPanel,
   };
   tabBar.addEventListener("click", (e) => {
     const btn = e.target.closest(".tab-btn");
@@ -311,13 +290,67 @@ document.addEventListener("DOMContentLoaded", () => {
     activeScenarioId = sid;
   });
 
+  // ── Threshold slider wiring ───────────────────────────────────────────────
+  let sliderDebounce = null;
+
+  demoPanel.addEventListener("input", (e) => {
+    const slider = e.target.closest(".threshold-slider");
+    if (!slider || slider.disabled) return;
+    const sid = slider.dataset.sid;
+    const val = parseFloat(slider.value);
+    document.getElementById(`thresh-val-${sid}`).textContent = val.toFixed(1);
+
+    clearTimeout(sliderDebounce);
+    sliderDebounce = setTimeout(async () => {
+      const scenario = SCENARIOS.find(s => s.id === sid);
+      if (!scenario || scenario.useCanvas) return;
+      const hintEl = document.getElementById(`thresh-hint-${sid}`);
+      hintEl.textContent = "calculating…";
+      hintEl.style.color = "#4a5068";
+
+      const rulesJson = JSON.stringify([
+        { rule_id: "PROXIMITY_ALERT", condition: `distance < ${val}`,
+          severity: "HIGH", regulation: `Site Safety §3.1 — ${val.toFixed(1)} m minimum clearance` },
+        { rule_id: "TTC_ALERT", condition: "ttc < 3.0",
+          severity: "HIGH", regulation: "Site Safety §3.2 — 3.0 s TTC emergency stop" },
+        { rule_id: "EXCLUSION_ZONE_BREACH", condition: "zone_member",
+          severity: "CRITICAL", regulation: "Site Safety §4.1 — Exclusion zone",
+          zone: [[0,0],[10,0],[10,10],[0,10]] },
+      ]);
+
+      try {
+        const result = await invoke("run_replay_with_rules", {
+          csvPath: scenario.csvPath,
+          rulesJson,
+        });
+        const p = result.total_physics_alerts;
+        // Find first alert frame and its measured distance
+        const firstAlertFrame = result.frames.find(f =>
+          f.physics_events.some(ev => ev.rule_id === "PROXIMITY_ALERT")
+        );
+        if (firstAlertFrame) {
+          const evt = firstAlertFrame.physics_events.find(ev => ev.rule_id === "PROXIMITY_ALERT");
+          hintEl.textContent =
+            `→ ${p} alert${p !== 1 ? "s" : ""} · first fires at ${evt.measured_value.toFixed(2)} m`;
+          hintEl.style.color = p > 0 ? "#ffa94d" : "#69db7c";
+        } else {
+          hintEl.textContent = `→ 0 alerts — rule never triggers on this trajectory`;
+          hintEl.style.color = "#69db7c";
+        }
+      } catch (err) {
+        hintEl.textContent = `Error: ${err}`;
+        hintEl.style.color = "#ff8787";
+      }
+    }, 350);
+  });
+
   // ── Run Demo ──────────────────────────────────────────────────────────────
   let animHandle = null;
   let collectedPhysicsEvents = [];
 
   document.getElementById("run-btn").addEventListener("click", async () => {
     const scenario = SCENARIOS.find(s => s.id === activeScenarioId);
-    const llmUrl = document.getElementById("llm-url").value.trim();
+    const llmUrl = "http://localhost:8080";
     const speedMs = parseInt(document.getElementById("speed-select").value, 10);
     const ss = splitScreens[activeScenarioId] || null;
 
@@ -366,10 +399,47 @@ document.addEventListener("DOMContentLoaded", () => {
           }
           runBtn.disabled = false;
           runBtn.textContent = "▶ Run Demo";
-          reportComp.updateEvents(collectedPhysicsEvents, `Scenario ${scenario.id} — ${scenario.title}`);
+
+          // Seal events into audit chain
+          auditPanels[activeScenarioId].seal(collectedPhysicsEvents);
+
           const panel = scenarioPanels[activeScenarioId];
           panel._events = collectedPhysicsEvents;
-          panel.querySelector(".pdf-bar").style.display = "flex";
+
+          // Generate one Executive Summary via LLM, then enable PDF
+          (async () => {
+            const events = collectedPhysicsEvents;
+            const pdfBtn = document.getElementById("pdf-btn-toolbar");
+            if (events.length === 0) { pdfBtn.disabled = false; return; }
+
+            setStatus(`Generating Executive Summary with LLM…`);
+            try {
+              const summary = await invoke("generate_executive_summary", {
+                eventsJson: JSON.stringify(events),
+                profileDir: scenario.profileDir,
+                llmUrl: "http://localhost:8080",
+              });
+              panel._executiveSummary = summary;
+              setStatus(`${events.length} events · Executive Summary ready — PDF ready`);
+            } catch {
+              panel._executiveSummary = "";
+              setStatus(`${events.length} events · LLM offline — PDF ready without Executive Summary`);
+            }
+            pdfBtn.disabled = false;
+          })();
+
+          // Unlock threshold slider after first successful run
+          if (!scenario.useCanvas) {
+            const bar = document.getElementById(`thresh-bar-${activeScenarioId}`);
+            const sl  = bar && bar.querySelector(".threshold-slider");
+            const hint = document.getElementById(`thresh-hint-${activeScenarioId}`);
+            if (sl) sl.disabled = false;
+            if (bar) bar.classList.remove("threshold-bar--locked");
+            if (hint) {
+              hint.textContent = "← drag to change the rule and see how alert behaviour changes";
+              hint.style.color = "#4a8068";
+            }
+          }
           return;
         }
         const frame = result.frames[frameIndex++];
@@ -394,6 +464,31 @@ document.addEventListener("DOMContentLoaded", () => {
       setStatus(`Error: ${err}`);
       runBtn.disabled = false;
       runBtn.textContent = "▶ Run Demo";
+    }
+  });
+
+  // ── PDF toolbar button ────────────────────────────────────────────────────
+  document.getElementById("pdf-btn-toolbar").addEventListener("click", async () => {
+    const btn = document.getElementById("pdf-btn-toolbar");
+    const statusEl = document.getElementById("pdf-status-toolbar");
+    const scenario = SCENARIOS.find(s => s.id === activeScenarioId);
+    const events = scenarioPanels[activeScenarioId]?._events || [];
+    btn.disabled = true;
+    btn.textContent = "…";
+    statusEl.textContent = "";
+    try {
+      const pdfPath = await invoke("generate_pdf_report", {
+        eventsJson: JSON.stringify(events),
+        siteName: scenario?.title || "Demo",
+        explanationsJson: JSON.stringify([]),
+        executiveSummary: scenarioPanels[activeScenarioId]?._executiveSummary || "",
+      });
+      statusEl.textContent = `✓ ${pdfPath.split("/").pop()}`;
+    } catch (err) {
+      statusEl.textContent = `Error: ${err}`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "📄 PDF";
     }
   });
 });
