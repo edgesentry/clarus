@@ -745,3 +745,40 @@ body {
 .canvas-header-sub code {
   color: #7ea8a8;
 }
+
+/* ── Threshold slider ───────────────────────────────────────────────────── */
+.threshold-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: #0d1017;
+  border: 1px solid #1e2233;
+  border-radius: 4px;
+  margin-top: 8px;
+}
+.threshold-label {
+  font-family: monospace;
+  font-size: 11px;
+  color: #4a5068;
+  white-space: nowrap;
+}
+.threshold-slider {
+  flex: 1;
+  max-width: 200px;
+  accent-color: #ffa94d;
+  cursor: pointer;
+}
+.threshold-value {
+  font-family: monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffa94d;
+  min-width: 44px;
+}
+.threshold-hint {
+  font-family: monospace;
+  font-size: 11px;
+  color: #69db7c;
+  flex: 1;
+}

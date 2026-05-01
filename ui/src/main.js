@@ -225,6 +225,19 @@ document.addEventListener("DOMContentLoaded", () => {
       const ss = createSplitScreen();
       panel.appendChild(ss.el);
       splitScreens[s.id] = ss;
+
+      // Threshold slider — shows that rule changes drive behaviour changes
+      const sliderBar = document.createElement("div");
+      sliderBar.className = "threshold-bar";
+      sliderBar.innerHTML = `
+        <span class="threshold-label">Proximity threshold</span>
+        <input class="threshold-slider" type="range"
+               min="1" max="12" step="0.5" value="5"
+               data-sid="${s.id}" />
+        <span class="threshold-value" id="thresh-val-${s.id}">5.0 m</span>
+        <span class="threshold-hint" id="thresh-hint-${s.id}"></span>
+      `;
+      panel.appendChild(sliderBar);
     }
 
     // Per-scenario PDF button (shown after demo runs)
@@ -309,6 +322,66 @@ document.addEventListener("DOMContentLoaded", () => {
     btn.classList.add("active");
     scenarioPanels[sid].classList.add("active");
     activeScenarioId = sid;
+  });
+
+  // ── Threshold slider wiring ───────────────────────────────────────────────
+  let sliderDebounce = null;
+
+  demoPanel.addEventListener("input", (e) => {
+    const slider = e.target.closest(".threshold-slider");
+    if (!slider) return;
+    const sid = slider.dataset.sid;
+    const val = parseFloat(slider.value);
+    const valEl = document.getElementById(`thresh-val-${sid}`);
+    if (valEl) valEl.textContent = `${val.toFixed(1)} m`;
+
+    // Debounce: re-run replay 400ms after user stops sliding
+    clearTimeout(sliderDebounce);
+    sliderDebounce = setTimeout(async () => {
+      const scenario = SCENARIOS.find(s => s.id === sid);
+      if (!scenario || scenario.useCanvas) return;
+      const ss = splitScreens[sid];
+      if (!ss) return;
+
+      const rulesJson = JSON.stringify([
+        { rule_id: "PROXIMITY_ALERT", condition: `distance < ${val}`,
+          severity: "HIGH", regulation: `Site Safety §3.1 — ${val.toFixed(1)} m minimum clearance` },
+        { rule_id: "TTC_ALERT", condition: "ttc < 3.0",
+          severity: "HIGH", regulation: "Site Safety §3.2 — 3.0 s TTC emergency stop" },
+        { rule_id: "EXCLUSION_ZONE_BREACH", condition: "zone_member",
+          severity: "CRITICAL", regulation: "Site Safety §4.1 — Exclusion zone",
+          zone: [[0,0],[10,0],[10,10],[0,10]] },
+      ]);
+
+      const hintEl = document.getElementById(`thresh-hint-${sid}`);
+      if (hintEl) hintEl.textContent = "re-running…";
+
+      try {
+        const result = await invoke("run_replay_with_rules", {
+          csvPath: scenario.csvPath,
+          rulesJson,
+        });
+
+        ss.reset();
+        ss.setConfig("", "");
+
+        const speedMs = parseInt(document.getElementById("speed-select").value, 10);
+        let fi = 0;
+        function step() {
+          if (fi >= result.frames.length) {
+            const p = result.total_physics_alerts;
+            if (hintEl) hintEl.textContent =
+              `→ ${p} alert${p !== 1 ? "s" : ""} with ${val.toFixed(1)} m threshold`;
+            return;
+          }
+          ss.applyFrame(result.frames[fi++]);
+          sliderDebounce = setTimeout(step, speedMs);
+        }
+        step();
+      } catch (err) {
+        if (hintEl) hintEl.textContent = `Error: ${err}`;
+      }
+    }, 400);
   });
 
   // ── Run Demo ──────────────────────────────────────────────────────────────
