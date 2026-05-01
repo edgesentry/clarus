@@ -106,7 +106,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // ── Main tab bar ──────────────────────────────────────────────────────────
   const tabBar = document.createElement("div");
   tabBar.id = "tab-bar";
-  ["Demo"].forEach((label, i) => {
+  tabBar.style.display = "none";
+  [].forEach((label, i) => {
     const btn = document.createElement("button");
     btn.className = "tab-btn" + (i === 0 ? " active" : "");
     btn.dataset.tab = label.toLowerCase();
