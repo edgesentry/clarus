@@ -351,7 +351,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   document.getElementById("run-btn").addEventListener("click", async () => {
     const scenario = SCENARIOS.find(s => s.id === activeScenarioId);
-    const llmUrl = document.getElementById("llm-url").value.trim();
+    const llmUrl = "http://localhost:8080";
     const speedMs = parseInt(document.getElementById("speed-select").value, 10);
     const ss = splitScreens[activeScenarioId] || null;
 
