@@ -43,7 +43,7 @@ pub fn explain_event(
 #[tauri::command]
 pub fn generate_executive_summary(
     events_json: String,
-    profile_dir: String,
+    _profile_dir: String,
     llm_url: String,
 ) -> Result<String, String> {
     use edgesentry_assess::assess;
