@@ -458,6 +458,7 @@ dependencies = [
  "edgesentry-ingest",
  "edgesentry-profile",
  "edgesentry-report",
+ "hex",
  "serde",
  "serde_json",
  "tauri",
