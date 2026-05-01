@@ -20,6 +20,7 @@ base64      = "0.22"
 hex         = "0.4"
 
 edgesentry-ingest   = { path = "../../../edgesentry-rs/crates/edgesentry-ingest" }
+edgesentry-types    = { path = "../../../edgesentry-rs/crates/edgesentry-types" }
 edgesentry-compute  = { path = "../../../edgesentry-rs/crates/edgesentry-compute" }
 edgesentry-evaluate = { path = "../../../edgesentry-rs/crates/edgesentry-evaluate" }
 edgesentry-explain  = { path = "../../../edgesentry-rs/crates/edgesentry-explain" }

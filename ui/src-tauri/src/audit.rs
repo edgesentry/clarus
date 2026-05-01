@@ -98,3 +98,91 @@ pub fn seal_events(events_json: String) -> Result<SealedChain, String> {
     let chain_json = serde_json::to_string(&records_raw).map_err(|e| e.to_string())?;
     Ok(SealedChain { chain_json, records: records_out })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_events_json(n: usize) -> String {
+        let events: Vec<serde_json::Value> = (1..=n).map(|i| serde_json::json!({
+            "rule_id": format!("RULE_{i}"),
+            "severity": "HIGH",
+            "regulation": format!("Reg §{i}"),
+            "entity_ids": ["FL-01", "W-03"],
+            "measured_value": i as f64 * 1.5,
+            "threshold": 5.0,
+            "timestamp_ms": i as u64 * 1000,
+        })).collect();
+        serde_json::to_string(&events).unwrap()
+    }
+
+    #[test]
+    fn seal_and_verify_roundtrip() {
+        let chain = seal_events(make_events_json(3)).unwrap();
+        assert_eq!(chain.records.len(), 3);
+        let result = verify_chain(chain.chain_json);
+        assert!(result.valid, "sealed chain must verify as valid");
+        assert_eq!(result.record_count, 3);
+        assert!(result.error.is_none());
+    }
+
+    #[test]
+    fn seal_empty_events_returns_empty_chain() {
+        let chain = seal_events("[]".to_string()).unwrap();
+        assert!(chain.records.is_empty());
+        assert_eq!(chain.chain_json, "[]");
+    }
+
+    #[test]
+    fn seal_invalid_json_returns_err() {
+        assert!(seal_events("not json".to_string()).is_err());
+    }
+
+    #[test]
+    fn seal_records_have_sequential_seq_numbers() {
+        let chain = seal_events(make_events_json(4)).unwrap();
+        for (i, r) in chain.records.iter().enumerate() {
+            assert_eq!(r.seq, (i + 1) as u64);
+        }
+    }
+
+    #[test]
+    fn seal_records_carry_event_fields() {
+        let chain = seal_events(make_events_json(1)).unwrap();
+        let r = &chain.records[0];
+        assert_eq!(r.rule_id, "RULE_1");
+        assert_eq!(r.timestamp_ms, 1000);
+        assert!((r.measured_value - 1.5).abs() < 0.001);
+        assert_eq!(r.threshold, 5.0);
+        assert!(!r.hash_hex.is_empty());
+    }
+
+    #[test]
+    fn verify_chain_invalid_json_returns_false() {
+        let result = verify_chain("not json".to_string());
+        assert!(!result.valid);
+        assert!(result.error.is_some());
+        assert_eq!(result.record_count, 0);
+    }
+
+    #[test]
+    fn verify_chain_empty_array_is_valid() {
+        let result = verify_chain("[]".to_string());
+        assert!(result.valid);
+        assert_eq!(result.record_count, 0);
+    }
+
+    #[test]
+    fn verify_chain_detects_tampered_payload_hash() {
+        let chain = seal_events(make_events_json(2)).unwrap();
+        // Flip one byte in the first record's payload_hash
+        let mut records: Vec<serde_json::Value> =
+            serde_json::from_str(&chain.chain_json).unwrap();
+        let hash = records[0]["payload_hash"].as_array_mut().unwrap();
+        let first = hash[0].as_u64().unwrap();
+        hash[0] = serde_json::json!((first + 1) % 256);
+        let tampered = serde_json::to_string(&records).unwrap();
+        let result = verify_chain(tampered);
+        assert!(!result.valid, "tampered chain must fail verification");
+    }
+}

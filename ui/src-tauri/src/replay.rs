@@ -47,7 +47,7 @@ fn severity_string(sev: &edgesentry_evaluate::Severity) -> String {
     }
 }
 
-fn class_string(class: &edgesentry_ingest::entity::EntityClass) -> String {
+fn class_string(class: &edgesentry_types::EntityClass) -> String {
     let v = serde_json::to_value(class).unwrap_or(serde_json::Value::String("Unknown".to_string()));
     match v {
         serde_json::Value::String(s) => s,
