@@ -281,7 +281,15 @@ function makeSvg(side) {
     }
   }
 
-  return { el: svg, update };
+  // Set initial resting positions so entities are not piled at x=0 before Run Demo.
+  // FL-01 starts at x=0.5m, worker parked at x=15m (representative across all scenarios).
+  const DEFAULT_ENTITIES = [
+    { id: "FL-01", class: "Forklift", x: 0.5, y: 0, vx: 0, vy: 0 },
+    { id: "W-03",  class: "Person",   x: 15.0, y: 0, vx: 0, vy: 0 },
+  ];
+  update(DEFAULT_ENTITIES, false);
+
+  return { el: svg, update, resetToDefault: () => update(DEFAULT_ENTITIES, false) };
 }
 
 export function createSplitScreen() {
@@ -383,6 +391,8 @@ export function createSplitScreen() {
     leftCountEl.appendChild(document.createTextNode(" false alerts"));
     rightCountEl.innerHTML = `<span style="color:#69db7c">✓ Monitoring — 0 alerts</span>`;
     eventDetail.hide();
+    leftSvg.resetToDefault();
+    rightSvg.resetToDefault();
     leftSvg.el.style.borderColor = "#2d3142";
     leftSvg.el.style.boxShadow = "";
     rightSvg.el.style.borderColor = "#2d3142";

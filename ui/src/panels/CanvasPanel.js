@@ -182,12 +182,16 @@ export function createCanvasPanel({ zonePolygon = null, worldW = 800, worldH = 7
 
   function reset() {
     alertIds = new Set();
-    ctx.fillStyle = "#070a14";
-    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    // Draw initial state: vessel at starting position (x=0, y=350) before Run Demo
+    const defaultEntities = [{ id: "V-001", class: "Vessel", x: 0, y: 350, vx: 2, vy: 0 }];
+    draw(defaultEntities, []);
     canvas.style.borderColor = "#1a3a3a";
     statusEl.textContent = "Waiting for demo…";
     statusEl.style.color = "#4a5068";
   }
+
+  // Draw initial state immediately on creation
+  reset();
 
   return { el: container, draw, reset };
 }
