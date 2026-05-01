@@ -111,7 +111,7 @@ export function createEventDetail(onExplanation) {
         copyBtn.style.display = "inline-block";
         copyBtn.onclick = () => navigator.clipboard.writeText(result.text).catch(() => {});
         if (onExplanation) {
-          onExplanation({ rule_id: event.rule_id, timestamp_ms: event.timestamp_ms, text: result.text });
+          onExplanation({ rule_id: event.rule_id, timestamp_ms: Date.now(), text: result.text });
         }
       })
       .catch((err) => {

@@ -59,6 +59,25 @@ eds report generate --events events.jsonl --assessment assessment.jsonl \
 
 ---
 
+## Open / commercial boundary
+
+| What | Repo | License |
+|---|---|---|
+| Physics engine, CLI, audit crate, report crate | `edgesentry/edgesentry-rs` | Apache-2.0 / MIT |
+| Tauri GUI, Unity scripts, demo fixtures | `edgesentry/clarus` (this repo) | Apache-2.0 / MIT |
+| Demo profile (`profiles/demo/`) — generic citations | `edgesentry/clarus` (this repo) | Apache-2.0 / MIT |
+| Production profiles (`sg-port-safety`, `sg-maritime-security`, …) | `edgesentry/clarus-commercial` | Commercial |
+| Regulatory knowledge bases (MPA, MOM, COLREGs KB text) | `edgesentry/clarus-commercial` | Commercial |
+| Submission documents (PIER71, CAP Vista) | `edgesentry/clarus-commercial` | Confidential |
+
+**Rule:** anything a PoC or demo needs to run end-to-end belongs in this repo.
+Anything that encodes jurisdiction-specific regulatory expertise — and would be worth
+paying for as a standalone deliverable — belongs in `clarus-commercial`.
+
+The demo profile (`profiles/demo/`) uses generic rule citations ("Site Safety Procedure §N.N").
+Production deployments use commercial profiles with jurisdiction-specific regulation citations.
+The engine and GUI are identical in both cases.
+
 ## License
 
 Engine: [Apache-2.0](https://github.com/edgesentry/edgesentry-rs/blob/main/LICENSE-APACHE) / [MIT](https://github.com/edgesentry/edgesentry-rs/blob/main/LICENSE-MIT) — see edgesentry-rs.
