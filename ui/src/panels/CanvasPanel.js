@@ -33,7 +33,6 @@ export function createCanvasPanel({ zonePolygon = null, worldW = 800, worldH = 7
   const wy = (y) => CANVAS_H - PAD - y * scale;
 
   let alertIds = new Set();
-  let flashTimer = null;
 
   function drawBackground() {
     ctx.fillStyle = "#040d0e";
@@ -171,15 +170,12 @@ export function createCanvasPanel({ zonePolygon = null, worldW = 800, worldH = 7
     if (hasAlert) {
       canvas.style.borderColor = "#ff4444";
       canvas.style.boxShadow = "0 0 14px rgba(255,68,68,0.4)";
-      clearTimeout(flashTimer);
-      flashTimer = setTimeout(() => {
-        canvas.style.borderColor = "#2d3142";
-        canvas.style.boxShadow = "";
-      }, 1400);
       const reg = events[0].regulation;
       statusEl.textContent = `🚨 ${events[0].rule_id} — ${reg.length > 70 ? reg.slice(0, 70) + "…" : reg}`;
       statusEl.style.color = "#ff8787";
     } else {
+      canvas.style.borderColor = "#1a3a3a";
+      canvas.style.boxShadow = "";
       statusEl.textContent = (entities || []).length > 0
         ? `✓ Monitoring ${entities.length} entity — no alerts`
         : "Waiting for demo…";
@@ -191,7 +187,7 @@ export function createCanvasPanel({ zonePolygon = null, worldW = 800, worldH = 7
     alertIds = new Set();
     ctx.fillStyle = "#070a14";
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-    canvas.style.borderColor = "#2d3142";
+    canvas.style.borderColor = "#1a3a3a";
     canvas.style.boxShadow = "";
     statusEl.textContent = "Waiting for demo…";
     statusEl.style.color = "#4a5068";
