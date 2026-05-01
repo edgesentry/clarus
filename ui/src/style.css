@@ -154,67 +154,27 @@ body {
 
 /* Story card — 3-column grid: title | bullets 2×2 | meta */
 .story-card {
-  padding: 10px 18px;
+  padding: 8px 16px;
   background: #111420;
   border-bottom: 1px solid #2d3142;
   flex-shrink: 0;
-  display: grid;
-  grid-template-columns: 240px 1fr auto;
-  gap: 0 24px;
+  display: flex;
   align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .story-title {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   color: #e6edf3;
-  line-height: 1.45;
-}
-
-.story-bullets {
-  list-style: none;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px 28px;
-}
-
-.story-bullets li {
-  font-size: 12px;
-  color: #8b949e;
-  position: relative;
-  padding-left: 12px;
-  line-height: 1.5;
-}
-.story-bullets li::before {
-  content: "→";
-  position: absolute;
-  left: 0;
-  color: #00d4aa;
-  font-size: 9px;
-  top: 2px;
-}
-
-.story-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  border-left: 1px solid #2d3142;
-  padding-left: 18px;
-  align-self: stretch;
-  justify-content: center;
-  min-width: 200px;
 }
 
 .story-reg {
-  font-size: 12px;
-  color: #7a8aa0;
-  line-height: 1.5;
-}
-
-.story-source {
-  font-size: 12px;
-  color: #4a7060;
-  line-height: 1.5;
+  font-size: 11px;
+  color: #4a6070;
+  margin-left: auto;
+  font-family: monospace;
 }
 
 /* Split screen */

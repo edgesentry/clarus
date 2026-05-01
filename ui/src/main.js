@@ -174,21 +174,15 @@ document.addEventListener("DOMContentLoaded", () => {
     panel.className = "scenario-panel" + (i === 0 ? " active" : "");
     panel.dataset.sid = s.id;
 
-    // Use-case badge + story card
+    // Compact scenario header — badge · title · regulation on two lines
     const storyCard = document.createElement("div");
     storyCard.className = "story-card" + (s.useCanvas ? " story-card--maritime" : "");
     storyCard.innerHTML = `
-      <div class="usecase-badge ${s.useCanvas ? "usecase-badge--maritime" : "usecase-badge--safety"}">
-        ${s.useCanvas ? "⚓ Maritime Security · PIER71-07 / CAP Vista Tier-2" : "🏗 Port Safety · PIER71-14"}
-      </div>
-      <div class="story-title">${s.title}</div>
-      <ul class="story-bullets">
-        ${s.story.map(line => `<li>${line}</li>`).join("")}
-      </ul>
-      <div class="story-meta">
-        <div class="story-reg">${s.regulation}</div>
-        <div class="story-source">Demo: local replay · Production: edge-signed → R2</div>
-      </div>
+      <span class="usecase-badge ${s.useCanvas ? "usecase-badge--maritime" : "usecase-badge--safety"}">
+        ${s.useCanvas ? "⚓ Maritime Security" : "🏗 Port Safety"}
+      </span>
+      <span class="story-title">${s.title}</span>
+      <span class="story-reg">${s.regulation}</span>
     `;
     panel.appendChild(storyCard);
 
