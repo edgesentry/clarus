@@ -83,6 +83,7 @@ document.addEventListener("DOMContentLoaded", () => {
   toolbar.id = "toolbar";
   toolbar.innerHTML = `
     <h1>clarus</h1>
+    <div id="toolbar-scenario-bar"></div>
     <div style="flex:1"></div>
     <span class="toolbar-label">Speed</span>
     <select class="speed-select" id="speed-select">
@@ -129,18 +130,16 @@ document.addEventListener("DOMContentLoaded", () => {
   demoPanel.className = "tab-panel active";
   demoPanel.style.flexDirection = "column";
 
-  // Scenario sub-tab bar
+  // Scenario bar — lives inside toolbar
   const scenarioBar = document.createElement("div");
   scenarioBar.id = "scenario-bar";
 
-  // Group label: Port Safety
   const portLabel = document.createElement("span");
   portLabel.className = "scenario-group-label";
   portLabel.textContent = "PORT SAFETY";
   scenarioBar.appendChild(portLabel);
 
   SCENARIOS.forEach((s, i) => {
-    // Group divider before first canvas scenario
     if (s.useCanvas) {
       const divider = document.createElement("span");
       divider.className = "scenario-group-divider";
@@ -156,7 +155,7 @@ document.addEventListener("DOMContentLoaded", () => {
     btn.textContent = s.label;
     scenarioBar.appendChild(btn);
   });
-  demoPanel.appendChild(scenarioBar);
+  document.getElementById("toolbar-scenario-bar").appendChild(scenarioBar);
 
   // Create one panel per scenario (SplitScreen or CanvasPanel depending on scenario type)
   const scenarioPanels = {};

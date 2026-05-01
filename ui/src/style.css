@@ -114,30 +114,31 @@ body {
 }
 .tab-panel.active { display: flex; flex-direction: column; }
 
-/* Scenario sub-tab bar */
+/* Scenario sub-tab bar — now lives inside toolbar */
 #scenario-bar {
   display: flex;
-  gap: 4px;
-  padding: 8px 14px 0;
-  background: #0f1117;
-  border-bottom: 1px solid #2d3142;
-  flex-shrink: 0;
+  align-items: center;
+  gap: 2px;
 }
 
 .scenario-btn {
-  background: #1a1d27;
+  background: transparent;
   border: 1px solid #2d3142;
-  border-bottom: none;
-  border-radius: 5px 5px 0 0;
-  padding: 6px 16px;
-  font-size: 12px;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 11px;
   font-weight: 600;
-  color: #8b949e;
+  color: #6a7380;
   cursor: pointer;
-  transition: color 0.15s, background 0.15s;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+  white-space: nowrap;
 }
-.scenario-btn:hover { color: #c9d1d9; background: #222535; }
-.scenario-btn.active { color: #00d4aa; background: #0f1117; border-color: #2d3142; }
+.scenario-btn:hover { color: #c9d1d9; border-color: #4a5068; }
+.scenario-btn.active {
+  color: #00d4aa;
+  border-color: #00d4aa;
+  background: rgba(0,212,170,0.08);
+}
 
 /* Scenario panels — scrollable */
 .scenario-panel {
@@ -622,23 +623,22 @@ body {
 
 /* ── Scenario group labels ──────────────────────────────────────────────── */
 .scenario-group-label {
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 700;
   letter-spacing: 0.08em;
-  color: #4a5068;
+  color: #3a4058;
   align-self: center;
-  padding: 0 4px;
+  padding: 0 6px 0 2px;
   font-family: monospace;
+  white-space: nowrap;
 }
-.scenario-group-label--maritime {
-  color: #1a8a8a;
-}
+.scenario-group-label--maritime { color: #1a6a6a; }
 .scenario-group-divider {
   width: 1px;
-  height: 20px;
+  height: 16px;
   background: #2d3142;
   align-self: center;
-  margin: 0 6px;
+  margin: 0 8px;
 }
 .scenario-btn--maritime {
   border-color: #1a5a5a !important;
