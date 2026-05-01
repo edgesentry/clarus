@@ -1,0 +1,15 @@
+profile_version = "1.0.0"
+calibration_status = "reference"   # reference | validated
+jurisdiction = "SG"
+regulations = ["MPA-Port-Safety-Circular-14-2023", "MOM-WSH-Docks-Regs-2020", "PSA-Terminal-Safety-Rules"]
+created_date = "2026-05-01"
+
+# calibration_status meanings:
+#   reference  — thresholds transcribed from regulation text; not validated against incident data
+#   validated  — thresholds tested against real incident records at a specific site
+#
+# When status becomes "validated", add:
+#   validated_date    = "YYYY-MM-DD"
+#   incident_count    = 47
+#   site              = "<site name>"
+#   validator         = "EdgeSentry Engineering"

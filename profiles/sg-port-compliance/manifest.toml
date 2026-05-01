@@ -1,0 +1,15 @@
+profile_version = "1.0.0"
+calibration_status = "reference"   # reference | validated
+jurisdiction = "SG"
+regulations = ["BWM-Convention-D2", "Singapore-EPHA", "IMDG-Code", "MLC-2006", "MPA-Port-Marine-Circular-19-2023"]
+created_date = "2026-05-01"
+
+# calibration_status meanings:
+#   reference  — checks transcribed from regulation text; not validated against real vessel data
+#   validated  — checks tested against real voyage records at a specific port or agency
+#
+# When status becomes "validated", add:
+#   validated_date    = "YYYY-MM-DD"
+#   voyage_count      = N
+#   site              = "<port / agency name>"
+#   validator         = "EdgeSentry Engineering"

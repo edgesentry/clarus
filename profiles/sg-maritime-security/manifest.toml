@@ -1,0 +1,19 @@
+profile_version = "1.0.0"
+calibration_status = "reference"   # reference | validated
+jurisdiction = "SG"
+regulations = ["Singapore-IPA-Cap136A", "MPA-Port-Marine-Notice-63-2024", "SOLAS-Ch5-Reg19", "MPA-Port-Marine-Circular-1-2023"]
+created_date = "2026-05-01"
+
+# Zone coordinates in rules.json are placeholder values for testing.
+# In production, update zone polygons from current MPA Port Marine Notice
+# to reflect active restricted zone boundaries in chart coordinates.
+#
+# calibration_status meanings:
+#   reference  — placeholder zone; thresholds from regulation text
+#   validated  — zone coordinates from field survey or official MPA chart data
+#
+# When status becomes "validated", add:
+#   validated_date    = "YYYY-MM-DD"
+#   zone_source       = "MPA Port Marine Notice No. XX of YYYY"
+#   site              = "<port area>"
+#   validator         = "EdgeSentry Engineering"
