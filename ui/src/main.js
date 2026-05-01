@@ -406,35 +406,26 @@ document.addEventListener("DOMContentLoaded", () => {
           const panel = scenarioPanels[activeScenarioId];
           panel._events = collectedPhysicsEvents;
 
-          // Auto-explain all events with LLM, then enable PDF
+          // Generate one Executive Summary via LLM, then enable PDF
           (async () => {
             const events = collectedPhysicsEvents;
-            if (events.length === 0) {
-              document.getElementById("pdf-btn-toolbar").disabled = false;
-              return;
-            }
-            const explanations = [];
-            for (let i = 0; i < events.length; i++) {
-              setStatus(`Explaining event ${i + 1}/${events.length} with LLM…`);
-              try {
-                const result = await invoke("explain_event", {
-                  riskEventJson: JSON.stringify(events[i]),
-                  profileDir: scenario.profileDir,
-                  llmUrl: "http://localhost:8080",
-                });
-                explanations.push(result);
-              } catch {
-                // LLM not running — skip silently
-              }
-            }
-            panel._explanations = explanations;
             const pdfBtn = document.getElementById("pdf-btn-toolbar");
-            pdfBtn.disabled = false;
-            if (explanations.length > 0) {
-              setStatus(`${events.length} events · ${explanations.length} LLM explanation${explanations.length !== 1 ? "s" : ""} — PDF ready`);
-            } else {
-              setStatus(`${events.length} events · LLM offline — PDF ready without explanations`);
+            if (events.length === 0) { pdfBtn.disabled = false; return; }
+
+            setStatus(`Generating Executive Summary with LLM…`);
+            try {
+              const summary = await invoke("generate_executive_summary", {
+                eventsJson: JSON.stringify(events),
+                profileDir: scenario.profileDir,
+                llmUrl: "http://localhost:8080",
+              });
+              panel._executiveSummary = summary;
+              setStatus(`${events.length} events · Executive Summary ready — PDF ready`);
+            } catch {
+              panel._executiveSummary = "";
+              setStatus(`${events.length} events · LLM offline — PDF ready without Executive Summary`);
             }
+            pdfBtn.disabled = false;
           })();
 
           // Unlock threshold slider after first successful run
@@ -486,11 +477,11 @@ document.addEventListener("DOMContentLoaded", () => {
     btn.textContent = "…";
     statusEl.textContent = "";
     try {
-      const explanations = scenarioPanels[activeScenarioId]?._explanations || [];
       const pdfPath = await invoke("generate_pdf_report", {
         eventsJson: JSON.stringify(events),
         siteName: scenario?.title || "Demo",
-        explanationsJson: JSON.stringify(explanations),
+        explanationsJson: JSON.stringify([]),
+        executiveSummary: scenarioPanels[activeScenarioId]?._executiveSummary || "",
       });
       statusEl.textContent = `✓ ${pdfPath.split("/").pop()}`;
     } catch (err) {

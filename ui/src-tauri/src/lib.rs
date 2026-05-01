@@ -12,6 +12,7 @@ pub fn run() {
             report::generate_pdf_report,
             audit::verify_chain,
             audit::seal_events,
+            explain::generate_executive_summary,
         ])
         .run(tauri::generate_context!())
         .expect("error running clarus demo");

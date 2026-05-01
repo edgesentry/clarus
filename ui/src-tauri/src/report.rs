@@ -20,6 +20,7 @@ pub fn generate_pdf_report(
     events_json: String,
     site_name: String,
     explanations_json: String,
+    executive_summary: String,
 ) -> Result<String, String> {
     let events: Vec<RiskEvent> = serde_json::from_str(&events_json)
         .map_err(|e| format!("parse events: {e}"))?;
@@ -55,6 +56,7 @@ pub fn generate_pdf_report(
         site_name: if site_name.is_empty() { None } else { Some(site_name) },
         report_period: Some(period),
         chain_valid: None,
+        executive_summary: if executive_summary.is_empty() { None } else { Some(executive_summary) },
         explanations,
     };
 
