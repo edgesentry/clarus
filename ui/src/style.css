@@ -928,3 +928,49 @@ body {
   cursor: pointer;
   font-family: monospace;
 }
+
+/* ── Verify panel (story-driven) ────────────────────────────────────────── */
+.verify-story { margin-bottom: 12px; }
+.verify-story-title {
+  font-size: 13px; font-weight: 700; color: #c9d1d9; margin-bottom: 4px;
+}
+.verify-story-sub {
+  font-size: 11px; color: #6a7380; line-height: 1.5; max-width: 700px;
+}
+.verify-split {
+  display: flex; gap: 16px; align-items: flex-start; margin-bottom: 16px;
+}
+.verify-col {
+  flex: 1; background: #0d1017; border: 1px solid #1e2233;
+  border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 8px;
+}
+.verify-col-header {
+  font-size: 12px; font-weight: 700; font-family: monospace;
+  display: flex; align-items: center; gap: 8px;
+}
+.verify-col-header--ok  { color: #69db7c; }
+.verify-col-header--bad { color: #ff8787; }
+.verify-tamper-badge {
+  font-size: 10px; font-weight: 600;
+  background: rgba(255,100,100,0.15); color: #ff8787;
+  padding: 2px 6px; border-radius: 3px; border: 1px solid rgba(255,100,100,0.25);
+}
+.audit-table {
+  width: 100%; border-collapse: collapse; font-family: monospace; font-size: 11px;
+}
+.audit-table td {
+  padding: 5px 6px; border-bottom: 1px solid #151820; vertical-align: top;
+}
+.audit-row--tampered td { background: rgba(255,80,80,0.05); }
+.audit-seq  { color: #4a5068; width: 24px; }
+.audit-time { color: #8b949e; white-space: nowrap; }
+.audit-rule { color: #c9d1d9; }
+.audit-detail { color: #8b949e; }
+.audit-detail--changed { color: #ff8787; }
+.audit-original { color: #69db7c; text-decoration: line-through; }
+.audit-faked    { color: #ff4444; font-weight: 700; }
+.audit-tamper-note {
+  font-size: 10px; color: #ff8787; opacity: 0.75; display: block; margin-top: 2px;
+}
+.audit-hash { color: #4a5068; white-space: nowrap; font-size: 10px; }
+.audit-row--tampered .audit-hash { color: #ff8787; }
