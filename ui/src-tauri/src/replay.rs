@@ -158,3 +158,54 @@ pub fn run_replay_with_rules(csv_path: String, rules_json: String) -> Result<Rep
     run_core(&content, rules)
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const SIMPLE_CSV: &str = "\
+id,class,x,y,vx,vy,timestamp_ms
+FL-01,Forklift,0.5,0.0,1.0,0.0,500
+W-03,Person,12.0,0.0,0.0,0.0,500
+FL-01,Forklift,3.0,0.0,1.0,0.0,1000
+W-03,Person,12.0,0.0,0.0,0.0,1000
+";
+
+    #[test]
+    fn run_core_no_rules_produces_no_physics_alerts() {
+        let result = run_core(SIMPLE_CSV, vec![]).unwrap();
+        assert_eq!(result.frames.len(), 2);
+        assert_eq!(result.total_physics_alerts, 0, "no rules → no physics alerts");
+    }
+
+    #[test]
+    fn run_core_proximity_rule_silent_when_gap_exceeds_threshold() {
+        // gap at both frames: 11.5m and 9.0m — both exceed 5m threshold
+        let rules_json = r#"[{"rule_id":"PROXIMITY_ALERT","condition":"distance < 5.0","severity":"HIGH","regulation":"Test §1"}]"#;
+        let rules = load_rules(rules_json).unwrap();
+        let result = run_core(SIMPLE_CSV, rules).unwrap();
+        assert_eq!(result.total_physics_alerts, 0);
+    }
+
+    #[test]
+    fn run_core_proximity_rule_fires_at_wide_threshold() {
+        // gap at both frames: 11.5m and 9.0m — both inside 15m threshold
+        let rules_json = r#"[{"rule_id":"PROXIMITY_ALERT","condition":"distance < 15.0","severity":"HIGH","regulation":"Test §1"}]"#;
+        let rules = load_rules(rules_json).unwrap();
+        let result = run_core(SIMPLE_CSV, rules).unwrap();
+        assert!(result.total_physics_alerts > 0, "15m threshold should fire on both frames");
+    }
+
+    #[test]
+    fn run_core_returns_entity_snapshots_with_correct_positions() {
+        let result = run_core(SIMPLE_CSV, vec![]).unwrap();
+        assert_eq!(result.frames[0].entities.len(), 2);
+        let fl = result.frames[0].entities.iter().find(|e| e.id == "FL-01").unwrap();
+        assert!((fl.x - 0.5).abs() < 0.01, "FL-01 x should be 0.5m at frame 0");
+    }
+
+    #[test]
+    fn run_core_invalid_csv_returns_err() {
+        assert!(run_core("not,a,csv\nbad,data,here", vec![]).is_err());
+    }
+}
+
