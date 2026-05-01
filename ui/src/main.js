@@ -1,6 +1,8 @@
 import "./style.css";
 import { invoke } from "@tauri-apps/api/core";
 import { createSplitScreen } from "./panels/SplitScreen.js";
+import { createCanvasPanel } from "./panels/CanvasPanel.js";
+import { createEventFeed } from "./panels/EventFeed.js";
 import { createReportPanel } from "./panels/ReportPanel.js";
 import { createVerifyPanel } from "./panels/VerifyPanel.js";
 
@@ -51,6 +53,26 @@ const SCENARIOS = [
     regulation: "MPA Port Safety Circular 2024-07 §3.1 — all powered vehicle / pedestrian pairs",
     csvPath: `${FIXTURES_BASE}/dual_forklift.csv`,
     profileDir: `${PROFILES_BASE}/demo`,
+  },
+  {
+    id: "D",
+    label: "D — Maritime Zone",
+    title: "Vessel V-001 approaching Singapore restricted zone",
+    story: [
+      "Vessel V-001 approaches from the west at 2 m/s toward a restricted zone in Singapore port waters.",
+      "clarus monitors vessel position against the zone polygon defined in the sg-maritime-security profile.",
+      "RESTRICTED_ZONE_APPROACH fires when V-001 crosses the zone boundary at x = 300 m (t ≈ 152 s).",
+      "Regulation: Singapore Infrastructure Protection Act (Cap. 136A) §18.",
+    ],
+    regulation: "Singapore Infrastructure Protection Act (Cap. 136A) §18 — entry to protected areas",
+    csvPath: `${FIXTURES_BASE}/vessel_zone_approach.csv`,
+    profileDir: `${PROFILES_BASE}/sg-maritime-security`,
+    useCanvas: true,
+    canvasOptions: {
+      zonePolygon: [[300,200],[600,200],[600,500],[300,500]],
+      worldW: 720,
+      worldH: 700,
+    },
   },
 ];
 
@@ -124,9 +146,10 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   demoPanel.appendChild(scenarioBar);
 
-  // Create one split-screen per scenario
+  // Create one panel per scenario (SplitScreen or CanvasPanel depending on scenario type)
   const scenarioPanels = {};
-  const splitScreens = {};
+  const splitScreens  = {};
+  const canvasPanels  = {};
 
   SCENARIOS.forEach((s, i) => {
     const panel = document.createElement("div");
@@ -148,9 +171,33 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
     panel.appendChild(storyCard);
 
-    // Split-screen component
-    const ss = createSplitScreen();
-    panel.appendChild(ss.el);
+    if (s.useCanvas) {
+      // ── Canvas scenario (zone / vessel) ──────────────────────────────────
+      const canvasWrapper = document.createElement("div");
+      canvasWrapper.style.cssText = "display:flex;gap:16px;align-items:flex-start;margin-top:10px";
+
+      const cp = createCanvasPanel(s.canvasOptions || {});
+      canvasWrapper.appendChild(cp.el);
+
+      // Event feed on the right
+      const feedWrapper = document.createElement("div");
+      feedWrapper.style.cssText = "flex:1;min-width:0";
+      const feedTitle = document.createElement("div");
+      feedTitle.style.cssText = "font-size:11px;color:#4a5068;margin-bottom:6px;font-family:monospace";
+      feedTitle.textContent = "clarus — Maritime Security Events";
+      feedWrapper.appendChild(feedTitle);
+      const feed = createEventFeed();
+      feedWrapper.appendChild(feed.el);
+      canvasWrapper.appendChild(feedWrapper);
+
+      panel.appendChild(canvasWrapper);
+      canvasPanels[s.id] = { cp, feed };
+    } else {
+      // ── Split-screen scenario (forklift / proximity) ──────────────────
+      const ss = createSplitScreen();
+      panel.appendChild(ss.el);
+      splitScreens[s.id] = ss;
+    }
 
     // Per-scenario PDF button (shown after demo runs)
     const pdfBar = document.createElement("div");
@@ -170,7 +217,9 @@ document.addEventListener("DOMContentLoaded", () => {
       statusEl.textContent = "";
       try {
         const eventsJson = JSON.stringify(scenarioPanels[s.id]._events || []);
-        const explanationsJson = JSON.stringify(ss.getExplanations());
+        const explanationsJson = JSON.stringify(
+          splitScreens[s.id] ? splitScreens[s.id].getExplanations() : []
+        );
         const pdfPath = await invoke("generate_pdf_report", {
           eventsJson,
           siteName: s.title,
@@ -186,7 +235,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     scenarioPanels[s.id] = panel;
-    splitScreens[s.id] = ss;
     demoPanel.appendChild(panel);
   });
 
@@ -243,7 +291,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const scenario = SCENARIOS.find(s => s.id === activeScenarioId);
     const llmUrl = document.getElementById("llm-url").value.trim();
     const speedMs = parseInt(document.getElementById("speed-select").value, 10);
-    const ss = splitScreens[activeScenarioId];
+    const ss = splitScreens[activeScenarioId] || null;
 
     if (animHandle !== null) {
       clearTimeout(animHandle);
@@ -259,6 +307,15 @@ document.addEventListener("DOMContentLoaded", () => {
     runBtn.textContent = "Running…";
     setStatus(`Scenario ${scenario.id}: loading replay…`);
 
+    // Reset whichever panel is active
+    if (scenario.useCanvas) {
+      canvasPanels[activeScenarioId].cp.reset();
+      canvasPanels[activeScenarioId].feed.clear();
+    } else {
+      ss.reset();
+      ss.setConfig(scenario.profileDir, llmUrl);
+    }
+
     try {
       const result = await invoke("run_replay", {
         csvPath: scenario.csvPath,
@@ -272,22 +329,36 @@ document.addEventListener("DOMContentLoaded", () => {
         if (frameIndex >= result.frames.length) {
           const g = result.total_generic_alerts;
           const p = result.total_physics_alerts;
-          setStatus(
-            `Scenario ${scenario.id} done — Generic AI: ${g} alert${g !== 1 ? "s" : ""} · clarus: ${p} alert${p !== 1 ? "s" : ""} · Click any clarus event for physics explanation`
-          );
+          if (scenario.useCanvas) {
+            setStatus(
+              `Scenario ${scenario.id} done — clarus: ${p} alert${p !== 1 ? "s" : ""}`
+            );
+          } else {
+            setStatus(
+              `Scenario ${scenario.id} done — Generic AI: ${g} alert${g !== 1 ? "s" : ""} · clarus: ${p} alert${p !== 1 ? "s" : ""} · Click any clarus event for physics explanation`
+            );
+          }
           runBtn.disabled = false;
           runBtn.textContent = "▶ Run Demo";
           reportComp.updateEvents(collectedPhysicsEvents, `Scenario ${scenario.id} — ${scenario.title}`);
-          // Show per-scenario PDF button and stash events for it
           const panel = scenarioPanels[activeScenarioId];
           panel._events = collectedPhysicsEvents;
           panel.querySelector(".pdf-bar").style.display = "flex";
           return;
         }
         const frame = result.frames[frameIndex++];
-        ss.applyFrame(frame);
-        for (const evt of frame.physics_events || []) {
-          collectedPhysicsEvents.push(evt);
+        if (scenario.useCanvas) {
+          const { cp, feed } = canvasPanels[activeScenarioId];
+          cp.draw(frame.entities, frame.physics_events);
+          for (const evt of frame.physics_events || []) {
+            collectedPhysicsEvents.push(evt);
+            feed.append(evt, false);
+          }
+        } else {
+          ss.applyFrame(frame);
+          for (const evt of frame.physics_events || []) {
+            collectedPhysicsEvents.push(evt);
+          }
         }
         animHandle = setTimeout(nextFrame, speedMs);
       }
