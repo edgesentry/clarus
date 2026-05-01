@@ -219,6 +219,21 @@ document.addEventListener("DOMContentLoaded", () => {
       canvasWrapper.appendChild(feedWrapper);
 
       panel.appendChild(canvasWrapper);
+
+      // Zone rule explanation (replaces slider for maritime scenario)
+      const zoneNote = document.createElement("div");
+      zoneNote.className = "threshold-bar threshold-bar--zone";
+      zoneNote.innerHTML = `
+        <div class="threshold-rule-label">
+          <span class="threshold-rule-prefix">RESTRICTED_ZONE_APPROACH fires when</span>
+          <code class="threshold-rule-expr">vessel position ∈ zone polygon</code>
+        </div>
+        <div class="threshold-result" style="color:#4a8068">
+          Zone boundary defined in <code>sg-maritime-security/rules.json</code> —
+          not a distance threshold. Edit the polygon coordinates to change which area is restricted.
+        </div>
+      `;
+      panel.appendChild(zoneNote);
       canvasPanels[s.id] = { cp, feed };
     } else {
       // ── Split-screen scenario (forklift / proximity) ──────────────────
@@ -226,16 +241,23 @@ document.addEventListener("DOMContentLoaded", () => {
       panel.appendChild(ss.el);
       splitScreens[s.id] = ss;
 
-      // Threshold slider — shows that rule changes drive behaviour changes
+      // Threshold slider — disabled until Run Demo completes
       const sliderBar = document.createElement("div");
-      sliderBar.className = "threshold-bar";
+      sliderBar.className = "threshold-bar threshold-bar--locked";
+      sliderBar.id = `thresh-bar-${s.id}`;
       sliderBar.innerHTML = `
-        <span class="threshold-label">Proximity threshold</span>
-        <input class="threshold-slider" type="range"
-               min="1" max="12" step="0.5" value="5"
-               data-sid="${s.id}" />
-        <span class="threshold-value" id="thresh-val-${s.id}">5.0 m</span>
-        <span class="threshold-hint" id="thresh-hint-${s.id}"></span>
+        <div class="threshold-rule-label">
+          <span class="threshold-rule-prefix">PROXIMITY_ALERT fires when</span>
+          <code class="threshold-rule-expr">distance &lt; <span id="thresh-val-${s.id}">5.0</span> m</code>
+        </div>
+        <div class="threshold-controls">
+          <span class="threshold-min">1 m</span>
+          <input class="threshold-slider" type="range"
+                 min="1" max="12" step="0.5" value="5"
+                 data-sid="${s.id}" disabled />
+          <span class="threshold-max">12 m</span>
+        </div>
+        <div class="threshold-result" id="thresh-hint-${s.id}">Run Demo first to enable</div>
       `;
       panel.appendChild(sliderBar);
     }
@@ -329,19 +351,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
   demoPanel.addEventListener("input", (e) => {
     const slider = e.target.closest(".threshold-slider");
-    if (!slider) return;
+    if (!slider || slider.disabled) return;
     const sid = slider.dataset.sid;
     const val = parseFloat(slider.value);
-    const valEl = document.getElementById(`thresh-val-${sid}`);
-    if (valEl) valEl.textContent = `${val.toFixed(1)} m`;
+    document.getElementById(`thresh-val-${sid}`).textContent = val.toFixed(1);
 
-    // Debounce: re-run replay 400ms after user stops sliding
     clearTimeout(sliderDebounce);
     sliderDebounce = setTimeout(async () => {
       const scenario = SCENARIOS.find(s => s.id === sid);
       if (!scenario || scenario.useCanvas) return;
-      const ss = splitScreens[sid];
-      if (!ss) return;
+      const hintEl = document.getElementById(`thresh-hint-${sid}`);
+      hintEl.textContent = "calculating…";
+      hintEl.style.color = "#4a5068";
 
       const rulesJson = JSON.stringify([
         { rule_id: "PROXIMITY_ALERT", condition: `distance < ${val}`,
@@ -353,35 +374,30 @@ document.addEventListener("DOMContentLoaded", () => {
           zone: [[0,0],[10,0],[10,10],[0,10]] },
       ]);
 
-      const hintEl = document.getElementById(`thresh-hint-${sid}`);
-      if (hintEl) hintEl.textContent = "re-running…";
-
       try {
         const result = await invoke("run_replay_with_rules", {
           csvPath: scenario.csvPath,
           rulesJson,
         });
-
-        ss.reset();
-        ss.setConfig("", "");
-
-        const speedMs = parseInt(document.getElementById("speed-select").value, 10);
-        let fi = 0;
-        function step() {
-          if (fi >= result.frames.length) {
-            const p = result.total_physics_alerts;
-            if (hintEl) hintEl.textContent =
-              `→ ${p} alert${p !== 1 ? "s" : ""} with ${val.toFixed(1)} m threshold`;
-            return;
-          }
-          ss.applyFrame(result.frames[fi++]);
-          sliderDebounce = setTimeout(step, speedMs);
+        const p = result.total_physics_alerts;
+        // Find first alert frame and its measured distance
+        const firstAlertFrame = result.frames.find(f =>
+          f.physics_events.some(ev => ev.rule_id === "PROXIMITY_ALERT")
+        );
+        if (firstAlertFrame) {
+          const evt = firstAlertFrame.physics_events.find(ev => ev.rule_id === "PROXIMITY_ALERT");
+          hintEl.textContent =
+            `→ ${p} alert${p !== 1 ? "s" : ""} · first fires at ${evt.measured_value.toFixed(2)} m`;
+          hintEl.style.color = p > 0 ? "#ffa94d" : "#69db7c";
+        } else {
+          hintEl.textContent = `→ 0 alerts — rule never triggers on this trajectory`;
+          hintEl.style.color = "#69db7c";
         }
-        step();
       } catch (err) {
-        if (hintEl) hintEl.textContent = `Error: ${err}`;
+        hintEl.textContent = `Error: ${err}`;
+        hintEl.style.color = "#ff8787";
       }
-    }, 400);
+    }, 350);
   });
 
   // ── Run Demo ──────────────────────────────────────────────────────────────
@@ -440,6 +456,20 @@ document.addEventListener("DOMContentLoaded", () => {
           runBtn.disabled = false;
           runBtn.textContent = "▶ Run Demo";
           reportComp.updateEvents(collectedPhysicsEvents, `Scenario ${scenario.id} — ${scenario.title}`);
+
+          // Unlock threshold slider after first successful run
+          if (!scenario.useCanvas) {
+            const bar = document.getElementById(`thresh-bar-${activeScenarioId}`);
+            const sl  = bar && bar.querySelector(".threshold-slider");
+            const hint = document.getElementById(`thresh-hint-${activeScenarioId}`);
+            if (sl) sl.disabled = false;
+            if (bar) bar.classList.remove("threshold-bar--locked");
+            if (hint) {
+              hint.textContent = "← drag to change the rule and see how alert behaviour changes";
+              hint.style.color = "#4a8068";
+            }
+          }
+
           const panel = scenarioPanels[activeScenarioId];
           panel._events = collectedPhysicsEvents;
           panel.querySelector(".pdf-bar").style.display = "flex";

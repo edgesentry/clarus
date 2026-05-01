@@ -782,3 +782,55 @@ body {
   color: #69db7c;
   flex: 1;
 }
+
+/* ── Threshold slider states ────────────────────────────────────────────── */
+.threshold-bar--locked {
+  opacity: 0.5;
+}
+.threshold-bar--locked .threshold-slider {
+  cursor: not-allowed;
+}
+.threshold-bar--zone {
+  border-color: #1a3a3a;
+  background: #080f10;
+}
+.threshold-rule-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.threshold-rule-prefix {
+  font-family: monospace;
+  font-size: 11px;
+  color: #4a5068;
+}
+.threshold-rule-expr {
+  font-family: monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffa94d;
+  background: rgba(255,169,77,0.08);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+.threshold-bar--zone .threshold-rule-expr {
+  color: #4ac8c8;
+  background: rgba(74,200,200,0.08);
+}
+.threshold-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.threshold-min, .threshold-max {
+  font-family: monospace;
+  font-size: 10px;
+  color: #4a5068;
+}
+.threshold-result {
+  font-family: monospace;
+  font-size: 11px;
+  color: #4a5068;
+  margin-top: 4px;
+}
