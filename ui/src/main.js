@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { createSplitScreen } from "./panels/SplitScreen.js";
 import { createCanvasPanel } from "./panels/CanvasPanel.js";
 import { createEventFeed } from "./panels/EventFeed.js";
-import { createVerifyPanel } from "./panels/VerifyPanel.js";
+import { createAuditChainPanel } from "./panels/AuditChainPanel.js";
 
 // Paths are relative to the user's clarus checkout.
 // Production: sealed chain pulled from Cloudflare R2 — same pipeline, no local CSV.
@@ -106,7 +106,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // ── Main tab bar ──────────────────────────────────────────────────────────
   const tabBar = document.createElement("div");
   tabBar.id = "tab-bar";
-  ["Demo", "Verify"].forEach((label, i) => {
+  ["Demo"].forEach((label, i) => {
     const btn = document.createElement("button");
     btn.className = "tab-btn" + (i === 0 ? " active" : "");
     btn.dataset.tab = label.toLowerCase();
@@ -166,6 +166,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const scenarioPanels = {};
   const splitScreens  = {};
   const canvasPanels  = {};
+  const auditPanels   = {};
 
   SCENARIOS.forEach((s, i) => {
     const panel = document.createElement("div");
@@ -296,23 +297,20 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
 
+    // Audit chain panel (shown after demo run)
+    const auditPanel = createAuditChainPanel();
+    panel.appendChild(auditPanel.el);
+    auditPanels[s.id] = auditPanel;
+
     scenarioPanels[s.id] = panel;
     demoPanel.appendChild(panel);
   });
 
   content.appendChild(demoPanel);
 
-  // ── Verify panel ──────────────────────────────────────────────────────────
-  const verifyPanel = document.createElement("div");
-  verifyPanel.className = "tab-panel";
-  const verifyComp = createVerifyPanel();
-  verifyPanel.appendChild(verifyComp.el);
-  content.appendChild(verifyPanel);
-
   // ── Tab switching ─────────────────────────────────────────────────────────
   const mainPanels = {
     demo: demoPanel,
-    verify: verifyPanel,
   };
   tabBar.addEventListener("click", (e) => {
     const btn = e.target.closest(".tab-btn");
@@ -446,6 +444,11 @@ document.addEventListener("DOMContentLoaded", () => {
           }
           runBtn.disabled = false;
           runBtn.textContent = "▶ Run Demo";
+
+          // Seal events into audit chain and show inline
+          if (collectedPhysicsEvents.length > 0) {
+            auditPanels[activeScenarioId].seal(collectedPhysicsEvents);
+          }
 
           // Unlock threshold slider after first successful run
           if (!scenario.useCanvas) {
