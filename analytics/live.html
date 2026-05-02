@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EdgeSentry Operations Monitor</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:      #0d1117; --surface: #161b22; --border: #30363d;
+      --text:    #e6edf3; --muted:   #8b949e; --accent: #58a6ff;
+      --green:   #3fb950; --amber:   #d29922; --red:    #f85149;
+    }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; line-height: 1.6; }
+
+    header { border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; gap: 12px; }
+    header h1 { font-size: 18px; font-weight: 600; }
+    .badge { background: var(--green); color: var(--bg); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 12px; }
+    .nav { margin-left: auto; display: flex; gap: 16px; }
+    .nav a { color: var(--muted); text-decoration: none; font-size: 13px; }
+    .nav a.active, .nav a:hover { color: var(--accent); }
+    #db-status { font-size: 12px; color: var(--muted); }
+
+    .content { padding: 24px; display: flex; flex-direction: column; gap: 20px; max-width: 1200px; margin: 0 auto; }
+
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; }
+    .card h3 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 14px; }
+
+    /* Site status row */
+    .site-grid { display: flex; gap: 12px; flex-wrap: wrap; }
+    .site-card { border: 1px solid var(--border); border-radius: 6px; padding: 12px 16px; min-width: 200px; }
+    .site-card .name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+    .site-card .status { font-size: 12px; display: flex; align-items: center; gap: 6px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .dot-valid { background: var(--green); }
+    .dot-degraded { background: var(--amber); }
+    .dot-uncalibrated { background: var(--red); animation: blink 1s step-end infinite; }
+    @keyframes blink { 50% { opacity: 0; } }
+    .site-card .meta { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+    /* Charts */
+    #drift-chart, #quality-chart { min-height: 160px; }
+
+    /* Alerts table */
+    .alert-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .alert-table th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    .alert-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); }
+    .alert-table tr:last-child td { border-bottom: none; }
+    .alert-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .qual-certified  { color: var(--green);  font-weight: 600; }
+    .qual-degraded   { color: var(--amber);  font-weight: 600; }
+    .qual-rejected   { color: var(--red);    font-weight: 600; }
+    .sev-critical    { color: var(--red);    font-weight: 700; }
+    .sev-high        { color: var(--amber); }
+    .ts              { font-family: monospace; font-size: 11px; color: var(--muted); }
+
+    .empty { color: var(--muted); text-align: center; padding: 40px; font-size: 13px; }
+    .no-data { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 60px; color: var(--muted); }
+    .no-data code { background: var(--surface); border: 1px solid var(--border); padding: 8px 16px; border-radius: 6px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>EdgeSentry Operations Monitor</h1>
+    <span class="badge">Flow 1 — Live</span>
+    <nav class="nav">
+      <a href="/">Risk Intelligence</a>
+      <a href="/live" class="active">Operations Monitor</a>
+    </nav>
+    <span id="db-status" style="margin-left:16px">Loading…</span>
+  </header>
+
+  <div class="content" id="content">
+    <div id="no-data" class="card no-data" style="display:none">
+      <div style="font-size:24px">📡</div>
+      <div>No live data yet. Start the edge daemon to begin streaming.</div>
+      <code>cd clarus/edge &amp;&amp; ./run.sh</code>
+      <div style="font-size:12px">Data will appear here within 30 seconds.</div>
+    </div>
+
+    <div id="live-content" style="display:none">
+      <!-- Site status -->
+      <div class="card">
+        <h3>Site Status</h3>
+        <div class="site-grid" id="site-grid"></div>
+      </div>
+
+      <!-- Two charts side by side -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div class="card">
+          <h3>Calibration — Anchor Drift Score (m)</h3>
+          <div id="drift-chart"></div>
+          <div style="margin-top:8px;font-size:11px;color:var(--muted)">
+            Threshold: <span style="color:var(--amber)">0.3 m DEGRADED</span> &nbsp;
+            <span style="color:var(--red)">0.6 m UNCALIBRATED</span>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Evidence Quality Over Time</h3>
+          <div id="quality-chart"></div>
+        </div>
+      </div>
+
+      <!-- Recent alerts -->
+      <div class="card">
+        <h3>Recent Alerts</h3>
+        <div id="alert-container"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="live.js"></script>
+</body>
+</html>
