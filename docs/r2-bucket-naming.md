@@ -39,13 +39,13 @@
 
 ## Current buckets (dev / PoC)
 
-| Bucket | Access | Role | Contents | Status |
-|--------|--------|------|----------|--------|
-| `clarus-dev-public-raw` | Public | raw | Heartbeats, alerts Parquet from edge daemon | ✅ Active |
-| `clarus-dev-public-audit` | Public | audit | Signed AuditRecord chain (BLAKE3 + Ed25519) | ✅ Active |
-| `clarus-dev-public-analytics` | Public | analytics | vessel_features.parquet, risk scores | ✅ Active |
+| Bucket | Access | Role | Object Lock | Contents | Status |
+|--------|--------|------|-------------|----------|--------|
+| `clarus-dev-public-raw` | Public | raw | — | Heartbeats, alerts Parquet from edge daemon | ✅ Active |
+| `clarus-dev-public-audit` | Public | audit | ✅ Indefinite (Standard) | Signed AuditRecord chain (BLAKE3 + Ed25519) | ✅ Active |
+| `clarus-dev-public-analytics` | Public | analytics | — | vessel_features.parquet, risk scores | ✅ Active |
 
-> **PoC note:** audit is public in dev to simplify demo access. In production, switch to `clarus-prd-private-audit` with Object Lock (WORM) enabled — see production checklist below.
+> **PoC note:** audit is public to simplify demo access. Object Lock (Standard mode) is enabled — records cannot be deleted or overwritten. In production, switch to `clarus-prd-private-audit` with private access and Compliance mode Object Lock — see production checklist below. See `audit-chain.md` for full PoC vs production design decisions.
 
 ---
 
@@ -54,7 +54,7 @@
 | Bucket | Access | Role | Notes |
 |--------|--------|------|-------|
 | `clarus-prd-private-raw` | Private | raw | Anonymise entity_ids (MMSI → internal ID) before writing |
-| `clarus-prd-private-audit` | Private | audit | Enable Object Lock (WORM) — required for legal admissibility |
+| `clarus-prd-private-audit` | Private | audit | Enable Object Lock in **Compliance mode** — required for legal admissibility |
 | `clarus-prd-private-analytics` | Private | analytics | Add auth token check in Pages Function |
 
 **Migration trigger:** Before any real site_id, MMSI, or operational timestamp enters a bucket.
