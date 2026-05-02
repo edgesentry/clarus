@@ -8,12 +8,12 @@ cd "$(dirname "$0")"
 # Load config
 [[ -f config.env ]] && set -a && source config.env && set +a
 
-BACKEND="${STORAGE_BACKEND:-minio}"
+BACKEND="${STORAGE_BACKEND:-wrangler}"
 
-# ── MinIO setup ───────────────────────────────────────────────────────────────
+# ── MinIO setup (only when STORAGE_BACKEND=minio) ────────────────────────────
 if [[ "$BACKEND" == "minio" ]]; then
   if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^clarus-minio$"; then
-    echo "[run.sh] Starting MinIO..."
+    echo "[run.sh] Starting MinIO via Docker..."
     docker run -d \
       --name clarus-minio \
       -p 9000:9000 -p 9001:9001 \
@@ -21,8 +21,6 @@ if [[ "$BACKEND" == "minio" ]]; then
       -e MINIO_ROOT_PASSWORD="${MINIO_SECRET_KEY:-minioadmin}" \
       minio/minio server /data --console-address ":9001"
     sleep 3
-
-    echo "[run.sh] Creating buckets..."
     docker run --rm --network host --entrypoint sh minio/mc -c "
       mc alias set local http://localhost:9000 \
         ${MINIO_ACCESS_KEY:-minioadmin} ${MINIO_SECRET_KEY:-minioadmin} --quiet &&
@@ -35,9 +33,19 @@ if [[ "$BACKEND" == "minio" ]]; then
   fi
 fi
 
-# ── Build + run ───────────────────────────────────────────────────────────────
-echo "[run.sh] Building clarus-edge..."
-cargo build --release 2>&1 | grep -E "^error|Compiling clarus-edge|Finished" || true
+# ── Build ─────────────────────────────────────────────────────────────────────
+echo "[run.sh] Building clarus-edge (first build with bundled DuckDB takes ~5 min)..."
+cargo build 2>&1   # show full output so progress is visible
 
-echo "[run.sh] Starting daemon (site=${SITE_ID:-site_dev_001} profile=${PROFILE:-sg-maritime-security})"
-exec ./target/release/clarus-edge "$@"
+BIN="./target/debug/clarus-edge"
+if [[ ! -f "$BIN" ]]; then
+  echo "[run.sh] ERROR: binary not found at $BIN — build may have failed"
+  exit 1
+fi
+
+# ── Run ───────────────────────────────────────────────────────────────────────
+echo ""
+echo "[run.sh] backend=${BACKEND}  site=${SITE_ID:-site_dev_001}  profile=${PROFILE:-sg-maritime-security}"
+echo "[run.sh] Heartbeats upload to '${ANALYTICS_BUCKET:-clarus-public}' every ${HEARTBEAT_INTERVAL:-30}s"
+echo ""
+exec "$BIN" "$@"
