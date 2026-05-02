@@ -353,8 +353,10 @@ async function renderAlerts(conn) {
 
       const render = (text, fromCache) => {
         expTd.innerHTML = `
-          <span>${text}</span>
-          <button class="regen-btn" title="Regenerate explanation">↻</button>
+          <div class="explain-inner">
+            <span>${text}</span>
+            <button class="regen-btn" title="Regenerate explanation">↻</button>
+          </div>
         `;
         expTd.querySelector(".regen-btn").addEventListener("click", async (e) => {
           e.stopPropagation();
