@@ -7,7 +7,7 @@ Two scenes for the PIER71 / CAP Vista demo video.
 | **Scene 1** — Port Safety | Forklift approaches pedestrian in terminal yard | `profiles/demo` |
 | **Scene 2** — Maritime Security | Vessel approaches Singapore restricted zone | `profiles/sg-maritime-security` |
 
-**Unity version:** 2023 LTS (2023.2.x or later)  
+**Unity version:** Unity 6 (6000.x) — recommended and tested  
 **No additional packages required** — uses only the Unity standard library (`UdpClient` is in `System.Net.Sockets`).
 
 ## Scripts

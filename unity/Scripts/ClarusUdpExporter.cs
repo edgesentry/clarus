@@ -67,7 +67,7 @@ public class ClarusUdpExporter : MonoBehaviour
 
     private void SendTick()
     {
-        var entities = FindObjectsOfType<ClarusEntity>();
+        var entities = FindObjectsByType<ClarusEntity>(FindObjectsSortMode.None);
         if (entities.Length == 0) return;
 
         long timestampMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
