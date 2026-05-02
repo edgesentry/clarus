@@ -8,7 +8,7 @@
 export async function onRequestGet({ request, env, params }) {
   const parts = params.path || [];
   const role = parts[0]; // "analytics" or "raw"
-  const key = parts.join("/");
+  const key = parts.slice(1).join("/"); // strip role prefix — R2 key has no "raw/" or "analytics/" prefix
 
   const bucket = role === "raw"
     ? env.CLARUS_DEV_PUBLIC_RAW
