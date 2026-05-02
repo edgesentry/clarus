@@ -56,6 +56,11 @@
     .sev-high        { color: var(--amber); }
     .ts              { font-family: monospace; font-size: 11px; color: var(--muted); }
 
+    .alert-filters { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+    .alert-filters select { background: var(--bg); border: 1px solid var(--border); color: var(--text); font-size: 12px; padding: 5px 8px; border-radius: 5px; outline: none; cursor: pointer; }
+    .alert-filters select:focus { border-color: var(--accent); }
+    .clear-btn { background: none; border: 1px solid var(--border); color: var(--muted); font-size: 12px; padding: 5px 10px; border-radius: 5px; cursor: pointer; }
+    .clear-btn:hover { border-color: var(--accent); color: var(--accent); }
     .empty { color: var(--muted); text-align: center; padding: 40px; font-size: 13px; }
     .no-data { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 60px; color: var(--muted); }
     .no-data code { background: var(--surface); border: 1px solid var(--border); padding: 8px 16px; border-radius: 6px; font-size: 12px; }
@@ -106,6 +111,13 @@
       <!-- Recent alerts -->
       <div class="card">
         <h3>Recent Alerts</h3>
+        <div class="alert-filters" id="alert-filters">
+          <select id="filter-rule"><option value="">All rules</option></select>
+          <select id="filter-severity"><option value="">All severities</option><option>CRITICAL</option><option>HIGH</option><option>MEDIUM</option><option>LOW</option></select>
+          <select id="filter-quality"><option value="">All quality</option><option>Certified</option><option>Degraded</option><option>Rejected</option></select>
+          <button id="filter-clear" class="clear-btn">Clear</button>
+          <span id="filter-count" style="margin-left:auto;font-size:12px;color:var(--muted)"></span>
+        </div>
         <div id="alert-container"></div>
       </div>
     </div>

@@ -148,19 +148,46 @@ async function renderQualityChart(conn) {
   document.getElementById("quality-chart").replaceChildren(chart);
 }
 
+async function populateRuleFilter(conn) {
+  const res = await conn.query(`SELECT DISTINCT rule_id FROM audit_chain ORDER BY rule_id`);
+  const sel = document.getElementById("filter-rule");
+  const existing = [...sel.options].map(o => o.value);
+  for (const r of res.toArray()) {
+    if (!existing.includes(r.rule_id)) {
+      const opt = document.createElement("option");
+      opt.value = opt.textContent = r.rule_id;
+      sel.appendChild(opt);
+    }
+  }
+}
+
 async function renderAlerts(conn) {
+  const rule     = document.getElementById("filter-rule")?.value     || "";
+  const severity = document.getElementById("filter-severity")?.value || "";
+  const quality  = document.getElementById("filter-quality")?.value  || "";
+
+  const conditions = [siteWhere()];
+  if (rule)     conditions.push(`rule_id = '${rule}'`);
+  if (severity) conditions.push(`severity = '${severity}'`);
+  if (quality)  conditions.push(`evidence_quality = '${quality}'`);
+
+  const where = conditions.join(" AND ");
+
   const res = await conn.query(`
     SELECT timestamp_ms, site_id, rule_id, severity, evidence_quality,
            confidence_cv, measured_value, entity_ids
-    FROM audit_chain WHERE ${siteWhere()}
-    ORDER BY timestamp_ms DESC LIMIT 50
+    FROM audit_chain WHERE ${where}
+    ORDER BY timestamp_ms DESC LIMIT 100
   `);
   const rows = res.toArray();
   const container = document.getElementById("alert-container");
+  document.getElementById("filter-count").textContent = `${rows.length} row(s)`;
+
   if (rows.length === 0) {
-    container.innerHTML = '<div class="empty">No alerts recorded yet.</div>';
+    container.innerHTML = '<div class="empty">No alerts match the current filter.</div>';
     return;
   }
+
   const table = document.createElement("table");
   table.className = "alert-table";
   table.innerHTML = `<thead><tr>
@@ -168,6 +195,7 @@ async function renderAlerts(conn) {
     <th>Quality</th><th>Confidence</th><th>Value</th><th>Entities</th>
   </tr></thead><tbody></tbody>`;
   const tbody = table.querySelector("tbody");
+
   for (const r of rows) {
     const qualCls = r.evidence_quality === "Certified" ? "qual-certified"
                   : r.evidence_quality === "Degraded"  ? "qual-degraded" : "qual-rejected";
@@ -219,5 +247,17 @@ if (hbKeys.length === 0 && alertKeys.length === 0) {
   const n = await conn.query("SELECT COUNT(*) AS n FROM heartbeats").then(r => r.toArray()[0]?.n ?? 0);
   status.textContent = `${n} heartbeats · ${sites.length} site(s)`;
 
+  await populateRuleFilter(conn);
   await refreshCharts(conn, sites);
+
+  // Alert filter listeners
+  ["filter-rule", "filter-severity", "filter-quality"].forEach(id => {
+    document.getElementById(id)?.addEventListener("change", () => renderAlerts(conn));
+  });
+  document.getElementById("filter-clear")?.addEventListener("click", () => {
+    document.getElementById("filter-rule").value     = "";
+    document.getElementById("filter-severity").value = "";
+    document.getElementById("filter-quality").value  = "";
+    renderAlerts(conn);
+  });
 }
