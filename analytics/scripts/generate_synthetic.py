@@ -12,7 +12,7 @@ One vessel (MMSI 563012345 "MV Fortune Star") is hardcoded as the demo spotlight
 Usage:
     pip install pandas pyarrow numpy
     python scripts/generate_synthetic.py
-    # writes data/vessel_features_synthetic.parquet
+    # writes data/vessel_features_synthetic.parquet and uploads to clarus-dev-public-analytics
 """
 
 import pathlib, json
@@ -165,9 +165,25 @@ int_cols = ["ais_gap_count_30d", "sts_candidate_count", "sanctions_distance",
 for c in int_cols:
     df[c] = df[c].astype(int)
 
+import subprocess
+
 OUT.parent.mkdir(exist_ok=True)
 pq.write_table(pa.Table.from_pandas(df, preserve_index=False), OUT)
 print(f"Written {len(df)} vessels → {OUT}")
 print(f"  Tiers: {df['tier'].value_counts().to_dict()}")
 print(f"  Score range: {df['behavioral_score'].min():.1f}–{df['behavioral_score'].max():.1f}")
 print(f"  Demo vessel: MMSI 563012345  score={spotlight['behavioral_score']}  premium ${spotlight['traditional_premium_usd']:,}→${spotlight['behavioral_premium_usd']:,}")
+
+# Upload to clarus-dev-public-analytics
+result = subprocess.run(
+    ["wrangler", "r2", "object", "put",
+     "clarus-dev-public-analytics/vessel_features_synthetic.parquet",
+     "--file", str(OUT),
+     "--content-type", "application/octet-stream",
+     "--remote"],
+    capture_output=True, text=True
+)
+if result.returncode == 0:
+    print("  uploaded → clarus-dev-public-analytics/vessel_features_synthetic.parquet")
+else:
+    print(f"  upload failed: {result.stderr.strip()}")
