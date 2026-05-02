@@ -216,22 +216,22 @@ async function selectVessel(conn, mmsi) {
     </tr>
     <tr>
       <td>AIS gaps (30d)</td>
-      <td class="missing">Not available</td>
+      <td class="missing">Blind spot</td>
       <td class="${Number(v.ais_gap_count_30d) > 10 ? 'status-missing' : 'available'}">${v.ais_gap_count_30d} gaps</td>
     </tr>
     <tr>
       <td>STS transfers</td>
-      <td class="missing">Not available</td>
+      <td class="missing">Blind spot</td>
       <td class="${Number(v.sts_candidate_count) > 2 ? 'status-missing' : 'available'}">${v.sts_candidate_count}</td>
     </tr>
     <tr>
       <td>Sanctions proximity</td>
-      <td class="missing">Not available</td>
+      <td class="missing">Blind spot</td>
       <td class="${Number(v.sanctions_distance) <= 3 ? 'status-missing' : 'available'}">${v.sanctions_distance} hops</td>
     </tr>
     <tr>
       <td>Behavioral score</td>
-      <td class="missing">Not available</td>
+      <td class="missing">Blind spot</td>
       <td class="${tier === 'high' ? 'status-missing' : tier === 'medium' ? 'degraded' : 'available'}">${score.toFixed(1)} / 100</td>
     </tr>
     <tr class="total-row">
