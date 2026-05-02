@@ -1,1 +1,12 @@
 /target
+
+# macOS
+.DS_Store
+
+# DuckDB local files
+*.db
+*.db.wal
+*.db.shm
+
+# Generated Parquet data (uploaded to R2, not committed)
+data/**/*.parquet

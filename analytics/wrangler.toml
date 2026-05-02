@@ -1,0 +1,18 @@
+name = "clarus-analytics"
+compatibility_date = "2026-05-02"
+pages_build_output_dir = "."
+
+# /live Operations Monitor reads raw device data
+[[r2_buckets]]
+binding = "CLARUS_DEV_PUBLIC_RAW"
+bucket_name = "clarus-dev-public-raw"
+
+# / Risk Intelligence reads processed analytics data
+[[r2_buckets]]
+binding = "CLARUS_DEV_PUBLIC_ANALYTICS"
+bucket_name = "clarus-dev-public-analytics"
+
+# /audit chain verification reads signed AuditRecords
+[[r2_buckets]]
+binding = "CLARUS_DEV_PUBLIC_AUDIT"
+bucket_name = "clarus-dev-public-audit"
