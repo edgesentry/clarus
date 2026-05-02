@@ -20,10 +20,12 @@
 
 ### Access
 
-| Value | Who can read |
-|-------|-------------|
-| `public` | Anyone (no auth required) |
-| `private` | Authenticated requests only |
+| Value | Who can read | Who can write |
+|-------|-------------|---------------|
+| `public` | Anyone — no auth required (via Cloudflare Pages Function) | Authorized only — wrangler login or R2 API key |
+| `private` | Authenticated requests only | Authorized only — wrangler login or R2 API key |
+
+> Read and write are always separate concerns. "public" means **read is open**; it does not weaken write protection. All writes require Cloudflare account credentials regardless of bucket access level.
 
 ### Role
 
