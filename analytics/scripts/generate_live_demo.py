@@ -127,7 +127,7 @@ def write_and_upload(df: pd.DataFrame, r2_key: str):
 
     result = subprocess.run(
         ["wrangler", "r2", "object", "put",
-         f"clarus-public/{r2_key}",
+         f"clarus-dev-public-raw/{r2_key}",
          "--file", str(local),
          "--content-type", "application/octet-stream",
          "--remote"],

@@ -248,8 +248,12 @@ const conn = await initDB();
 await renderFleetOverview(conn);
 await renderVesselList(conn);
 
-// Auto-select demo vessel
-await selectVessel(conn, "563012345");
+// Auto-select: URL param (?mmsi=) takes priority, falls back to demo spotlight
+const autoMmsi = new URLSearchParams(location.search).get("mmsi") ?? "563012345";
+await selectVessel(conn, autoMmsi);
+if (location.search.includes("mmsi=")) {
+  document.querySelector(".vessel-item.active")?.scrollIntoView({ block: "center", behavior: "smooth" });
+}
 
 // Search
 document.getElementById("vessel-search").addEventListener("input", e => {

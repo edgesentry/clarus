@@ -108,6 +108,9 @@ async function fetchExplanation(row) {
   }
 }
 
+// Entity → MMSI mapping for Flow 1→2 demo navigation
+const VESSEL_MMSI = { "V-001": "563012345" };
+
 const status = document.getElementById("db-status");
 
 // ── DuckDB init ───────────────────────────────────────────────────────────────
@@ -317,7 +320,13 @@ async function renderAlerts(conn) {
     const qualCls = r.evidence_quality === "Certified" ? "qual-certified"
                   : r.evidence_quality === "Degraded"  ? "qual-degraded" : "qual-rejected";
     const sevCls  = r.severity === "Critical" ? "sev-critical" : "sev-high";
-    const entities = (() => { try { return JSON.parse(r.entity_ids).join(", "); } catch { return r.entity_ids ?? "—"; } })();
+    const entityArr = (() => { try { return JSON.parse(r.entity_ids); } catch { return [r.entity_ids ?? "—"]; } })();
+    const entitiesHtml = entityArr.map(e => {
+      const mmsi = VESSEL_MMSI[e];
+      return mmsi
+        ? `${e} <a href="/?mmsi=${mmsi}" style="color:var(--accent);font-size:10px;text-decoration:none" title="View vessel risk profile">→ profile</a>`
+        : e;
+    }).join(", ");
     const ts = new Date(Number(r.timestamp_ms)).toISOString().replace("T"," ").slice(0,19) + " UTC";
 
     const tr = document.createElement("tr");
@@ -328,7 +337,7 @@ async function renderAlerts(conn) {
       <td class="${sevCls}">${r.severity}</td><td class="${qualCls}">${r.evidence_quality}</td>
       <td style="font-family:monospace">${Number(r.confidence_cv).toFixed(2)}</td>
       <td style="font-family:monospace">${Number(r.measured_value).toFixed(2)}</td>
-      <td style="color:var(--muted)">${entities}</td>
+      <td style="color:var(--muted)">${entitiesHtml}</td>
     `;
 
     // Expandable explanation row
@@ -351,10 +360,17 @@ async function renderAlerts(conn) {
       const cached = await getCachedExplanation(conn, key);
       if (cached) { render(cached, true); return; }
 
+      const vesselLink = entityArr.find(e => VESSEL_MMSI[e])
+        ? (() => {
+            const e = entityArr.find(e => VESSEL_MMSI[e]);
+            return ` <a href="/?mmsi=${VESSEL_MMSI[e]}" style="color:var(--accent);font-weight:600;text-decoration:none">View ${e} vessel risk profile →</a>`;
+          })()
+        : "";
+
       const render = (text, fromCache) => {
         expTd.innerHTML = `
           <div class="explain-inner">
-            <span>${text}</span>
+            <span>${text}${vesselLink}</span>
             <button class="regen-btn" title="Regenerate explanation">↻</button>
           </div>
         `;
