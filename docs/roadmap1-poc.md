@@ -160,24 +160,26 @@ Goal: `RiskEvent` → natural-language explanation with verifiable regulation ci
 
 ### Week 5: Browser demo (due: 1 June)
 
-Goal: end-to-end screen-recordable demo showing the split-screen comparison and the full pipeline.
+Goal: end-to-end screen-recordable demo showing Flow 1 (live alerts) → Flow 2 (vessel risk scorecard).
 
-**Tasks:**
+**Implemented** ([PR #52](https://github.com/edgesentry/clarus/pull/52), merged 2026-05-02):
 
-- [ ] `ui/` — minimal browser app (Axum or similar, or just a static HTML file served locally):
-  - Split-screen view:
-    - Left panel: "Generic proximity AI" mode — alert fires at every entity pair within 8 m (raw geometry, no physics)
-    - Right panel: clarus mode — alert fires only when `braking_distance > remaining_distance`
-  - Right panel event feed: click event → show explanation + regulation citation
-  - "Generate MOM Report" button → export PDF containing:
-    - Event timestamp, entities, measured value vs threshold
-    - Exact regulation clause
-    - `edgesentry-audit` hash and signature
-    - Section heading: "Monitoring system: active and enforcing correct standard at time of event"
-- [ ] `ui/verify.html` — paste AuditRecord JSON → show verification result (green/red)
-- [ ] Record 5-min demo video:
-  1. (0:00–0:30) Unity scene running, forklift approaching pedestrian
-  2. (0:30–2:30) Split-screen: left fires 4 alerts on a safe pass, right fires 0; then forklift accelerates, right fires 1 alert at the correct TTC
+- [x] `analytics/` — Cloudflare Pages app (DuckDB WASM + Observable Plot, no build step)
+- [x] `/live` Operations Monitor — site status, calibration drift chart, evidence quality chart, alert table with filters
+- [x] `/live` LLM explanation — llama.cpp via Caddy HTTPS proxy; evidence quality sentence injected deterministically by JS; OPFS-backed cache
+- [x] `/` Risk Intelligence — 500-vessel fleet overview + per-vessel behavioral scorecard
+- [x] `/` Premium Impact — Traditional baseline ($180k) → EdgeSentry signals → $340k (+89%)
+- [x] Flow 1→2 link — V-001 alert links to MV Fortune Star MMSI 563012345
+- [x] `edge/` — Rust edge daemon (CV sim → evaluate → sign → R2 upload) ([#54](https://github.com/edgesentry/clarus/issues/54))
+- [x] R2 infrastructure — `clarus-dev-public-raw`, `clarus-dev-public-analytics`, `clarus-dev-public-audit` (Object Lock) + naming convention documented
+- [x] `scripts/run_llama.sh` — llama-server + Caddy HTTPS proxy setup
+
+**Remaining:**
+
+- [ ] `/audit` chain verification page — sequence continuity check + hash chain visual (#55)
+- [ ] Record 5-min demo video (Flow 1 → Flow 2, CAP Vista scenario)
+
+**Deployed at:** https://feat-analytics-scorecard.clarus-analytics.pages.dev
   3. (2:30–4:00) Click the event → explanation appears → regulation citation shown
   4. (4:00–5:00) Click "Generate MOM Report" → PDF opens → run `verify` → green checkmark
 

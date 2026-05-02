@@ -1,48 +1,135 @@
-# clarus — Interactive Demo Guide
+# clarus — Demo Guide
 
-How to run the full end-to-end pipeline on a development machine: no Unity licence required, no cloud API.
+Two independent demo paths depending on the audience:
+
+| Path | What it shows | URL |
+|---|---|---|
+| **Web demo** (CAP Vista / PIER71) | Flow 1 (live alerts) → Flow 2 (vessel scorecard) → audit chain | `clarus-analytics.pages.dev` |
+| **CLI demo** (technical deep-dive) | Rust rule engine, physics vs generic AI, LLM explanation | local terminal |
 
 ---
 
-## Prerequisites
+## Web Demo — CAP Vista / PIER71
+
+### Architecture
+
+```
+Edge daemon (local)
+  clarus/edge/   →  clarus-dev-public-raw     →  /live  Operations Monitor
+                 →  clarus-dev-public-audit   →  /audit (coming: #55)
+
+Synthetic data
+  generate_synthetic.py  →  clarus-dev-public-analytics  →  /  Risk Intelligence
+```
+
+### Prerequisites
+
+| Tool | Required for | Install |
+|---|---|---|
+| Rust / Cargo | Edge daemon | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh` |
+| wrangler | R2 uploads | `npm i -g wrangler && wrangler login` |
+| Python 3 + pandas + pyarrow | Synthetic data generation | `pip install pandas pyarrow numpy` |
+| llama.cpp + Caddy | LLM alert explanations (optional) | `brew install llama.cpp caddy` |
+
+### Step 1 — Start the edge daemon
+
+```bash
+cd clarus/edge
+./run.sh
+```
+
+`config.env` is loaded automatically. Key settings:
+
+```bash
+SITE_ID=site_sgp_001
+PROFILE=sg-maritime-security   # maritime scenario — generates V-001 vessel alerts
+STORAGE_BACKEND=wrangler       # uses existing wrangler login, no extra credentials
+HEARTBEAT_INTERVAL=30          # heartbeat upload every 30 s
+```
+
+The daemon runs a loop: generate CV frames → evaluate rules → sign AuditRecord → upload to R2.
+
+To persist the signing key across restarts (recommended for demo):
+
+```bash
+# Generate a key once and add to config.env
+cargo run -- --private-key-hex "" 2>&1 | grep PRIVATE_KEY_HEX
+# → WARN PRIVATE_KEY_HEX not set — generated ephemeral key. Set PRIVATE_KEY_HEX=<hex>
+echo "PRIVATE_KEY_HEX=<hex from above>" >> config.env
+```
+
+### Step 2 — Generate synthetic vessel data (Flow 2)
+
+```bash
+cd clarus/analytics
+source /path/to/.venv/bin/activate   # virtualenv with pandas + pyarrow
+python scripts/generate_synthetic.py
+```
+
+Generates 500 synthetic vessels including demo spotlight MV Fortune Star (MMSI 563012345) and uploads to `clarus-dev-public-analytics`.
+
+To regenerate live demo data (Flow 1):
+
+```bash
+python scripts/generate_live_demo.py
+```
+
+### Step 3 — Start local LLM (optional)
+
+Enables AI-generated alert explanations in `/live`.
+
+```bash
+cd clarus
+./scripts/run_llama.sh
+```
+
+Starts llama-server on `:8080` + Caddy HTTPS proxy on `:8443`. The analytics app calls `https://localhost:8443/v1/chat/completions`.
+
+### Step 4 — Open the web app
+
+| Page | URL | What to show |
+|---|---|---|
+| Operations Monitor | https://feat-analytics-scorecard.clarus-analytics.pages.dev/live | Flow 1 |
+| Risk Intelligence | https://feat-analytics-scorecard.clarus-analytics.pages.dev/ | Flow 2 |
+
+### Demo flow (5–7 min)
+
+**Flow 1 — Operations Monitor** (`/live`)
+
+1. **Site Status cards** — `site_sgp_001` with VALID / DEGRADED / UNCALIBRATED states
+2. **Calibration Drift chart** — periodic spikes when drift > 0.3 m (DEGRADED) or > 0.6 m (UNCALIBRATED)
+3. **Evidence Quality chart** — Rejected count rises when calibration degrades
+4. **Recent Alerts** — filter to `RESTRICTED_ZONE_APPROACH`, click a **Certified** row
+5. LLM explanation expands with evidence quality sentence injected deterministically
+6. Click **"View V-001 vessel risk profile →"**
+
+**Flow 2 — Risk Intelligence** (`/`)
+
+7. MV Fortune Star auto-selected (same vessel as V-001)
+8. Behavioral score **74.3 / 100**, HIGH RISK
+9. **Premium Impact** section:
+   - Traditional underwriting (flag/age/type only): **$180,000**
+   - EdgeSentry signals: AIS gaps 14 ⚠, STS 3 ⚠, Sanctions proximity 2 hops ⚠
+   - With EdgeSentry: **$340,000 (+89%)**
+10. Actuarial Data Availability table — Layer A (incident outcome data) is the remaining gap
+
+**Closing line**
+
+> "Flow 1 collects tamper-evident evidence from the edge. Flow 2 turns that evidence into actuarially justifiable premium pricing. EdgeSentry closes the underwriting blind spot."
+
+---
+
+## CLI Demo — Technical Deep-dive
+
+### Prerequisites
 
 | Tool | Required for | Install |
 |---|---|---|
 | Rust / Cargo | All stages | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh` |
 | Python 3 | Live UDP simulation | pre-installed on macOS |
-| Ollama | LLM explanation stage | `brew install ollama` |
-| llama3.2 model | LLM explanation stage | `ollama pull llama3.2` |
+| Ollama | LLM explanation stage | `brew install ollama && ollama pull llama3.2` |
 
-All stages except the LLM explanation work offline with no additional dependencies.
-
----
-
-## Quick start — automated test
-
-Run all five stages in one command from the repo root:
-
-```bash
-./scripts/test-e2e.sh
-```
-
-Skip stages you don't need:
-
-```bash
-./scripts/test-e2e.sh --no-explain          # skip Ollama (no LLM required)
-./scripts/test-e2e.sh --no-udp              # skip live UDP
-./scripts/test-e2e.sh --no-explain --no-udp # rule engine only
-./scripts/test-e2e.sh --model mistral       # use a different local model
-```
-
-The script exits 0 on success and prints a coloured pass/fail summary.
-
----
-
-## Stage-by-stage walkthrough
-
-### Stage 1 — Rule engine with CSV fixture (no Ollama)
-
-Replays `fixtures/forklift_approach.csv`: FL-01 (forklift at 1.4 m/s) closes on W-03 (stationary worker) over 15 frames. All computation is deterministic Rust — no LLM involved.
+### Stage 1 — Rule engine with CSV fixture
 
 ```bash
 cargo run --bin clarus -- \
@@ -50,164 +137,56 @@ cargo run --bin clarus -- \
   --profile profiles/demo
 ```
 
-Expected output (first and last frames):
+FL-01 (forklift) closes on W-03 (worker) over 15 frames. Expected output:
 
 ```
-Loaded 3 rules from profiles/demo/rules.json
-Replaying 15 frames from fixtures/forklift_approach.csv
-[t=1000ms] RISK High  rule=PROXIMITY_ALERT  entities=["FL-01","W-03"]  value=3.20  threshold=5.00  reg=Site Safety Procedure §3.1
-[t=1000ms] RISK High  rule=TTC_ALERT   entities=["FL-01","W-03"]  value=2.29  threshold=3.00  reg=Site Safety Procedure §3.1
+[t=1000ms] RISK High  rule=PROXIMITY_ALERT  value=3.20  threshold=5.00
+[t=1000ms] RISK High  rule=TTC_ALERT        value=2.29  threshold=3.00
 ...
-[t=2400ms] RISK High  rule=TTC_ALERT   entities=["FL-01","W-03"]  value=0.89  threshold=3.00  ...
-Replay complete.
+[t=2400ms] RISK High  rule=TTC_ALERT        value=0.89  threshold=3.00
 ```
 
-What to look for:
-- `PROXIMITY_ALERT` fires every frame (distance stays below 5 m throughout)
-- `TTC_ALERT` fires with decreasing value (2.29 s → 0.89 s) as FL-01 closes in
-- `EXCLUSION_ZONE_BREACH` fires because both entities start inside the seed zone polygon
-
----
-
-### Stage 2 — Rule engine with LLM explanation
-
-Requires Ollama running locally. Start it first:
+### Stage 2 — LLM explanation
 
 ```bash
-ollama serve          # starts the Ollama daemon (separate terminal or background)
-ollama pull llama3.2  # one-time download ~2 GB
-```
-
-Then run clarus with the `--explain` flag:
-
-```bash
+ollama serve
 cargo run --bin clarus -- \
   --input file://fixtures/forklift_approach.csv \
   --profile profiles/demo \
   --explain
 ```
 
-Each RiskEvent now gets a plain-language explanation line:
+Each event gets a grounded plain-language explanation. `✓` = regulation clause verified against KB. `⚠ ungrounded` = LLM hallucinated a clause.
 
-```
-[t=1000ms] RISK High  rule=PROXIMITY_ALERT  entities=["FL-01","W-03"]  value=3.20  threshold=5.00  ...
-  [EXPLANATION ✓] Forklift FL-01 is 3.20 m from worker W-03, which is below the 5-metre minimum
-  clearance required by Site Safety Procedure §3.1. The vehicle operator must
-  stop immediately or a banksman must be appointed before movement resumes.
-```
+### Stage 3 — Live UDP
 
-The `✓` means the explanation is grounded — every regulation clause it cites (`§3.1`) was present in the retrieved KB snippet. An `⚠ ungrounded` marker means the LLM hallucinated a clause; that response is flagged but still printed so the operator can see it.
-
-**Model options:**
-
+**Terminal 1:**
 ```bash
-# Use Mistral instead of Llama 3.2
-cargo run --bin clarus -- \
-  --input file://fixtures/forklift_approach.csv \
-  --profile profiles/demo \
-  --explain \
-  --model mistral
-
-# Point to Ollama on another machine
-cargo run --bin clarus -- \
-  --input file://fixtures/forklift_approach.csv \
-  --profile profiles/demo \
-  --explain \
-  --ollama-url http://192.168.1.10:11434
+cargo run --bin clarus -- --input udp://127.0.0.1:9000 --profile profiles/demo
 ```
 
----
-
-### Stage 3 — Live UDP (two terminals)
-
-Simulates Unity sending entity data in real time. Open two terminal windows in the repo root.
-
-**Terminal 1 — start the listener:**
-
+**Terminal 2:**
 ```bash
-cargo run --bin clarus -- \
-  --input udp://127.0.0.1:9000 \
-  --profile profiles/demo
+python3 scripts/sim-unity-udp.py                   # forklift approach
+python3 scripts/sim-unity-udp.py --scenario safe   # safe pass — no alerts
 ```
 
-Output: `Listening on udp://127.0.0.1:9000 …`  (blocks, waiting for packets)
+### Simulator scenarios
 
-**Terminal 2 — send packets:**
-
-```bash
-# Default: forklift approach scenario, 15 frames at 10 Hz
-python3 scripts/sim-unity-udp.py
-
-# Zone breach scenario
-python3 scripts/sim-unity-udp.py --scenario exclusion
-
-# Safe pass — no rules should fire
-python3 scripts/sim-unity-udp.py --scenario safe
-
-# Custom parameters
-python3 scripts/sim-unity-udp.py --addr 127.0.0.1:9000 --count 30 --interval 0.1
-```
-
-Simulator output:
-
-```
-Sending 15 'approach' frames to udp://127.0.0.1:9000 at 10 Hz …
-  [  1/15] t=1000ms  2 entities  134 bytes
-  [  2/15] t=1100ms  2 entities  136 bytes
-  ...
-Done.
-```
-
-Terminal 1 will print RiskEvents in real time as each packet arrives.
-
-**With explanation (requires Ollama):**
-
-```bash
-# Terminal 1
-cargo run --bin clarus -- \
-  --input udp://127.0.0.1:9000 \
-  --profile profiles/demo \
-  --explain
-
-# Terminal 2
-python3 scripts/sim-unity-udp.py --interval 0.5  # slower, easier to read
-```
-
----
-
-## Simulator scenarios
-
-| Scenario | Command | Rules expected to fire |
-|---|---|---|
-| `approach` | `--scenario approach` | `PROXIMITY_ALERT`, `TTC_ALERT` |
-| `exclusion` | `--scenario exclusion` | `EXCLUSION_ZONE_BREACH` |
-| `safe` | `--scenario safe` | none |
-
----
-
-## Profile structure
-
-The `--profile` flag points to a directory containing:
-
-```
-profiles/demo/
-  rules.json        ← rule definitions (condition, severity, regulation citation)
-  kb/
-    PROXIMITY_ALERT.txt      ← regulation text retrieved for LLM prompt
-    TTC_ALERT.txt
-    EXCLUSION_ZONE_BREACH.txt
-```
-
-To test a different rule set, create a new profile directory with its own `rules.json` and `kb/` files and pass `--profile profiles/<your-profile>`.
+| Scenario | Rules expected |
+|---|---|
+| `approach` (default) | `PROXIMITY_ALERT`, `TTC_ALERT` |
+| `exclusion` | `EXCLUSION_ZONE_BREACH` |
+| `safe` | none |
 
 ---
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
+| Symptom | Cause | Fix |
 |---|---|---|
-| `Cannot bind UDP socket` | Port already in use | Change port: `--input udp://127.0.0.1:9001` and `--addr 127.0.0.1:9001` |
-| `[EXPLANATION ERROR] Ollama request failed` | Ollama not running | `ollama serve` in a separate terminal |
-| `Model 'llama3.2' not found` | Model not pulled | `ollama pull llama3.2` |
-| No events printed during UDP test | Packets sent before listener ready | Wait for `Listening on udp://…` before sending |
-| `Cannot read profiles/demo/rules.json` | Run from wrong directory | Run commands from repo root, not from `crates/` |
+| `/live` shows "No live data yet" | Edge daemon not running or no data uploaded | Run `./edge/run.sh` and wait 30 s |
+| LLM explanation shows "LLM offline" | llama.cpp not running | `./scripts/run_llama.sh` |
+| R2 upload failed | wrangler not logged in | `wrangler login` |
+| `clarus-dev-public-audit` upload fails | Object Lock — delete attempted | Object Lock is working correctly; writes still succeed |
+| Port 8443 already in use | Previous Caddy instance | `pkill caddy && ./scripts/run_llama.sh` |
