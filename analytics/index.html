@@ -87,15 +87,32 @@
     .indicator-val { font-size: 12px; color: var(--muted); text-align: right; font-family: monospace; }
 
     /* Premium comparison */
-    .premium-table { width: 100%; border-collapse: collapse; }
-    .premium-table th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--border); }
-    .premium-table td { padding: 8px 10px; font-size: 13px; border-bottom: 1px solid var(--border); }
-    .premium-table tr:last-child td { border-bottom: none; }
-    .premium-table .available { color: var(--green); }
-    .premium-table .missing { color: var(--red); }
-    .premium-table .total-row td { font-weight: 700; font-size: 15px; }
-    .premium-table .total-row .impact { color: var(--red); }
-    .premium-note { display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; padding: 10px 12px; background: rgba(210,153,34,0.08); border: 1px solid rgba(210,153,34,0.35); border-radius: 6px; font-size: 12px; color: var(--text); line-height: 1.5; }
+    .prem-tier { padding: 14px 0; }
+    .prem-tier + .prem-tier { border-top: 1px solid var(--border); }
+    .prem-tier-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 4px; }
+    .prem-tier-factors { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+    .prem-amount { font-size: 22px; font-weight: 700; }
+    .prem-delta-row { display: flex; align-items: center; gap: 12px; padding: 16px 0 4px; }
+    .prem-delta-col { display: flex; flex-direction: column; gap: 2px; }
+    .prem-delta-label { font-size: 11px; color: var(--muted); }
+    .prem-delta-amount { font-size: 24px; font-weight: 700; }
+    .prem-delta-amount.delta-base { color: var(--text); }
+    .prem-delta-amount.delta-high { color: var(--red); }
+    .prem-delta-arrow { font-size: 20px; color: var(--muted); padding: 0 4px; margin-top: 14px; }
+    .prem-delta-badge { background: rgba(248,81,73,0.15); color: var(--red); font-size: 13px; font-weight: 700; padding: 2px 10px; border-radius: 10px; margin-top: 16px; }
+    .prem-divider { display: flex; align-items: center; gap: 10px; padding: 10px 0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); }
+    .prem-divider::before, .prem-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .prem-signals { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .prem-signal { border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; min-width: 130px; }
+    .prem-signal.risk-high { border-color: rgba(248,81,73,0.45); background: rgba(248,81,73,0.06); }
+    .prem-signal.risk-med  { border-color: rgba(210,153,34,0.45); background: rgba(210,153,34,0.06); }
+    .prem-signal.risk-ok   { border-color: rgba(63,185,80,0.35);  background: rgba(63,185,80,0.05); }
+    .prem-signal-name { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+    .prem-signal-val  { font-size: 15px; font-weight: 700; }
+    .prem-signal.risk-high .prem-signal-val { color: var(--red); }
+    .prem-signal.risk-med  .prem-signal-val { color: var(--amber); }
+    .prem-signal.risk-ok   .prem-signal-val { color: var(--green); }
+    .premium-note { display: flex; align-items: flex-start; gap: 8px; margin-top: 14px; padding: 10px 12px; background: rgba(210,153,34,0.08); border: 1px solid rgba(210,153,34,0.35); border-radius: 6px; font-size: 12px; color: var(--text); line-height: 1.5; }
     .premium-note .note-icon { color: var(--amber); font-style: normal; flex-shrink: 0; font-weight: 700; }
 
     /* Layer status */
@@ -208,13 +225,8 @@
 
         <!-- Premium comparison -->
         <div class="card">
-          <h3>Traditional Underwriting vs EdgeSentry</h3>
-          <table class="premium-table">
-            <thead>
-              <tr><th>Factor</th><th>Traditional underwriting</th><th>+ EdgeSentry behavioral data</th></tr>
-            </thead>
-            <tbody id="sc-premium-rows"></tbody>
-          </table>
+          <h3>Premium Impact</h3>
+          <div id="sc-premium-comparison"></div>
           <p class="premium-note"><em class="note-icon">!</em><span>Premium figures are directional estimates. Behavioral factor weights are illustrative until Layer A (incident outcome data) is established with an insurer partner — see Actuarial Data Availability below.</span></p>
         </div>
 

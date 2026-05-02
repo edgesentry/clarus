@@ -195,50 +195,54 @@ async function selectVessel(conn, mmsi) {
   // Premium comparison
   const traditional = Number(v.traditional_premium_usd);
   const behavioral  = Number(v.behavioral_premium_usd);
-  const delta       = behavioral - traditional;
-  const deltaPct    = ((delta / traditional) * 100).toFixed(0);
+  const deltaPct    = (((behavioral - traditional) / traditional) * 100).toFixed(0);
 
-  document.getElementById("sc-premium-rows").innerHTML = `
-    <tr>
-      <td>Flag state</td>
-      <td class="available">${v.flag_state}</td>
-      <td class="available">${v.flag_state}</td>
-    </tr>
-    <tr>
-      <td>Vessel age</td>
-      <td class="available">${2026 - v.built_year} years</td>
-      <td class="available">${2026 - v.built_year} years</td>
-    </tr>
-    <tr>
-      <td>Vessel type</td>
-      <td class="available">${v.vessel_type}</td>
-      <td class="available">${v.vessel_type}</td>
-    </tr>
-    <tr>
-      <td>AIS gaps (30d)</td>
-      <td class="missing">Blind spot</td>
-      <td class="${Number(v.ais_gap_count_30d) > 10 ? 'status-missing' : 'available'}">${v.ais_gap_count_30d} gaps</td>
-    </tr>
-    <tr>
-      <td>STS transfers</td>
-      <td class="missing">Blind spot</td>
-      <td class="${Number(v.sts_candidate_count) > 2 ? 'status-missing' : 'available'}">${v.sts_candidate_count}</td>
-    </tr>
-    <tr>
-      <td>Sanctions proximity</td>
-      <td class="missing">Blind spot</td>
-      <td class="${Number(v.sanctions_distance) <= 3 ? 'status-missing' : 'available'}">${v.sanctions_distance} hops</td>
-    </tr>
-    <tr>
-      <td>Behavioral score</td>
-      <td class="missing">Blind spot</td>
-      <td class="${tier === 'high' ? 'status-missing' : tier === 'medium' ? 'degraded' : 'available'}">${score.toFixed(1)} / 100</td>
-    </tr>
-    <tr class="total-row">
-      <td>Estimated annual premium *</td>
-      <td>$${traditional.toLocaleString()}</td>
-      <td>$${behavioral.toLocaleString()} <span class="impact">(+${deltaPct}%)</span></td>
-    </tr>
+  const signalRisk = (key, val) => {
+    if (key === "ais_gap_count_30d")   return val > 10 ? "high" : val > 3  ? "med" : "ok";
+    if (key === "sts_candidate_count") return val > 2  ? "high" : val > 0  ? "med" : "ok";
+    if (key === "sanctions_distance")  return val <= 2 ? "high" : val <= 4 ? "med" : "ok";
+    if (key === "behavioral_score")    return val >= 60 ? "high" : val >= 30 ? "med" : "ok";
+    return "ok";
+  };
+
+  const SIGNALS = [
+    { key: "ais_gap_count_30d",   label: "AIS gaps (30d)",     fmt: x => `${x} gaps` },
+    { key: "sts_candidate_count", label: "STS transfers",       fmt: x => `${x}` },
+    { key: "sanctions_distance",  label: "Sanctions proximity", fmt: x => `${x} hops` },
+    { key: "behavioral_score",    label: "Behavioral score",    fmt: x => `${Number(x).toFixed(1)} / 100` },
+  ];
+
+  const signalsHtml = SIGNALS.map(s => {
+    const val = Number(v[s.key]);
+    const risk = signalRisk(s.key, val);
+    return `<div class="prem-signal risk-${risk}">
+      <div class="prem-signal-name">${s.label}</div>
+      <div class="prem-signal-val">${s.fmt(val)}</div>
+    </div>`;
+  }).join("");
+
+  document.getElementById("sc-premium-comparison").innerHTML = `
+    <div class="prem-tier">
+      <div class="prem-tier-label">Traditional underwriting</div>
+      <div class="prem-tier-factors">Flag state · Vessel age · Vessel type</div>
+      <div class="prem-amount">$${traditional.toLocaleString()}</div>
+    </div>
+    <div class="prem-divider">EdgeSentry adds</div>
+    <div class="prem-tier">
+      <div class="prem-signals">${signalsHtml}</div>
+    </div>
+    <div class="prem-delta-row">
+      <div class="prem-delta-col">
+        <div class="prem-delta-label">Traditional only</div>
+        <div class="prem-delta-amount delta-base">$${traditional.toLocaleString()}</div>
+      </div>
+      <div class="prem-delta-arrow">→</div>
+      <div class="prem-delta-col">
+        <div class="prem-delta-label">With EdgeSentry</div>
+        <div class="prem-delta-amount delta-high">$${behavioral.toLocaleString()}</div>
+      </div>
+      <div class="prem-delta-badge">+${deltaPct}%</div>
+    </div>
   `;
 }
 
