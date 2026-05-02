@@ -39,8 +39,11 @@ public class ZoneBoundary : MonoBehaviour
         _lr.endWidth   = lineWidth;
         _lr.useWorldSpace = true;
 
-        // Use a simple unlit material so it's always visible
-        _lr.material = new Material(Shader.Find("Sprites/Default"));
+        // Use an unlit material — try URP first, fall back to Built-in
+        var shader = Shader.Find("Universal Render Pipeline/Unlit")
+                  ?? Shader.Find("Sprites/Default")
+                  ?? Shader.Find("Unlit/Color");
+        _lr.material = new Material(shader);
         SetColor(normalColor);
         UpdateCorners();
     }
