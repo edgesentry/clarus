@@ -99,6 +99,17 @@ async function initDB() {
   const db = new duckdb.AsyncDuckDB(new duckdb.ConsoleLogger(duckdb.LogLevel.WARNING), new Worker(workerUrl));
   await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
   URL.revokeObjectURL(workerUrl);
+
+  // Persist alert_explanations cache across page reloads via OPFS.
+  // Falls back to in-memory if OPFS is unavailable (Safari Private mode).
+  try {
+    await db.open({ path: "opfs://clarus-analytics.db" });
+    status.textContent = "Database ready (persistent)";
+  } catch {
+    await db.open({ path: ":memory:" });
+    status.textContent = "Database ready (in-memory)";
+  }
+
   return db;
 }
 
