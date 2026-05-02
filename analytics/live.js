@@ -2,6 +2,85 @@
 import * as duckdb from "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.29.0/+esm";
 import * as Plot   from "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6/+esm";
 
+// ── LLM alert explanation ─────────────────────────────────────────────────────
+// Calls local llama.cpp via Caddy HTTPS proxy (run_llama.sh starts both).
+// Caches results in DuckDB WASM so each alert is only explained once.
+
+const LLM_ENDPOINT = "https://localhost:8443/v1/chat/completions";
+const LLM_TIMEOUT_MS = 30_000;
+
+const SYSTEM_PROMPT =
+  "You are an EdgeSentry safety analyst. " +
+  "Given a structured risk event, write a 2-3 sentence plain-language explanation: " +
+  "what physical situation triggered the alert, what the regulation requires, and what action is recommended. " +
+  "STRICT: only reference data provided. No markdown. No bullet points. Maximum 3 sentences.";
+
+function buildAlertPrompt(r) {
+  return [
+    `Rule: ${r.rule_id}`,
+    `Severity: ${r.severity}`,
+    `Measured value: ${Number(r.measured_value).toFixed(2)} (threshold: ${Number(r.threshold).toFixed(2)})`,
+    `Entities involved: ${(() => { try { return JSON.parse(r.entity_ids).join(", "); } catch { return r.entity_ids; } })()}`,
+    `Evidence quality: ${r.evidence_quality} (CV confidence: ${Number(r.confidence_cv).toFixed(2)})`,
+    `Site: ${r.site_id}`,
+  ].join("\n");
+}
+
+async function initExplainCache(conn) {
+  await conn.query(`
+    CREATE TABLE IF NOT EXISTS alert_explanations (
+      cache_key  TEXT PRIMARY KEY,
+      explanation TEXT NOT NULL,
+      generated_at TIMESTAMP DEFAULT now()
+    )
+  `);
+}
+
+function alertCacheKey(r) {
+  return `${r.site_id}:${r.rule_id}:${r.timestamp_ms}`;
+}
+
+async function getCachedExplanation(conn, key) {
+  const res = await conn.query(
+    `SELECT explanation FROM alert_explanations WHERE cache_key = '${key.replace(/'/g,"''")}' LIMIT 1`
+  );
+  const rows = res.toArray();
+  return rows.length > 0 ? rows[0].explanation : null;
+}
+
+async function saveExplanation(conn, key, text) {
+  await conn.query(`
+    INSERT INTO alert_explanations (cache_key, explanation)
+    VALUES ('${key.replace(/'/g,"''")}', '${text.replace(/'/g,"''")}')
+    ON CONFLICT (cache_key) DO UPDATE SET explanation = excluded.explanation, generated_at = now()
+  `);
+}
+
+async function fetchExplanation(row) {
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), LLM_TIMEOUT_MS);
+  try {
+    const res = await fetch(LLM_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        max_tokens: 150,
+        temperature: 0.3,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user",   content: buildAlertPrompt(row) },
+        ],
+      }),
+      signal: ac.signal,
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return (data?.choices?.[0]?.message?.content ?? "").trim();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 const status = document.getElementById("db-status");
 
 // ── DuckDB init ───────────────────────────────────────────────────────────────
@@ -202,7 +281,10 @@ async function renderAlerts(conn) {
     const sevCls  = r.severity === "Critical" ? "sev-critical" : "sev-high";
     const entities = (() => { try { return JSON.parse(r.entity_ids).join(", "); } catch { return r.entity_ids ?? "—"; } })();
     const ts = new Date(Number(r.timestamp_ms)).toISOString().replace("T"," ").slice(0,19) + " UTC";
+
     const tr = document.createElement("tr");
+    tr.style.cursor = "pointer";
+    tr.title = "Click to explain with local LLM";
     tr.innerHTML = `
       <td class="ts">${ts}</td><td>${r.site_id}</td><td>${r.rule_id}</td>
       <td class="${sevCls}">${r.severity}</td><td class="${qualCls}">${r.evidence_quality}</td>
@@ -210,7 +292,44 @@ async function renderAlerts(conn) {
       <td style="font-family:monospace">${Number(r.measured_value).toFixed(2)}</td>
       <td style="color:var(--muted)">${entities}</td>
     `;
+
+    // Expandable explanation row
+    const expRow = document.createElement("tr");
+    expRow.className = "explain-row";
+    expRow.style.display = "none";
+    const expTd = document.createElement("td");
+    expTd.colSpan = 8;
+    expTd.className = "explain-cell";
+    expRow.appendChild(expTd);
+
+    tr.addEventListener("click", async () => {
+      const isOpen = expRow.style.display !== "none";
+      if (isOpen) { expRow.style.display = "none"; return; }
+
+      expRow.style.display = "table-row";
+      expTd.innerHTML = `<span class="explain-loading">Thinking…</span>`;
+
+      const key = alertCacheKey(r);
+      const cached = await getCachedExplanation(conn, key);
+      if (cached) {
+        expTd.textContent = cached;
+        return;
+      }
+
+      try {
+        const text = await fetchExplanation(r);
+        expTd.textContent = text;
+        await saveExplanation(conn, key, text);
+      } catch (e) {
+        const isOffline = e.name === "AbortError" || e.message.includes("fetch") || e.message.includes("Load failed");
+        expTd.innerHTML = isOffline
+          ? `<span style="color:var(--amber)">LLM offline — run <code>./scripts/run_llama.sh</code> to enable explanations</span>`
+          : `<span style="color:var(--red)">Error: ${e.message}</span>`;
+      }
+    });
+
     tbody.appendChild(tr);
+    tbody.appendChild(expRow);
   }
   container.replaceChildren(table);
 }
@@ -247,6 +366,7 @@ if (hbKeys.length === 0 && alertKeys.length === 0) {
   const n = await conn.query("SELECT COUNT(*) AS n FROM heartbeats").then(r => r.toArray()[0]?.n ?? 0);
   status.textContent = `${n} heartbeats · ${sites.length} site(s)`;
 
+  await initExplainCache(conn);
   await populateRuleFilter(conn);
   await refreshCharts(conn, sites);
 
