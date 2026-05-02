@@ -6,7 +6,7 @@ import * as Plot from "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6/+esm"
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-const PARQUET_URL = "/data/vessel_features_synthetic.parquet";
+const PARQUET_URL = "/data/analytics/vessel_features_synthetic.parquet";
 
 const INDICATORS = [
   { key: "ais_gap_count_30d",      label: "AIS gaps (30d)",          max: 60,  fmt: v => `${v} gaps`,     risk: "higher = worse" },

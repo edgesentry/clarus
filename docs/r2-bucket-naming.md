@@ -8,63 +8,78 @@
 ## Format
 
 ```
-{product}-{env}-{access}
+{product}-{env}-{access}-{role}
 ```
 
 | Segment | Values | Notes |
 |---------|--------|-------|
-| `{product}` | `clarus` `maridb` `arktrace` `documaris` | lowercase, matches repo name |
-| `{env}` | `dev` `prd` | mandatory — no suffix allowed |
-| `{access}` | `public` `private` `audit` | see definitions below |
+| `{product}` | `clarus` `maridb` `arktrace` `documaris` | Lowercase, matches repo name |
+| `{env}` | `dev` `prd` | Mandatory — no bucket without an env suffix |
+| `{access}` | `public` `private` | Access control level |
+| `{role}` | `raw` `audit` `analytics` | Data purpose |
 
-### Access types
+### Access
 
-| Access | Read | Write | Use case |
-|--------|------|-------|----------|
-| `public` | Anyone | Edge daemon only | Analytics summaries (heartbeats, alerts, vessel features). No real PII or operational data. |
-| `private` | Authenticated | Authenticated | Production analytics — same data as `public` but access-controlled once real data flows. |
-| `audit` | Private only | Edge daemon only | Full signed AuditRecord chain. Always private. Future: WORM / Object Lock. |
+| Value | Who can read |
+|-------|-------------|
+| `public` | Anyone (no auth required) |
+| `private` | Authenticated requests only |
 
----
+### Role
 
-## Current buckets
-
-| Bucket | Env | Access | Contents | Status |
-|--------|-----|--------|----------|--------|
-| `clarus-dev-public` | dev | Public | Heartbeats, alerts, vessel features Parquet | ✅ Active |
-| `clarus-dev-audit` | dev | Private | Signed AuditRecord chain | ✅ Active |
-| `maridb-public` | — | Public | AIS features, sanctions data | ✅ Active (pre-convention) |
-| `arktrace-public` | — | Public | Arktrace analytics exports | ✅ Active (pre-convention) |
-| `documaris-public` | — | Public | Documaris analytics exports | ✅ Active (pre-convention) |
-
-> `maridb-public`, `arktrace-public`, `documaris-public` は命名規則制定前に作成。
-> 次回リネームの際に `maridb-dev-public` 等に統一する。
+| Value | Contents | Written by | Read by |
+|-------|----------|------------|---------|
+| `raw` | Raw device output — heartbeats, alerts, EntityStream | Edge daemon | `/live` Operations Monitor |
+| `audit` | Signed AuditRecord chain (tamper-evident) | Edge daemon | Auditors, insurers |
+| `analytics` | Post-processed data — vessel features, risk scores | maridb pipelines | `/` Risk Intelligence |
 
 ---
 
-## Production buckets (future — when real data flows)
+## Current buckets (dev)
 
-| Bucket | Env | Access | Migration from |
-|--------|-----|--------|----------------|
-| `clarus-prd-private` | prd | Private + auth | `clarus-dev-public` |
-| `clarus-prd-audit` | prd | Private + WORM | `clarus-dev-audit` |
+| Bucket | Access | Role | Contents | Status |
+|--------|--------|------|----------|--------|
+| `clarus-dev-public-raw` | Public | raw | Heartbeats, alerts Parquet from edge daemon | ✅ Active |
+| `clarus-dev-private-audit` | Private | audit | Signed AuditRecord chain | ✅ Active |
+| `clarus-dev-public-analytics` | Public | analytics | vessel_features.parquet, risk scores | ✅ Active |
+
+---
+
+## Production buckets (future)
+
+| Bucket | Access | Role | Notes |
+|--------|--------|------|-------|
+| `clarus-prd-private-raw` | Private | raw | Anonymise entity_ids (MMSI → internal ID) before writing |
+| `clarus-prd-private-audit` | Private | audit | Enable Object Lock (WORM) |
+| `clarus-prd-private-analytics` | Private | analytics | Add auth token check in Pages Function |
+
+**Migration trigger:** Before any real site_id, MMSI, or operational timestamp enters a bucket.
+
+---
+
+## App ↔ bucket mapping
+
+### Analytics app (Cloudflare Pages)
+
+| Page | Bucket | Binding |
+|------|--------|---------|
+| `/live` Operations Monitor | `clarus-dev-public-raw` | `CLARUS_DEV_PUBLIC_RAW` |
+| `/` Risk Intelligence | `clarus-dev-public-analytics` | `CLARUS_DEV_PUBLIC_ANALYTICS` |
+
+### Edge daemon
+
+| Data | Bucket | Config key |
+|------|--------|------------|
+| Heartbeats + alerts | `clarus-dev-public-raw` | `RAW_BUCKET` |
+| Signed AuditRecords | `clarus-dev-private-audit` | `AUDIT_BUCKET` |
 
 ---
 
 ## PoC → Production migration checklist
 
-- [ ] Create `clarus-prd-private` with private access
-- [ ] Create `clarus-prd-audit` with Object Lock (WORM) enabled
-- [ ] Edge daemon: `ANALYTICS_BUCKET=clarus-prd-private`, `AUDIT_BUCKET=clarus-prd-audit`
-- [ ] Analytics app Pages Function: add auth token verification before R2 reads
-- [ ] entity_ids: anonymise MMSI → internal ID before writing to analytics bucket
-- [ ] Stop writing to `clarus-dev-public`
-
-**Migration trigger:** 実際の site_id・MMSI・運用タイムスタンプがバケットに入る前に実施。
-
----
-
-## Exceptions
-
-- `arktrace-data` — 命名規則制定前の legacy バケット。内容確認後に整理。
-- `arktrace-private-capvista` — CAP Vista 提出物用に作成した一時バケット。`arktrace-dev-private` にリネーム予定。
+- [ ] Create 3 `prd` buckets (raw, audit, analytics)
+- [ ] Enable Object Lock on `clarus-prd-private-audit`
+- [ ] Edge daemon: update `RAW_BUCKET` and `AUDIT_BUCKET` to prd buckets
+- [ ] Pages Function: add auth token verification for private buckets
+- [ ] Anonymise entity_ids (MMSI → internal ID) before writing to raw bucket
+- [ ] Stop writing to dev buckets

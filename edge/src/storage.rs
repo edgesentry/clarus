@@ -19,7 +19,7 @@ use crate::config::Config;
 pub struct Storage {
     backend:        String,
     audit_bucket:   String,
-    analytics_bucket: String,
+    raw_bucket: String,
     // Only used for r2 / minio backends
     s3_audit:     Option<Arc<dyn ObjectStore>>,
     s3_analytics: Option<Arc<dyn ObjectStore>>,
@@ -32,9 +32,9 @@ impl Storage {
                 Ok(Self {
                     backend: config.storage_backend.clone(),
                     audit_bucket: config.audit_bucket.clone(),
-                    analytics_bucket: config.analytics_bucket.clone(),
+                    raw_bucket: config.raw_bucket.clone(),
                     s3_audit:     Some(build_s3_store(&config.audit_bucket, config)?),
-                    s3_analytics: Some(build_s3_store(&config.analytics_bucket, config)?),
+                    s3_analytics: Some(build_s3_store(&config.raw_bucket, config)?),
                 })
             }
             _ => {
@@ -42,7 +42,7 @@ impl Storage {
                 Ok(Self {
                     backend: "wrangler".into(),
                     audit_bucket: config.audit_bucket.clone(),
-                    analytics_bucket: config.analytics_bucket.clone(),
+                    raw_bucket: config.raw_bucket.clone(),
                     s3_audit: None,
                     s3_analytics: None,
                 })
@@ -55,9 +55,9 @@ impl Storage {
         self.put(&self.audit_bucket.clone(), key, data).await
     }
 
-    /// Upload to the analytics bucket (heartbeats + alert summaries).
-    pub async fn put_analytics(&self, key: &str, data: Bytes) -> Result<()> {
-        self.put(&self.analytics_bucket.clone(), key, data).await
+    /// Upload to the raw bucket (heartbeats + alert summaries).
+    pub async fn put_raw(&self, key: &str, data: Bytes) -> Result<()> {
+        self.put(&self.raw_bucket.clone(), key, data).await
     }
 
     async fn put(&self, bucket: &str, key: &str, data: Bytes) -> Result<()> {

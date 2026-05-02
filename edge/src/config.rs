@@ -39,13 +39,13 @@ pub struct Config {
 
     // ── Buckets ───────────────────────────────────────────────────────────
 
-    /// WORM bucket — full signed audit chain (disaster recovery, authoritative).
-    #[arg(long, env = "AUDIT_BUCKET", default_value = "clarus-audit")]
-    pub audit_bucket: String,
+    /// Device output bucket — heartbeats + alerts (read by /live Operations Monitor).
+    #[arg(long, env = "RAW_BUCKET", default_value = "clarus-dev-public-raw")]
+    pub raw_bucket: String,
 
-    /// Standard bucket — heartbeats + alerts for analytics app.
-    #[arg(long, env = "ANALYTICS_BUCKET", default_value = "clarus-public")]
-    pub analytics_bucket: String,
+    /// Audit chain bucket — full signed AuditRecords, private, disaster recovery.
+    #[arg(long, env = "AUDIT_BUCKET", default_value = "clarus-dev-private-audit")]
+    pub audit_bucket: String,
 
     // ── Local state ───────────────────────────────────────────────────────
 

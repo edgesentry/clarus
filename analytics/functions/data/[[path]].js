@@ -1,10 +1,20 @@
 /**
- * Cloudflare Pages Function — serves files from clarus-dev-public R2 bucket.
- * Any GET /data/<key> → fetches R2 object with CORS headers.
+ * Cloudflare Pages Function — serves files from R2.
+ *
+ * Routes:
+ *   /data/analytics/* → clarus-dev-public-analytics  (vessel features, risk scores)
+ *   /data/raw/*       → clarus-dev-public-raw         (heartbeats, alerts)
  */
 export async function onRequestGet({ request, env, params }) {
-  const key = "data/" + (params.path || []).join("/");
-  const object = await env.CLARUS_DEV_PUBLIC.get(key);
+  const parts = params.path || [];
+  const role = parts[0]; // "analytics" or "raw"
+  const key = parts.join("/");
+
+  const bucket = role === "raw"
+    ? env.CLARUS_DEV_PUBLIC_RAW
+    : env.CLARUS_DEV_PUBLIC_ANALYTICS;
+
+  const object = await bucket.get(key);
 
   if (!object) {
     return new Response("Not found", { status: 404 });

@@ -6,8 +6,8 @@
 ///   3. Sign each event → AuditRecord (BLAKE3 + Ed25519, hash-chained)
 ///   4. Write to local DuckDB (operational cache + full audit log)
 ///   5. Upload AuditRecord to WORM bucket immediately (disaster recovery)
-///   6. Every HEARTBEAT_INTERVAL s: export heartbeats.parquet → analytics bucket
-///   7. On any RiskEvent: export alerts.parquet → analytics bucket immediately
+///   6. Every HEARTBEAT_INTERVAL s: export heartbeats.parquet → raw bucket
+///   7. On any RiskEvent: export alerts.parquet → raw bucket immediately
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
@@ -188,12 +188,12 @@ async fn sync_table(
     match db::export_parquet(conn, table, site_id) {
         Ok(Some(bytes)) => {
             let key = format!("live/{site_id}/{table}/{now_ms}.parquet");
-            match storage.put_analytics(&key, bytes.into()).await {
+            match storage.put_raw(&key, bytes.into()).await {
                 Ok(()) => {
                     if let Err(e) = db::mark_synced(conn, table) {
                         warn!("mark_synced({table}) failed: {e}");
                     } else {
-                        info!(key, "Synced to analytics bucket");
+                        info!(key, "Synced to raw bucket");
                     }
                 }
                 Err(e) => warn!("Analytics upload({table}) failed: {e}"),

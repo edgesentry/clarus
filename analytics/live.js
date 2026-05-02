@@ -30,7 +30,7 @@ async function loadParquetFiles(db, conn, keys, tableName) {
 
   const fnames = [];
   for (const [i, key] of keys.entries()) {
-    const resp = await fetch(`/data/${key}`);
+    const resp = await fetch(`/data/raw/${key}`);
     if (!resp.ok) continue;
     const buf = await resp.arrayBuffer();
     const fname = `${tableName}_${i}.parquet`;
