@@ -10,9 +10,14 @@ const LLM_ENDPOINT = "https://localhost:8443/v1/chat/completions";
 const LLM_TIMEOUT_MS = 30_000;
 
 const SYSTEM_PROMPT =
-  "You are an EdgeSentry safety analyst. " +
-  "Given a structured risk event, write a 2-3 sentence plain-language explanation: " +
-  "what physical situation triggered the alert, what the regulation requires, and what action is recommended. " +
+  "You are an EdgeSentry safety analyst writing event explanations for an insurance audit trail. " +
+  "Given a structured risk event, write exactly 2-3 sentences covering: " +
+  "(1) what physical situation triggered the alert and the regulation it breached, " +
+  "(2) the evidence quality and its actuarial implication — " +
+  "CERTIFIED means full evidential weight; " +
+  "DEGRADED means reduced weight, treat with caution; " +
+  "REJECTED means CV confidence was below 0.5 and this record is NOT admissible as standalone evidence. " +
+  "(3) recommended action. " +
   "STRICT: only reference data provided. No markdown. No bullet points. Maximum 3 sentences.";
 
 function buildAlertPrompt(r) {
@@ -311,15 +316,30 @@ async function renderAlerts(conn) {
 
       const key = alertCacheKey(r);
       const cached = await getCachedExplanation(conn, key);
-      if (cached) {
-        expTd.textContent = cached;
-        return;
-      }
+      if (cached) { render(cached, true); return; }
+
+      const render = (text, fromCache) => {
+        expTd.innerHTML = `
+          <span>${text}</span>
+          <button class="regen-btn" title="Regenerate explanation">↻</button>
+        `;
+        expTd.querySelector(".regen-btn").addEventListener("click", async (e) => {
+          e.stopPropagation();
+          expTd.innerHTML = `<span class="explain-loading">Regenerating…</span>`;
+          try {
+            const fresh = await fetchExplanation(r);
+            await saveExplanation(conn, key, fresh);
+            render(fresh, false);
+          } catch (err) {
+            expTd.innerHTML = `<span style="color:var(--red)">Error: ${err.message}</span>`;
+          }
+        });
+      };
 
       try {
         const text = await fetchExplanation(r);
-        expTd.textContent = text;
         await saveExplanation(conn, key, text);
+        render(text, false);
       } catch (e) {
         const isOffline = e.name === "AbortError" || e.message.includes("fetch") || e.message.includes("Load failed");
         expTd.innerHTML = isOffline
