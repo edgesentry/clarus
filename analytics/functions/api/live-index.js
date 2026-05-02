@@ -1,10 +1,10 @@
 /**
  * GET /api/live-index
- * Lists all live Parquet files under live/ prefix in clarus-public R2.
+ * Lists all live Parquet files under live/ prefix in clarus-dev-public R2.
  * Returns { heartbeats: string[], alerts: string[], sites: string[] }
  */
 export async function onRequestGet({ env }) {
-  const result = await env.CLARUS_PUBLIC.list({ prefix: "live/" });
+  const result = await env.CLARUS_DEV_PUBLIC.list({ prefix: "live/" });
 
   const keys = result.objects.map((o) => o.key);
   const heartbeats = keys.filter(

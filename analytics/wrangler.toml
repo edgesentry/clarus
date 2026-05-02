@@ -3,5 +3,5 @@ compatibility_date = "2026-05-02"
 pages_build_output_dir = "."
 
 [[r2_buckets]]
-binding = "CLARUS_PUBLIC"
-bucket_name = "clarus-public"
+binding = "CLARUS_DEV_PUBLIC"
+bucket_name = "clarus-dev-public"

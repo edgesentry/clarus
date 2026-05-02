@@ -24,8 +24,8 @@ if [[ "$BACKEND" == "minio" ]]; then
     docker run --rm --network host --entrypoint sh minio/mc -c "
       mc alias set local http://localhost:9000 \
         ${MINIO_ACCESS_KEY:-minioadmin} ${MINIO_SECRET_KEY:-minioadmin} --quiet &&
-      mc mb --ignore-existing local/${AUDIT_BUCKET:-clarus-audit} &&
-      mc mb --ignore-existing local/${ANALYTICS_BUCKET:-clarus-public}
+      mc mb --ignore-existing local/${AUDIT_BUCKET:-clarus-dev-audit} &&
+      mc mb --ignore-existing local/${ANALYTICS_BUCKET:-clarus-dev-public}
     " || true
     echo "[run.sh] MinIO ready — console: http://localhost:9001"
   else
@@ -46,6 +46,6 @@ fi
 # ── Run ───────────────────────────────────────────────────────────────────────
 echo ""
 echo "[run.sh] backend=${BACKEND}  site=${SITE_ID:-site_dev_001}  profile=${PROFILE:-sg-maritime-security}"
-echo "[run.sh] Heartbeats upload to '${ANALYTICS_BUCKET:-clarus-public}' every ${HEARTBEAT_INTERVAL:-30}s"
+echo "[run.sh] Heartbeats upload to '${ANALYTICS_BUCKET:-clarus-dev-public}' every ${HEARTBEAT_INTERVAL:-30}s"
 echo ""
 exec "$BIN" "$@"
