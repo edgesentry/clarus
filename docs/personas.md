@@ -21,18 +21,18 @@ Last year a near-miss incident occurred. MOM requested a report. Kenny stated th
 
 > "The next time MOM arrives, I want to produce a tamper-proof record — timestamped by a third party, sealed against editing — showing exactly what monitoring was active, in which zone, during which shift, and what violations were recorded."
 
-### How Kenny uses the demo app
+### How Kenny uses the demo
 
-1. **Presses Run Demo** — the forklift-approaches-worker scenario plays back
-2. Sees the left panel fire 4 alerts on a safe pass — recognises "this is the problem with what I have now"
-3. Sees the right panel stay silent until the real danger moment — "this is what I need"
-4. Clicks the HIGH event — reads `"Forklift FL-01 is 3.2m from Worker W-03 — below the 5m minimum required under MPA Port Safety Circular 2024-07 §3.1. Braking distance 4.1m exceeds remaining gap. Collision window: 2.3 seconds."`
-5. **Presses Generate MOM Report** — PDF opens automatically
-6. Reads the PDF: timestamp, regulation citation, measured value, threshold — all present
+1. Opens `/live` Operations Monitor — sees site status VALID, calibration drift stable
+2. Sees a `RESTRICTED_ZONE_APPROACH HIGH` alert fire in real time
+3. Clicks the alert — reads the AI-generated explanation with regulation citation
+4. Sees `Evidence quality: CERTIFIED (CV confidence 0.92) — this record carries full evidential weight and is admissible in insurance claims`
+5. *(coming: #55)* Opens `/audit` — sees "Chain intact — N records, 0 gaps ✅"
+6. Understands: "these records are in WORM storage — Object Lock means I cannot delete them even if I wanted to"
 
 ### The moment his goal is achieved
 
-> "I can hand this to MOM. The timestamp is in the PDF. The regulation clause is cited. The measured values are there. And I didn't write any of it — the system generated and signed it automatically. This is evidence I didn't produce myself."
+> "I can hand this to MOM. The timestamp is in the record. The regulation clause is cited. The measured values are there. And I didn't write any of it — the system generated and signed it automatically. This is evidence I didn't produce myself."
 
 ---
 
@@ -53,13 +53,16 @@ Singapore's MOM WSH penalties have tightened. P&I claims after serious incidents
 
 > "I want to see how many near-misses this terminal actually generates, in a time series. If I have two years of data showing their rate is below the industry average, I have a defensible basis for a premium reduction. Right now I'm pricing on guesswork."
 
-### How Sarah uses the demo app
+### How Sarah uses the demo
 
-1. **Presses Run Demo** — watches the right panel event feed
-2. Reads the structured data on each event: `rule_id: PROXIMITY_ALERT, severity: HIGH, measured_value: 3.2, threshold: 5.0, regulation: MPA §3.1`
-3. Understands: "if this accumulates monthly across a site, I can calculate a near-miss frequency and compare it against my book"
-4. **Opens the Verify Audit Chain tab** — pastes an AuditRecord JSON, presses Verify
-5. Sees `"✓ Chain valid — 7 records, no tampering detected"` — understands the data cannot be edited by the operator
+1. Opens `/live` — watches alert table showing rule, severity, evidence quality, confidence score
+2. Understands: "if this accumulates monthly, I can calculate a near-miss frequency"
+3. Clicks `RESTRICTED_ZONE_APPROACH` alert → sees "View V-001 vessel risk profile →"
+4. Navigates to `/` Risk Intelligence — MV Fortune Star auto-selected
+5. Reads behavioral score 74.3/100, sees AIS gaps, STS transfers, sanctions proximity
+6. **Premium Impact section**: Traditional $180,000 → With EdgeSentry $340,000 (+89%)
+7. Sees "Blind spot" in the traditional column for all behavioral signals
+8. Understands: "the $160k gap is exactly what I'm missing in my current underwriting"
 
 ### The moment her goal is achieved
 
@@ -84,13 +87,14 @@ David's reaction to "new AI safety system" is reflexive scepticism. He has heard
 
 > "I need a system that operators won't ignore. If there are no false alarms, the real alert gets attention. That's the entire requirement."
 
-### How David uses the demo app
+### How David uses the demo
 
-1. **Presses Run Demo** — sees the left panel fire 4 times on the same safe pass and grimaces: "that's what I have"
-2. Watches the right panel: silent, silent, silent — then 🚨 STOP. Leans forward.
-3. Clicks the HIGH event — reads `"braking distance 4.1m exceeds remaining gap 3.2m — collision window: 2.3 seconds"`
-4. Realises: "this is physics, not pattern-matching. The system is asking 'can this forklift stop in time?' not 'are these two objects close?'"
-5. Compares 4 false alarms on the left to 1 correct alert on the right — "operators will respond to this"
+1. Opens `/live` — filters alerts to `PROXIMITY_ALERT`
+2. Sees that alerts fire only when `confidence_cv` is high and calibration is VALID
+3. Expands an alert — reads "braking distance 4.1m exceeds remaining gap 3.2m — collision window: 2.3 seconds"
+4. Understands: "this is physics, not pattern-matching — false alarms on a safe pass are physically impossible"
+5. Checks the Evidence Quality chart — Certified (green) dominates; Rejected only during calibration degradation
+6. Concludes: "operators will respond to this because it will never cry wolf"
 
 ### The moment his goal is achieved
 
@@ -115,13 +119,13 @@ In most cases the operator asserts the system was active. The only evidence avai
 
 > "I need to verify that safety monitoring was active at the time of the incident — not from a record the operator controls, but from a record held by an independent third party that the operator cannot modify."
 
-### How James uses the demo app
+### How James uses the demo
 
-1. Receives an AuditRecord JSON from the operator
-2. **Opens the Verify Audit Chain tab** — pastes the JSON, presses Verify Chain
-3. Reads `"✓ Chain valid — 7 records, no tampering detected"`
-4. Inspects individual records: `timestamp_ms`, `rule_id`, `severity`, `prev_record_hash`
-5. Confirms the chain is continuous and each `prev_record_hash` links correctly to the previous record
+1. *(coming: #55)* Opens `/audit` — sees records listed in sequence order
+2. Reads "Chain intact — N records, 0 gaps ✅ — Object Lock: deletion not possible"
+3. Clicks a record — sees `timestamp_ms`, `rule_id`, `severity`, `prev_hash`, `signature`
+4. Understands: prev_hash linkage means any deletion or modification is detectable
+5. Confirms: "the operator cannot edit this chain — it is in WORM storage and the hash chain is independently verifiable"
 
 ### The moment his goal is achieved
 
@@ -129,14 +133,16 @@ In most cases the operator asserts the system was active. The only evidence avai
 
 ---
 
-## Demo app feature × persona matrix
+## Demo feature × persona matrix
 
 | Feature | Kenny (Safety Manager) | Sarah (Underwriter) | David (Ops Manager) | James (MOM Inspector) |
 |---|---|---|---|---|
-| Run Demo — split-screen | ✓ Recognises false alarm problem | ✓ Sees data structure | ✓ Confirms zero false alarms | — |
-| Event Detail — explanation | ✓ Reads regulation citation | ✓ Reads structured fields | ✓ Understands physics basis | — |
-| Generate MOM Report | ✓ **Core feature** | ✓ Sees monthly report format | — | ✓ Sees record format |
-| Verify Audit Chain | ✓ Understands tamper-evidence | ✓ Confirms operator cannot edit | — | ✓ **Core feature** |
+| `/live` site status + drift chart | ✓ Sees monitoring is active | — | ✓ Sees calibration quality | — |
+| `/live` alert table with evidence quality | ✓ Reads regulation citation | ✓ Sees structured data fields | ✓ Confirms physics-based firing | — |
+| `/live` LLM explanation | ✓ Reads plain-language alert | — | ✓ Understands physics basis | — |
+| `/` vessel risk scorecard | — | ✓ Sees behavioral indicators | — | — |
+| `/` premium impact (Blind spot → $340k) | — | ✓ **Core feature** | — | — |
+| `/audit` chain verification *(coming: #55)* | ✓ Understands tamper-evidence | ✓ Confirms operator cannot edit | — | ✓ **Core feature** |
 
 ---
 
