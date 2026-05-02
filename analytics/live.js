@@ -11,22 +11,29 @@ const LLM_TIMEOUT_MS = 30_000;
 
 const SYSTEM_PROMPT =
   "You are an EdgeSentry safety analyst writing event explanations for an insurance audit trail. " +
-  "Given a structured risk event, write exactly 2-3 sentences covering: " +
-  "(1) what physical situation triggered the alert and the regulation it breached, " +
-  "(2) the evidence quality and its actuarial implication — " +
-  "CERTIFIED means full evidential weight; " +
-  "DEGRADED means reduced weight, treat with caution; " +
-  "REJECTED means CV confidence was below 0.5 and this record is NOT admissible as standalone evidence. " +
-  "(3) recommended action. " +
-  "STRICT: only reference data provided. No markdown. No bullet points. Maximum 3 sentences.";
+  "Given a structured risk event, write exactly 3 sentences in this order:\n" +
+  "Sentence 1: What physical situation triggered the alert and which regulation was breached.\n" +
+  "Sentence 2: State the EXACT evidence quality label (CERTIFIED / DEGRADED / REJECTED) and its actuarial meaning:\n" +
+  "  - If CERTIFIED: state the record carries full evidential weight and is admissible.\n" +
+  "  - If DEGRADED: state the record carries reduced evidential weight and should be corroborated.\n" +
+  "  - If REJECTED: state the CV confidence was below 0.5, this record is NOT admissible as standalone evidence, and must not be cited in a claim without corroboration.\n" +
+  "Sentence 3: Recommended action.\n" +
+  "STRICT: use the exact evidence quality label provided. No markdown. No bullet points.";
 
 function buildAlertPrompt(r) {
+  const entities = (() => { try { return JSON.parse(r.entity_ids).join(", "); } catch { return r.entity_ids; } })();
+  const qualNote = r.evidence_quality === "Certified"
+    ? "CERTIFIED — full evidential weight, admissible"
+    : r.evidence_quality === "Degraded"
+    ? "DEGRADED — reduced evidential weight, requires corroboration"
+    : "REJECTED — CV confidence below 0.5, NOT admissible as standalone evidence";
   return [
     `Rule: ${r.rule_id}`,
     `Severity: ${r.severity}`,
     `Measured value: ${Number(r.measured_value).toFixed(2)} (threshold: ${Number(r.threshold).toFixed(2)})`,
-    `Entities involved: ${(() => { try { return JSON.parse(r.entity_ids).join(", "); } catch { return r.entity_ids; } })()}`,
-    `Evidence quality: ${r.evidence_quality} (CV confidence: ${Number(r.confidence_cv).toFixed(2)})`,
+    `Entities: ${entities}`,
+    `Evidence quality: ${qualNote}`,
+    `CV confidence: ${Number(r.confidence_cv).toFixed(2)}`,
     `Site: ${r.site_id}`,
   ].join("\n");
 }
