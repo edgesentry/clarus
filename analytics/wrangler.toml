@@ -11,3 +11,8 @@ bucket_name = "clarus-dev-public-raw"
 [[r2_buckets]]
 binding = "CLARUS_DEV_PUBLIC_ANALYTICS"
 bucket_name = "clarus-dev-public-analytics"
+
+# /audit chain verification reads signed AuditRecords
+[[r2_buckets]]
+binding = "CLARUS_DEV_PUBLIC_AUDIT"
+bucket_name = "clarus-dev-public-audit"

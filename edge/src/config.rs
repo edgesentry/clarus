@@ -17,8 +17,8 @@ pub struct Config {
 
     // ── Storage backend ───────────────────────────────────────────────────
 
-    /// "r2" for Cloudflare R2, "minio" for local MinIO.
-    #[arg(long, env = "STORAGE_BACKEND", default_value = "minio")]
+    /// "wrangler" (default), "r2" for Cloudflare R2, "minio" for local MinIO.
+    #[arg(long, env = "STORAGE_BACKEND", default_value = "wrangler")]
     pub storage_backend: String,
 
     // MinIO
@@ -43,8 +43,8 @@ pub struct Config {
     #[arg(long, env = "RAW_BUCKET", default_value = "clarus-dev-public-raw")]
     pub raw_bucket: String,
 
-    /// Audit chain bucket — full signed AuditRecords, private, disaster recovery.
-    #[arg(long, env = "AUDIT_BUCKET", default_value = "clarus-dev-private-audit")]
+    /// Audit chain bucket — full signed AuditRecords (PoC: public, production: private + Object Lock).
+    #[arg(long, env = "AUDIT_BUCKET", default_value = "clarus-dev-public-audit")]
     pub audit_bucket: String,
 
     // ── Local state ───────────────────────────────────────────────────────

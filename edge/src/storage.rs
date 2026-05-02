@@ -5,8 +5,8 @@
 ///   STORAGE_BACKEND=minio     Local MinIO via S3 API (needs Docker + MINIO_* env vars)
 ///
 /// Buckets:
-///   audit     — WORM (clarus-audit):   full signed audit chain, disaster recovery
-///   analytics — standard (clarus-public): heartbeats + alerts for analytics app
+///   audit — clarus-dev-public-audit:  full signed AuditRecords (PoC: public; production: private + Object Lock)
+///   raw   — clarus-dev-public-raw:    heartbeats + alert summaries for /live Operations Monitor
 use std::process::Command;
 use std::sync::Arc;
 

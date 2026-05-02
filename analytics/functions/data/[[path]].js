@@ -4,15 +4,16 @@
  * Routes:
  *   /data/analytics/* → clarus-dev-public-analytics  (vessel features, risk scores)
  *   /data/raw/*       → clarus-dev-public-raw         (heartbeats, alerts)
+ *   /data/audit/*     → clarus-dev-public-audit       (signed AuditRecords, hash-chained)
  */
 export async function onRequestGet({ request, env, params }) {
   const parts = params.path || [];
-  const role = parts[0]; // "analytics" or "raw"
-  const key = parts.slice(1).join("/"); // strip role prefix — R2 key has no "raw/" or "analytics/" prefix
+  const role = parts[0]; // "analytics", "raw", or "audit"
+  const key = parts.slice(1).join("/"); // strip role prefix — R2 key has no role prefix
 
-  const bucket = role === "raw"
-    ? env.CLARUS_DEV_PUBLIC_RAW
-    : env.CLARUS_DEV_PUBLIC_ANALYTICS;
+  const bucket = role === "raw"   ? env.CLARUS_DEV_PUBLIC_RAW
+               : role === "audit" ? env.CLARUS_DEV_PUBLIC_AUDIT
+               :                    env.CLARUS_DEV_PUBLIC_ANALYTICS;
 
   const object = await bucket.get(key);
 
