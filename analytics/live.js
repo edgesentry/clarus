@@ -11,14 +11,11 @@ const LLM_TIMEOUT_MS = 30_000;
 
 const SYSTEM_PROMPT =
   "You are an EdgeSentry safety analyst writing event explanations for an insurance audit trail. " +
-  "Given a structured risk event, write exactly 3 sentences in this order:\n" +
+  "Write exactly 2 sentences:\n" +
   "Sentence 1: What physical situation triggered the alert and which regulation was breached.\n" +
-  "Sentence 2: State the EXACT evidence quality label (CERTIFIED / DEGRADED / REJECTED) and its actuarial meaning:\n" +
-  "  - If CERTIFIED: state the record carries full evidential weight and is admissible.\n" +
-  "  - If DEGRADED: state the record carries reduced evidential weight and should be corroborated.\n" +
-  "  - If REJECTED: state the CV confidence was below 0.5, this record is NOT admissible as standalone evidence, and must not be cited in a claim without corroboration.\n" +
-  "Sentence 3: Recommended action.\n" +
-  "STRICT: use the exact evidence quality label provided. No markdown. No bullet points.";
+  "Sentence 2: Recommended action for site operators.\n" +
+  "STRICT: no mention of evidence quality, confidence, or admissibility — that will be added separately. " +
+  "No markdown. No bullet points. Maximum 2 sentences.";
 
 function buildAlertPrompt(r) {
   const entities = (() => { try { return JSON.parse(r.entity_ids).join(", "); } catch { return r.entity_ids; } })();
@@ -68,6 +65,19 @@ async function saveExplanation(conn, key, text) {
   `);
 }
 
+// Build the evidence quality sentence deterministically — never trust the LLM for this.
+function evidenceQualitySentence(r) {
+  const conf = Number(r.confidence_cv).toFixed(2);
+  switch (r.evidence_quality) {
+    case "Certified":
+      return `Evidence quality: CERTIFIED (CV confidence ${conf}) — this record carries full evidential weight and is admissible in insurance claims.`;
+    case "Degraded":
+      return `Evidence quality: DEGRADED (CV confidence ${conf}) — this record carries reduced evidential weight and should be corroborated before use in a claim.`;
+    default:
+      return `Evidence quality: REJECTED (CV confidence ${conf}) — CV confidence was below 0.5; this record is NOT admissible as standalone evidence and must not be cited in a claim without independent corroboration.`;
+  }
+}
+
 async function fetchExplanation(row) {
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), LLM_TIMEOUT_MS);
@@ -76,7 +86,7 @@ async function fetchExplanation(row) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        max_tokens: 150,
+        max_tokens: 120,
         temperature: 0.3,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
@@ -87,7 +97,12 @@ async function fetchExplanation(row) {
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    return (data?.choices?.[0]?.message?.content ?? "").trim();
+    const llmText = (data?.choices?.[0]?.message?.content ?? "").trim();
+    // Inject the deterministic evidence quality sentence between LLM sentences 1 and 2.
+    const sentences = llmText.split(/(?<=\.)\s+/);
+    const s1 = sentences[0] ?? llmText;
+    const rest = sentences.slice(1).join(" ");
+    return [s1, evidenceQualitySentence(row), rest].filter(Boolean).join(" ");
   } finally {
     clearTimeout(timer);
   }
