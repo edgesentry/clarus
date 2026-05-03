@@ -27,6 +27,9 @@
     header { border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; gap: 12px; }
     header h1 { font-size: 18px; font-weight: 600; }
     header .badge { background: var(--accent); color: var(--bg); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 12px; }
+    .nav { margin-left: auto; display: flex; gap: 16px; }
+    .nav a { color: var(--muted); text-decoration: none; font-size: 13px; }
+    .nav a.active, .nav a:hover { color: var(--accent); }
 
     .layout { display: grid; grid-template-columns: 320px 1fr; min-height: calc(100vh - 57px); }
 
@@ -150,10 +153,10 @@
   <header>
     <h1>EdgeSentry Vessel Risk Intelligence</h1>
     <span class="badge">Flow 2 MVP</span>
-    <nav style="margin-left:auto;display:flex;gap:16px;align-items:center">
-      <a href="/" style="color:var(--accent);font-size:13px;text-decoration:none">Risk Intelligence</a>
-      <a href="/live" style="color:var(--muted);font-size:13px;text-decoration:none">Operations Monitor</a>
-      <a href="/audit" style="color:var(--muted);font-size:13px;text-decoration:none">Audit Chain</a>
+    <nav class="nav">
+      <a href="/" class="active">Risk Intelligence</a>
+      <a href="/live">Operations Monitor</a>
+      <a href="/audit">Audit Chain</a>
     </nav>
     <span style="margin-left:16px;color:var(--muted);font-size:12px" id="db-status">Loading…</span>
   </header>
