@@ -324,7 +324,7 @@ async function renderAlerts(conn) {
     const entitiesHtml = entityArr.map(e => {
       const mmsi = VESSEL_MMSI[e];
       return mmsi
-        ? `${e} <a href="/?mmsi=${mmsi}" style="color:var(--accent);font-size:10px;text-decoration:none" title="View vessel risk profile">→ profile</a>`
+        ? `${e} <a href="/analysis/?mmsi=${mmsi}" style="color:var(--accent);font-size:10px;text-decoration:none" title="View vessel risk profile">→ profile</a>`
         : e;
     }).join(", ");
     const ts = new Date(Number(r.timestamp_ms)).toISOString().replace("T"," ").slice(0,19) + " UTC";
@@ -368,7 +368,7 @@ async function renderAlerts(conn) {
       const vesselLink = entityArr.find(e => VESSEL_MMSI[e])
         ? (() => {
             const e = entityArr.find(e => VESSEL_MMSI[e]);
-            return ` <a href="/?mmsi=${VESSEL_MMSI[e]}" style="color:var(--accent);font-weight:600;text-decoration:none">View ${e} vessel risk profile →</a>`;
+            return ` <a href="/analysis/?mmsi=${VESSEL_MMSI[e]}" style="color:var(--accent);font-weight:600;text-decoration:none">View ${e} vessel risk profile →</a>`;
           })()
         : "";
 
