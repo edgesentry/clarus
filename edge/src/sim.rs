@@ -2,7 +2,7 @@
 ///
 /// Confidence values are deterministic functions of (cycle, frame, entity_index)
 /// so the demo is reproducible without randomness.
-use edgesentry_types::{Entity, EntityClass, Vec2};
+use edgesentry_types::{Entity, EntityClass, SensorReading, Vec2};
 
 #[derive(Debug, Clone)]
 pub struct Frame {
@@ -63,9 +63,6 @@ fn port_safety_frame(cycle: u64, frame: u64, timestamp_ms: u64) -> Frame {
     let raw = 12.0 - ((cycle * 10 + frame) % 15) as f32 * step * 0.8;
     let fl_x = raw.max(0.5);
 
-    let fl_conf = confidence(cycle, frame, 0);
-    let w_conf  = confidence(cycle, frame, 1);
-
     Frame {
         timestamp_ms,
         entities: vec![
@@ -75,7 +72,7 @@ fn port_safety_frame(cycle: u64, frame: u64, timestamp_ms: u64) -> Frame {
                 position: Vec2::new(fl_x, 0.0),
                 velocity: Vec2::new(-step * 0.8, 0.0),
                 timestamp_ms,
-                confidence: Some(fl_conf),
+                sensor: Some(SensorReading::simulation()),
             },
             Entity {
                 id: "W-03".into(),
@@ -83,7 +80,7 @@ fn port_safety_frame(cycle: u64, frame: u64, timestamp_ms: u64) -> Frame {
                 position: Vec2::new(12.0, 0.0),
                 velocity: Vec2::new(0.0, 0.0),
                 timestamp_ms,
-                confidence: Some(w_conf),
+                sensor: Some(SensorReading::simulation()),
             },
         ],
     }
@@ -94,7 +91,6 @@ fn port_safety_frame(cycle: u64, frame: u64, timestamp_ms: u64) -> Frame {
 fn maritime_frame(cycle: u64, frame: u64, timestamp_ms: u64) -> Frame {
     // Vessel x: 0 → 700, loops every 35 cycles × 10 frames = 350 frames
     let pos = ((cycle * 10 + frame) % 350) as f32 * 2.0;
-    let conf = confidence(cycle, frame, 0);
 
     Frame {
         timestamp_ms,
@@ -105,28 +101,12 @@ fn maritime_frame(cycle: u64, frame: u64, timestamp_ms: u64) -> Frame {
                 position: Vec2::new(pos, 350.0),
                 velocity: Vec2::new(2.0, 0.0),
                 timestamp_ms,
-                confidence: Some(conf),
+                sensor: Some(SensorReading::simulation()),
             },
         ],
     }
 }
 
-// ── Confidence ────────────────────────────────────────────────────────────────
-
-/// Deterministic confidence for (cycle, frame, entity_index).
-///
-/// Every 5th cycle, frames 3–4 of entity 0 → REJECTED  (0.28–0.42)
-/// Every 3rd cycle, frame  7  of entity 0 → DEGRADED   (0.55–0.74)
-/// Otherwise                              → CERTIFIED   (0.88–0.99)
-fn confidence(cycle: u64, frame: u64, entity: u64) -> f32 {
-    if cycle % 5 == 0 && (frame == 3 || frame == 4) && entity == 0 {
-        0.28 + ((cycle * 7 + frame) % 15) as f32 * 0.01
-    } else if cycle % 3 == 0 && frame == 7 && entity == 0 {
-        0.55 + ((cycle * 3 + frame) % 20) as f32 * 0.01
-    } else {
-        0.88 + ((cycle * 11 + frame * 7 + entity * 3) % 12) as f32 * 0.01
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -144,15 +124,6 @@ mod tests {
         let frames = generate_frames(&Scenario::Maritime, 0, 0);
         assert_eq!(frames.len(), 10);
         assert_eq!(frames[0].entities[0].id, "V-001");
-    }
-
-    #[test]
-    fn confidence_cycle5_frames_3_4_are_rejected() {
-        // cycle=5, frame=3, entity=0 → < 0.5 → REJECTED
-        assert!(confidence(5, 3, 0) < 0.5);
-        assert!(confidence(5, 4, 0) < 0.5);
-        // entity 1 unaffected
-        assert!(confidence(5, 3, 1) >= 0.8);
     }
 
     #[test]
