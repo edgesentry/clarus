@@ -32,11 +32,17 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
-      - name: Checkout edgesentry-rs
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
-        with:
-          repository: edgesentry/edgesentry-rs
-          path: edgesentry-rs
+      - name: Checkout edgesentry-rs (matching branch or main)
+        run: |
+          BRANCH="${{ github.head_ref || github.ref_name }}"
+          if git clone --branch "$BRANCH" --depth 1 \
+              https://github.com/edgesentry/edgesentry-rs.git edgesentry-rs 2>/dev/null; then
+            echo "edgesentry-rs: checked out $BRANCH"
+          else
+            git clone --depth 1 \
+              https://github.com/edgesentry/edgesentry-rs.git edgesentry-rs
+            echo "edgesentry-rs: fell back to default branch"
+          fi
 
       - name: Setup Rust
         run: rustup update stable && rustup default stable
