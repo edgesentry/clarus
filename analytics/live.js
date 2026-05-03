@@ -312,7 +312,7 @@ async function renderAlerts(conn) {
   table.className = "alert-table";
   table.innerHTML = `<thead><tr>
     <th>Time (UTC)</th><th>Site</th><th>Rule</th><th>Severity</th>
-    <th>Quality</th><th>Confidence</th><th>Value</th><th>Entities</th>
+    <th>Quality</th><th>Confidence</th><th>Value</th><th>Entities</th><th></th>
   </tr></thead><tbody></tbody>`;
   const tbody = table.querySelector("tbody");
 
@@ -329,6 +329,10 @@ async function renderAlerts(conn) {
     }).join(", ");
     const ts = new Date(Number(r.timestamp_ms)).toISOString().replace("T"," ").slice(0,19) + " UTC";
 
+    const auditLink = r.sequence != null
+      ? `<a href="/audit?site=${r.site_id}&seq=${r.sequence}" style="color:var(--accent);font-size:10px;text-decoration:none;white-space:nowrap" title="View in audit chain">→ chain</a>`
+      : "";
+
     const tr = document.createElement("tr");
     tr.style.cursor = "pointer";
     tr.title = "Click to explain with local LLM";
@@ -338,6 +342,7 @@ async function renderAlerts(conn) {
       <td style="font-family:monospace">${Number(r.confidence_cv).toFixed(2)}</td>
       <td style="font-family:monospace">${Number(r.measured_value).toFixed(2)}</td>
       <td style="color:var(--muted)">${entitiesHtml}</td>
+      <td>${auditLink}</td>
     `;
 
     // Expandable explanation row
@@ -345,7 +350,7 @@ async function renderAlerts(conn) {
     expRow.className = "explain-row";
     expRow.style.display = "none";
     const expTd = document.createElement("td");
-    expTd.colSpan = 8;
+    expTd.colSpan = 9;
     expTd.className = "explain-cell";
     expRow.appendChild(expTd);
 

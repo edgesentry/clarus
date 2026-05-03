@@ -112,15 +112,31 @@ async fn main() -> Result<()> {
                 &keypair.private_key_hex,
             )?;
 
-            prev_hash = record.hash();
+            let record_hash = record.hash();
+            prev_hash = record_hash;
             db::insert_audit_record(&conn, &record, event)?;
 
-            // WORM upload: authoritative copy, named by site + sequence
-            let worm_key = format!(
-                "chains/{}/{:020}.json",
-                config.site_id, sequence
-            );
-            match storage.put_audit(&worm_key, serde_json::to_vec(&record)?.into()).await {
+            // WORM upload: browser-friendly JSON envelope with pre-computed hex fields.
+            // Browsers cannot run postcard+BLAKE3 to verify record_hash, so we include
+            // it alongside the raw record so chain integrity can be checked with string
+            // comparison: records[N].prev_record_hash_hex === records[N-1].record_hash_hex
+            let envelope = serde_json::json!({
+                "device_id":             record.device_id,
+                "sequence":              record.sequence,
+                "timestamp_ms":          record.timestamp_ms,
+                "object_ref":            record.object_ref,
+                "payload_hash_hex":      hex::encode(record.payload_hash),
+                "prev_record_hash_hex":  hex::encode(record.prev_record_hash),
+                "signature_hex":         hex::encode(record.signature),
+                "record_hash_hex":       hex::encode(record_hash),
+                "rule_id":               event.rule_id,
+                "severity":              format!("{:?}", event.severity),
+                "evidence_quality":      format!("{:?}", event.evidence_quality),
+                "confidence_cv":         event.confidence_cv,
+                "entity_ids":            event.entity_ids,
+            });
+            let worm_key = format!("chains/{}/{:020}.json", config.site_id, sequence);
+            match storage.put_audit(&worm_key, serde_json::to_vec(&envelope)?.into()).await {
                 Ok(()) => {}
                 Err(e) => warn!("WORM upload failed (retried next cycle): {e}"),
             }

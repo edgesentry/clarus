@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EdgeSentry Audit Chain</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:      #0d1117; --surface: #161b22; --border: #30363d;
+      --text:    #e6edf3; --muted:   #8b949e; --accent: #58a6ff;
+      --green:   #3fb950; --amber:   #d29922; --red:    #f85149;
+    }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; line-height: 1.6; }
+
+    header { border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; gap: 12px; }
+    header h1 { font-size: 18px; font-weight: 600; }
+    .badge { background: var(--green); color: var(--bg); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 12px; }
+    .nav { margin-left: auto; display: flex; gap: 16px; }
+    .nav a { color: var(--muted); text-decoration: none; font-size: 13px; }
+    .nav a.active, .nav a:hover { color: var(--accent); }
+    #status { font-size: 12px; color: var(--muted); margin-left: 16px; }
+
+    .content { padding: 24px; max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; }
+    .card h3 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 14px; }
+
+    /* Integrity banner */
+    .integrity-banner { display: flex; align-items: center; gap: 16px; padding: 14px 18px; border-radius: 8px; border: 1px solid; }
+    .integrity-banner.intact  { border-color: rgba(63,185,80,0.4);  background: rgba(63,185,80,0.07); }
+    .integrity-banner.broken  { border-color: rgba(248,81,73,0.4);  background: rgba(248,81,73,0.07); }
+    .integrity-banner.loading { border-color: var(--border); background: var(--surface); }
+    .integrity-icon { font-size: 22px; }
+    .integrity-title { font-size: 15px; font-weight: 700; }
+    .integrity-sub   { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .worm-badge { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--amber); background: rgba(210,153,34,0.1); border: 1px solid rgba(210,153,34,0.3); padding: 4px 10px; border-radius: 12px; }
+
+    /* Site selector */
+    .site-select { background: var(--bg); border: 1px solid var(--border); color: var(--text); font-size: 13px; padding: 6px 10px; border-radius: 6px; outline: none; cursor: pointer; }
+    .site-select:focus { border-color: var(--accent); }
+
+    /* Chain table */
+    .chain-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .chain-table th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    .chain-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .chain-table tr:last-child td { border-bottom: none; }
+    .chain-table tr[data-clickable]:hover td { background: rgba(255,255,255,0.02); cursor: pointer; }
+    .ts   { font-family: monospace; font-size: 11px; color: var(--muted); }
+    .hash { font-family: monospace; font-size: 11px; color: var(--muted); }
+    .seq  { font-family: monospace; font-weight: 700; }
+    .qual-certified { color: var(--green); font-weight: 600; }
+    .qual-degraded  { color: var(--amber); font-weight: 600; }
+    .qual-rejected  { color: var(--red);   font-weight: 600; }
+    .link-ok   { color: var(--green); font-size: 12px; }
+    .link-fail { color: var(--red);   font-size: 12px; font-weight: 700; }
+    .link-genesis { color: var(--muted); font-size: 11px; }
+
+    /* Detail row */
+    .detail-row td { background: rgba(88,166,255,0.04); padding: 12px 14px; border-bottom: 1px solid var(--border); }
+    .detail-grid { display: grid; grid-template-columns: 140px 1fr; gap: 4px 12px; font-size: 12px; }
+    .detail-label { color: var(--muted); }
+    .detail-val   { font-family: monospace; word-break: break-all; }
+    .detail-val.ok   { color: var(--green); }
+    .detail-val.fail { color: var(--red); }
+
+    .empty { color: var(--muted); text-align: center; padding: 60px; font-size: 13px; }
+    .no-data { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 60px; color: var(--muted); }
+    .no-data code { background: var(--surface); border: 1px solid var(--border); padding: 8px 16px; border-radius: 6px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>EdgeSentry Audit Chain</h1>
+    <span class="badge">WORM</span>
+    <nav class="nav">
+      <a href="/">Risk Intelligence</a>
+      <a href="/live">Operations Monitor</a>
+      <a href="/audit" class="active">Audit Chain</a>
+    </nav>
+    <span id="status" style="margin-left:16px">Loading…</span>
+  </header>
+
+  <div class="content">
+    <div id="no-data" class="card no-data" style="display:none">
+      <div style="font-size:24px">🔗</div>
+      <div>No audit records yet. Start the edge daemon to begin writing to the chain.</div>
+      <code>cd clarus/edge &amp;&amp; ./run.sh</code>
+    </div>
+
+    <div id="audit-content" style="display:none">
+      <div id="integrity-banner" class="integrity-banner loading">
+        <span class="integrity-icon">⏳</span>
+        <div>
+          <div class="integrity-title">Verifying chain…</div>
+          <div class="integrity-sub" id="integrity-sub"></div>
+        </div>
+        <div class="worm-badge">🔒 Object Lock — deletion not possible</div>
+      </div>
+
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+          <h3 style="margin:0">Signed Records</h3>
+          <select id="site-select" class="site-select"></select>
+          <span id="record-count" style="font-size:12px;color:var(--muted);margin-left:auto"></span>
+        </div>
+        <div id="chain-container"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="audit.js"></script>
+</body>
+</html>
