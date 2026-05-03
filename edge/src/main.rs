@@ -116,25 +116,7 @@ async fn main() -> Result<()> {
             prev_hash = record_hash;
             db::insert_audit_record(&conn, &record, event)?;
 
-            // WORM upload: browser-friendly JSON envelope with pre-computed hex fields.
-            // Browsers cannot run postcard+BLAKE3 to verify record_hash, so we include
-            // it alongside the raw record so chain integrity can be checked with string
-            // comparison: records[N].prev_record_hash_hex === records[N-1].record_hash_hex
-            let envelope = serde_json::json!({
-                "device_id":             record.device_id,
-                "sequence":              record.sequence,
-                "timestamp_ms":          record.timestamp_ms,
-                "object_ref":            record.object_ref,
-                "payload_hash_hex":      hex::encode(record.payload_hash),
-                "prev_record_hash_hex":  hex::encode(record.prev_record_hash),
-                "signature_hex":         hex::encode(record.signature),
-                "record_hash_hex":       hex::encode(record_hash),
-                "rule_id":               event.rule_id,
-                "severity":              format!("{:?}", event.severity),
-                "evidence_quality":      format!("{:?}", event.evidence_quality),
-                "confidence_cv":         event.confidence_cv,
-                "entity_ids":            event.entity_ids,
-            });
+            let envelope = build_audit_envelope(&record, record_hash, event);
             let worm_key = format!("chains/{}/{:020}.json", config.site_id, sequence);
             match storage.put_audit(&worm_key, serde_json::to_vec(&envelope)?.into()).await {
                 Ok(()) => {}
@@ -243,4 +225,122 @@ fn now_millis() -> u64 {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as u64
+}
+
+/// Build the browser-friendly JSON envelope for a WORM audit upload.
+/// Pre-computes hex fields so browsers can verify the hash chain with a
+/// simple string comparison — no postcard or BLAKE3 needed in the browser.
+fn build_audit_envelope(
+    record: &AuditRecord,
+    record_hash: [u8; 32],
+    event: &RiskEvent,
+) -> serde_json::Value {
+    serde_json::json!({
+        "device_id":             record.device_id,
+        "sequence":              record.sequence,
+        "timestamp_ms":          record.timestamp_ms,
+        "object_ref":            record.object_ref,
+        "payload_hash_hex":      hex::encode(record.payload_hash),
+        "prev_record_hash_hex":  hex::encode(record.prev_record_hash),
+        "signature_hex":         hex::encode(record.signature),
+        "record_hash_hex":       hex::encode(record_hash),
+        "rule_id":               event.rule_id,
+        "severity":              format!("{:?}", event.severity),
+        "evidence_quality":      format!("{:?}", event.evidence_quality),
+        "confidence_cv":         event.confidence_cv,
+        "entity_ids":            event.entity_ids,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use edgesentry_audit::{generate_keypair, sign_record, AuditRecord};
+    use edgesentry_evaluate::{EvidenceQuality, RiskEvent, Severity};
+
+    fn make_event() -> RiskEvent {
+        RiskEvent {
+            rule_id: "RESTRICTED_ZONE_APPROACH".into(),
+            severity: Severity::High,
+            regulation: "COLREGs Rule 8".into(),
+            entity_ids: vec!["V-001".into()],
+            measured_value: 0.3,
+            threshold: 0.5,
+            timestamp_ms: 1_000,
+            confidence_cv: 0.92,
+            evidence_quality: EvidenceQuality::Certified,
+        }
+    }
+
+    fn make_record(seq: u64, prev: [u8; 32]) -> (AuditRecord, [u8; 32]) {
+        let kp = generate_keypair();
+        let event = make_event();
+        let payload = serde_json::to_vec(&event).unwrap();
+        let record = sign_record(
+            "site_test".into(), seq, 1_000, payload,
+            prev, "risk-event:RESTRICTED_ZONE_APPROACH".into(),
+            &kp.private_key_hex,
+        ).unwrap();
+        let hash = record.hash();
+        (record, hash)
+    }
+
+    #[test]
+    fn envelope_has_all_required_hex_fields() {
+        let (record, hash) = make_record(0, AuditRecord::zero_hash());
+        let event = make_event();
+        let env = build_audit_envelope(&record, hash, &event);
+
+        for field in ["record_hash_hex", "prev_record_hash_hex", "payload_hash_hex", "signature_hex"] {
+            let val = env[field].as_str().expect(field);
+            assert!(!val.is_empty(), "{field} must not be empty");
+            assert!(val.chars().all(|c| c.is_ascii_hexdigit()), "{field} must be hex");
+        }
+        assert_eq!(env["record_hash_hex"].as_str().unwrap().len(), 64);
+        assert_eq!(env["prev_record_hash_hex"].as_str().unwrap().len(), 64);
+        assert_eq!(env["payload_hash_hex"].as_str().unwrap().len(), 64);
+        assert_eq!(env["signature_hex"].as_str().unwrap().len(), 128);
+    }
+
+    #[test]
+    fn chain_links_via_record_hash_hex() {
+        // Simulates the browser verification:
+        // records[N].prev_record_hash_hex === records[N-1].record_hash_hex
+        let zero = AuditRecord::zero_hash();
+        let event = make_event();
+
+        let (r0, h0) = make_record(0, zero);
+        let (r1, h1) = make_record(1, h0);
+        let (r2, _)  = make_record(2, h1);
+
+        let e0 = build_audit_envelope(&r0, h0, &event);
+        let e1 = build_audit_envelope(&r1, h1, &event);
+        let e2 = build_audit_envelope(&r2, [0u8; 32], &event); // hash not needed here
+
+        // genesis: prev_record_hash of record 0 is all zeros
+        assert_eq!(e0["prev_record_hash_hex"].as_str().unwrap(), "0".repeat(64));
+
+        // chain link: record 1's prev_hash === record 0's record_hash
+        assert_eq!(
+            e1["prev_record_hash_hex"].as_str().unwrap(),
+            e0["record_hash_hex"].as_str().unwrap(),
+        );
+        assert_eq!(
+            e2["prev_record_hash_hex"].as_str().unwrap(),
+            e1["record_hash_hex"].as_str().unwrap(),
+        );
+    }
+
+    #[test]
+    fn envelope_event_fields_match_risk_event() {
+        let (record, hash) = make_record(42, AuditRecord::zero_hash());
+        let event = make_event();
+        let env = build_audit_envelope(&record, hash, &event);
+
+        assert_eq!(env["rule_id"].as_str().unwrap(), "RESTRICTED_ZONE_APPROACH");
+        assert_eq!(env["sequence"].as_u64().unwrap(), 42);
+        assert_eq!(env["device_id"].as_str().unwrap(), "site_test");
+        assert!((env["confidence_cv"].as_f64().unwrap() - 0.92).abs() < 1e-5);
+        assert_eq!(env["entity_ids"][0].as_str().unwrap(), "V-001");
+    }
 }
