@@ -73,7 +73,10 @@ lines = [l for l in open('$TMP/events.jsonl') if l.strip() and not l.startswith(
 rules = {json.loads(l)['rule_id'] for l in lines}
 assert 'PROXIMITY_ALERT' in rules, 'PROXIMITY_ALERT missing'
 assert 'TTC_ALERT' in rules, 'TTC_ALERT missing'
-" && pass "PROXIMITY_ALERT and TTC_ALERT both fired" || fail "Expected risk events did not fire"
+# CSV replay uses SourceType::Simulation → EvidenceQuality::NotApplicable for all events
+qualities = {json.loads(l).get('evidence_quality') for l in lines}
+assert qualities == {'NOT_APPLICABLE'}, f'expected all NOT_APPLICABLE (simulation source), got {qualities}'
+" && pass "PROXIMITY_ALERT and TTC_ALERT fired; evidence_quality=NOT_APPLICABLE (simulation source)" || fail "Expected risk events or evidence quality check failed"
 pause
 
 header "Stage 3 — Assess (RiskEvent → Assessment JSONL)"

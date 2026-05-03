@@ -214,9 +214,10 @@ fn calibration_status(drift: f32) -> &'static str {
 
 fn quality_counts(events: &[RiskEvent]) -> (u32, u32, u32) {
     events.iter().fold((0, 0, 0), |(c, d, r), e| match e.evidence_quality {
-        EvidenceQuality::Certified => (c + 1, d, r),
-        EvidenceQuality::Degraded  => (c, d + 1, r),
-        EvidenceQuality::Rejected  => (c, d, r + 1),
+        EvidenceQuality::Certified     => (c + 1, d, r),
+        EvidenceQuality::Degraded      => (c, d + 1, r),
+        EvidenceQuality::Rejected      => (c, d, r + 1),
+        EvidenceQuality::NotApplicable => (c, d, r),
     })
 }
 
