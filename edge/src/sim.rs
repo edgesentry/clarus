@@ -73,6 +73,7 @@ fn port_safety_frame(cycle: u64, frame: u64, timestamp_ms: u64) -> Frame {
                 velocity: Vec2::new(-step * 0.8, 0.0),
                 timestamp_ms,
                 sensor: Some(SensorReading::simulation()),
+                position_z: None, velocity_z: None, computed_confidence: None,
             },
             Entity {
                 id: "W-03".into(),
@@ -81,6 +82,7 @@ fn port_safety_frame(cycle: u64, frame: u64, timestamp_ms: u64) -> Frame {
                 velocity: Vec2::new(0.0, 0.0),
                 timestamp_ms,
                 sensor: Some(SensorReading::simulation()),
+                position_z: None, velocity_z: None, computed_confidence: None,
             },
         ],
     }
@@ -102,6 +104,7 @@ fn maritime_frame(cycle: u64, frame: u64, timestamp_ms: u64) -> Frame {
                 velocity: Vec2::new(2.0, 0.0),
                 timestamp_ms,
                 sensor: Some(SensorReading::simulation()),
+                position_z: None, velocity_z: None, computed_confidence: None,
             },
         ],
     }
