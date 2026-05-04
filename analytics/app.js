@@ -3,6 +3,7 @@
 
 import * as duckdb from "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.29.0/+esm";
 import * as Plot from "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6/+esm";
+import { updateDocumarisLink } from "./documaris-link.js";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -157,9 +158,7 @@ async function selectVessel(conn, mmsi) {
 
   document.getElementById("sc-title").childNodes[0].textContent = v.vessel_name + " ";
   document.getElementById("sc-mmsi").textContent = `MMSI ${v.mmsi}`;
-  const docLink = document.getElementById("sc-documaris-link");
-  docLink.href = `https://documaris.edgesentry.io?mmsi=${v.mmsi}`;
-  docLink.style.display = "inline";
+  updateDocumarisLink(v.mmsi);
   document.getElementById("sc-score").textContent = score.toFixed(1);
   document.getElementById("sc-tier").textContent = tier === "high" ? "HIGH RISK" : tier === "medium" ? "MEDIUM RISK" : "LOW RISK";
   const scoreBox = document.getElementById("sc-score-box");
