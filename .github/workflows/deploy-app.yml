@@ -38,7 +38,9 @@ jobs:
 
       - name: Build
         working-directory: analytics
-        run: npm run build
+        run: |
+          npm run build
+          cp -r functions dist/functions
 
       - name: Deploy to Cloudflare Pages
         working-directory: analytics
@@ -48,8 +50,7 @@ jobs:
             --project-name=clarus \
             --branch=main \
             --commit-dirty=true \
-            --commit-message="${COMMIT_MSG}" \
-            --functions-directory functions
+            --commit-message="${COMMIT_MSG}"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
