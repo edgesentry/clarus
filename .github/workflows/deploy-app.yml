@@ -18,15 +18,38 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: analytics/package-lock.json
+
+      - name: Install dependencies
+        working-directory: analytics
+        run: npm ci
+
+      - name: Typecheck
+        working-directory: analytics
+        run: npm run typecheck
+
+      - name: Test
+        working-directory: analytics
+        run: npm test
+
+      - name: Build
+        working-directory: analytics
+        run: npm run build
+
       - name: Deploy to Cloudflare Pages
         working-directory: analytics
         run: |
           COMMIT_MSG=$(git log -1 --pretty=format:'%s' | LC_ALL=C tr -cd '[:print:]' | cut -c1-72)
-          npx wrangler pages deploy . \
+          npx wrangler pages deploy dist \
             --project-name=clarus \
             --branch=main \
             --commit-dirty=true \
-            --commit-message="${COMMIT_MSG}"
+            --commit-message="${COMMIT_MSG}" \
+            --functions-directory functions
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
