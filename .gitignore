@@ -11,3 +11,4 @@
 # Generated Parquet data (uploaded to R2, not committed)
 data/**/*.parquet
 analytics/node_modules/
+analytics/dist/

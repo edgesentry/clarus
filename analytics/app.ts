@@ -1,37 +1,74 @@
-// EdgeSentry Vessel Risk Intelligence — app.js
-// DuckDB WASM + Observable Plot, no build step required.
+// EdgeSentry Vessel Risk Intelligence — app.ts
 
-import * as duckdb from "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.29.0/+esm";
-import * as Plot from "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6/+esm";
+import * as duckdb from "@duckdb/duckdb-wasm";
+import * as Plot from "@observablehq/plot";
 import { updateDocumarisLink } from "./documaris-link.js";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface VesselRow {
+  mmsi: string;
+  vessel_name: string;
+  flag_state: string;
+  vessel_type: string;
+  built_year: number;
+  behavioral_score: number;
+  tier: "high" | "medium" | "low";
+  ais_gap_count_30d: number;
+  ais_gap_max_hours: number;
+  sts_candidate_count: number;
+  loitering_hours_30d: number;
+  sanctions_distance: number;
+  cluster_sanctions_ratio: number;
+  flag_changes_2y: number;
+  ownership_depth: number;
+  sanctions_list_count: number;
+  traditional_premium_usd: number;
+  behavioral_premium_usd: number;
+}
+
+type RiskLevel = "high" | "med" | "ok";
+
+interface Indicator {
+  key: string;
+  label: string;
+  max: number;
+  fmt: (v: number) => string;
+  risk: string;
+  invert?: boolean;
+}
+
+interface Signal {
+  key: string;
+  label: string;
+  fmt: (x: number) => string;
+}
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
 const PARQUET_URL = "/data/analytics/vessel_features_synthetic.parquet";
 
-const INDICATORS = [
-  { key: "ais_gap_count_30d",      label: "AIS gaps (30d)",          max: 60,  fmt: v => `${v} gaps`,     risk: "higher = worse" },
-  { key: "ais_gap_max_hours",      label: "Max gap duration",         max: 480, fmt: v => `${v}h`,          risk: "higher = worse" },
-  { key: "sts_candidate_count",    label: "STS transfers",            max: 12,  fmt: v => `${v}`,           risk: "higher = worse" },
-  { key: "loitering_hours_30d",    label: "Loitering (30d)",          max: 300, fmt: v => `${v}h`,          risk: "higher = worse" },
-  { key: "sanctions_distance",     label: "Sanctions distance",       max: 10,  fmt: v => `${v} hops`,      risk: "lower = worse", invert: true },
-  { key: "cluster_sanctions_ratio",label: "Cluster sanctions ratio",  max: 1,   fmt: v => `${(v*100).toFixed(0)}%`, risk: "higher = worse" },
-  { key: "flag_changes_2y",        label: "Flag changes (2yr)",       max: 4,   fmt: v => `${v}`,           risk: "higher = worse" },
-  { key: "ownership_depth",        label: "Ownership depth",          max: 10,  fmt: v => `${v} layers`,    risk: "higher = worse" },
-  { key: "sanctions_list_count",   label: "Sanctions list hits",      max: 3,   fmt: v => `${v}`,           risk: "higher = worse" },
+const INDICATORS: Indicator[] = [
+  { key: "ais_gap_count_30d",       label: "AIS gaps (30d)",         max: 60,  fmt: v => `${v} gaps`,                   risk: "higher = worse" },
+  { key: "ais_gap_max_hours",       label: "Max gap duration",        max: 480, fmt: v => `${v}h`,                        risk: "higher = worse" },
+  { key: "sts_candidate_count",     label: "STS transfers",           max: 12,  fmt: v => `${v}`,                         risk: "higher = worse" },
+  { key: "loitering_hours_30d",     label: "Loitering (30d)",         max: 300, fmt: v => `${v}h`,                        risk: "higher = worse" },
+  { key: "sanctions_distance",      label: "Sanctions distance",      max: 10,  fmt: v => `${v} hops`,                   risk: "lower = worse", invert: true },
+  { key: "cluster_sanctions_ratio", label: "Cluster sanctions ratio", max: 1,   fmt: v => `${(v * 100).toFixed(0)}%`,    risk: "higher = worse" },
+  { key: "flag_changes_2y",         label: "Flag changes (2yr)",      max: 4,   fmt: v => `${v}`,                         risk: "higher = worse" },
+  { key: "ownership_depth",         label: "Ownership depth",         max: 10,  fmt: v => `${v} layers`,                 risk: "higher = worse" },
+  { key: "sanctions_list_count",    label: "Sanctions list hits",     max: 3,   fmt: v => `${v}`,                         risk: "higher = worse" },
 ];
 
 // ── DuckDB init ───────────────────────────────────────────────────────────────
 
-async function initDB() {
-  const status = document.getElementById("db-status");
+async function initDB(): Promise<duckdb.AsyncDuckDBConnection> {
+  const status = document.getElementById("db-status")!;
   status.textContent = "Loading database…";
 
-  const BUNDLES = duckdb.getJsDelivrBundles();
-  const bundle = await duckdb.selectBundle(BUNDLES);
-
+  const bundle = await duckdb.selectBundle(duckdb.getJsDelivrBundles());
   const workerUrl = URL.createObjectURL(
-    new Blob([`importScripts("${bundle.mainWorker}");`], { type: "text/javascript" })
+    new Blob([`importScripts("${bundle.mainWorker!}");`], { type: "text/javascript" }),
   );
   const worker = new Worker(workerUrl);
   const logger = new duckdb.ConsoleLogger(duckdb.LogLevel.WARNING);
@@ -49,7 +86,7 @@ async function initDB() {
   await conn.query(`CREATE TABLE vessels AS SELECT * FROM read_parquet('vessels.parquet')`);
 
   const row = await conn.query(`SELECT COUNT(*) AS n FROM vessels`);
-  const n = row.toArray()[0].n;
+  const n = Number(row.toArray()[0].n);
   status.textContent = `${n} vessels loaded`;
 
   return conn;
@@ -57,50 +94,43 @@ async function initDB() {
 
 // ── Fleet overview ────────────────────────────────────────────────────────────
 
-async function renderFleetOverview(conn) {
-  const result = await conn.query(`
-    SELECT tier, COUNT(*) AS cnt
-    FROM vessels GROUP BY tier
-  `);
-  const counts = { low: 0, medium: 0, high: 0 };
-  for (const row of result.toArray()) counts[row.tier] = Number(row.cnt);
+async function renderFleetOverview(conn: duckdb.AsyncDuckDBConnection): Promise<void> {
+  const result = await conn.query(`SELECT tier, COUNT(*) AS cnt FROM vessels GROUP BY tier`);
+  const counts: Record<string, number> = { low: 0, medium: 0, high: 0 };
+  for (const row of result.toArray()) counts[row.tier as string] = Number(row.cnt);
 
-  document.getElementById("cnt-low").textContent  = counts.low;
-  document.getElementById("cnt-med").textContent  = counts.medium;
-  document.getElementById("cnt-high").textContent = counts.high;
+  (document.getElementById("cnt-low")  as HTMLElement).textContent = String(counts.low);
+  (document.getElementById("cnt-med")  as HTMLElement).textContent = String(counts.medium);
+  (document.getElementById("cnt-high") as HTMLElement).textContent = String(counts.high);
 
-  // Score distribution chart
   const dist = await conn.query(`
-    SELECT
-      FLOOR(behavioral_score / 10) * 10 AS bucket,
-      COUNT(*) AS cnt
-    FROM vessels
-    GROUP BY bucket ORDER BY bucket
+    SELECT FLOOR(behavioral_score / 10) * 10 AS bucket, COUNT(*) AS cnt
+    FROM vessels GROUP BY bucket ORDER BY bucket
   `);
   const distData = dist.toArray().map(r => ({ bucket: Number(r.bucket), cnt: Number(r.cnt) }));
 
   const chart = Plot.plot({
     width: 280, height: 130,
     marginLeft: 28, marginBottom: 24, marginTop: 8, marginRight: 8,
-    style: { background: "transparent", color: "#8b949e", fontSize: 11 },
-    x: { label: "Risk score", tickFormat: d => d },
-    y: { label: null, tickFormat: d => d },
+    style: { background: "transparent", color: "#8b949e", fontSize: "11px" },
+    x: { label: "Risk score", tickFormat: (d: unknown) => String(d) },
+    y: { label: null, tickFormat: (d: unknown) => String(d) },
     marks: [
       Plot.barY(distData, {
         x: "bucket",
         y: "cnt",
-        fill: d => d.bucket >= 60 ? "#f85149" : d.bucket >= 30 ? "#d29922" : "#3fb950",
+        fill: (d: { bucket: number }) => d.bucket >= 60 ? "#f85149" : d.bucket >= 30 ? "#d29922" : "#3fb950",
         dx: 2,
       }),
       Plot.ruleY([0], { stroke: "#30363d" }),
-    ]
+    ],
   });
-  document.getElementById("dist-chart").replaceChildren(chart);
+  document.getElementById("dist-chart")!.replaceChildren(chart);
 }
 
 // ── Vessel list ───────────────────────────────────────────────────────────────
 
-async function renderVesselList(conn, filter = "") {
+async function renderVesselList(conn: duckdb.AsyncDuckDBConnection, filter = ""): Promise<void> {
   const like = filter.replace(/'/g, "''");
   const result = await conn.query(`
     SELECT mmsi, vessel_name, flag_state, behavioral_score, tier
@@ -109,11 +139,11 @@ async function renderVesselList(conn, filter = "") {
     ORDER BY behavioral_score DESC
     LIMIT 60
   `);
-  const vessels = result.toArray();
-  const list = document.getElementById("vessel-list");
+  const vessels = result.toArray() as VesselRow[];
+  const list = document.getElementById("vessel-list")!;
   list.innerHTML = "";
 
-  const active = document.querySelector(".vessel-item.active")?.dataset.mmsi;
+  const active = document.querySelector<HTMLElement>(".vessel-item.active")?.dataset.mmsi;
 
   for (const v of vessels) {
     const el = document.createElement("div");
@@ -131,16 +161,15 @@ async function renderVesselList(conn, filter = "") {
 
 // ── Scorecard ─────────────────────────────────────────────────────────────────
 
-async function selectVessel(conn, mmsi) {
-  document.querySelectorAll(".vessel-item").forEach(el => {
+async function selectVessel(conn: duckdb.AsyncDuckDBConnection, mmsi: string): Promise<void> {
+  document.querySelectorAll<HTMLElement>(".vessel-item").forEach(el => {
     el.classList.toggle("active", el.dataset.mmsi === mmsi);
   });
 
   const result = await conn.query(`SELECT * FROM vessels WHERE mmsi = '${mmsi}'`);
-  const v = result.toArray()[0];
+  const v = result.toArray()[0] as VesselRow | undefined;
   if (!v) return;
 
-  // Cohort percentile: rank among same flag + type
   const pctResult = await conn.query(`
     SELECT
       ROUND(100.0 * SUM(CASE WHEN behavioral_score <= ${v.behavioral_score} THEN 1 ELSE 0 END) / COUNT(*), 0) AS pct
@@ -149,39 +178,32 @@ async function selectVessel(conn, mmsi) {
   `);
   const pct = Number(pctResult.toArray()[0].pct);
 
-  // Show scorecard
-  document.getElementById("no-selection").style.display = "none";
-  document.getElementById("scorecard").style.display = "block";
+  document.getElementById("no-selection")!.style.display = "none";
+  document.getElementById("scorecard")!.style.display = "block";
 
   const score = Number(v.behavioral_score);
   const tier = v.tier;
 
-  document.getElementById("sc-title").childNodes[0].textContent = v.vessel_name + " ";
-  document.getElementById("sc-mmsi").textContent = `MMSI ${v.mmsi}`;
+  document.getElementById("sc-title")!.childNodes[0].textContent = v.vessel_name + " ";
+  document.getElementById("sc-mmsi")!.textContent = `MMSI ${v.mmsi}`;
   updateDocumarisLink(v.mmsi);
-  document.getElementById("sc-score").textContent = score.toFixed(1);
-  document.getElementById("sc-tier").textContent = tier === "high" ? "HIGH RISK" : tier === "medium" ? "MEDIUM RISK" : "LOW RISK";
-  const scoreBox = document.getElementById("sc-score-box");
-  scoreBox.className = "score-box " + (tier === "high" ? "score-high" : tier === "medium" ? "score-medium" : "score-low");
+  document.getElementById("sc-score")!.textContent = score.toFixed(1);
+  document.getElementById("sc-tier")!.textContent =
+    tier === "high" ? "HIGH RISK" : tier === "medium" ? "MEDIUM RISK" : "LOW RISK";
+  document.getElementById("sc-score-box")!.className =
+    "score-box " + (tier === "high" ? "score-high" : tier === "medium" ? "score-medium" : "score-low");
 
-  document.getElementById("sc-percentile").textContent = `${pct}th`;
-  document.getElementById("sc-cohort-desc").textContent =
-    `vs ${v.flag_state} ${v.vessel_type} cohort`;
+  document.getElementById("sc-percentile")!.textContent = `${pct}th`;
+  document.getElementById("sc-cohort-desc")!.textContent = `vs ${v.flag_state} ${v.vessel_type} cohort`;
+  document.getElementById("sc-meta")!.innerHTML = `${v.flag_state}<br>${v.vessel_type}<br>Built ${v.built_year}`;
+  document.getElementById("sc-cohort-marker")!.style.left = `${pct}%`;
 
-  document.getElementById("sc-meta").innerHTML =
-    `${v.flag_state}<br>${v.vessel_type}<br>Built ${v.built_year}`;
-
-  // Cohort bar marker
-  document.getElementById("sc-cohort-marker").style.left = `${pct}%`;
-
-  // Indicators
-  const grid = document.getElementById("sc-indicators");
+  const grid = document.getElementById("sc-indicators")!;
   grid.innerHTML = "";
+  const vRecord = v as unknown as Record<string, unknown>;
   for (const ind of INDICATORS) {
-    const raw = Number(v[ind.key]);
-    const norm = ind.invert
-      ? 1 - Math.min(raw / ind.max, 1)
-      : Math.min(raw / ind.max, 1);
+    const raw = Number(vRecord[ind.key]);
+    const norm = ind.invert ? 1 - Math.min(raw / ind.max, 1) : Math.min(raw / ind.max, 1);
     const pctBar = Math.round(norm * 100);
     const barClass = pctBar >= 60 ? "bar-high" : pctBar >= 30 ? "bar-medium" : "bar-low";
     const row = document.createElement("div");
@@ -194,12 +216,11 @@ async function selectVessel(conn, mmsi) {
     grid.appendChild(row);
   }
 
-  // Premium comparison
   const traditional = Number(v.traditional_premium_usd);
-  const behavioral  = Number(v.behavioral_premium_usd);
-  const deltaPct    = (((behavioral - traditional) / traditional) * 100).toFixed(0);
+  const behavioral = Number(v.behavioral_premium_usd);
+  const deltaPct = (((behavioral - traditional) / traditional) * 100).toFixed(0);
 
-  const signalRisk = (key, val) => {
+  const signalRisk = (key: string, val: number): RiskLevel => {
     if (key === "ais_gap_count_30d")   return val > 10 ? "high" : val > 3  ? "med" : "ok";
     if (key === "sts_candidate_count") return val > 2  ? "high" : val > 0  ? "med" : "ok";
     if (key === "sanctions_distance")  return val <= 2 ? "high" : val <= 4 ? "med" : "ok";
@@ -207,7 +228,7 @@ async function selectVessel(conn, mmsi) {
     return "ok";
   };
 
-  const SIGNALS = [
+  const SIGNALS: Signal[] = [
     { key: "ais_gap_count_30d",   label: "AIS gaps (30d)",     fmt: x => `${x} gaps` },
     { key: "sts_candidate_count", label: "STS transfers",       fmt: x => `${x}` },
     { key: "sanctions_distance",  label: "Sanctions proximity", fmt: x => `${x} hops` },
@@ -215,7 +236,7 @@ async function selectVessel(conn, mmsi) {
   ];
 
   const signalsHtml = SIGNALS.map(s => {
-    const val = Number(v[s.key]);
+    const val = Number(vRecord[s.key]);
     const risk = signalRisk(s.key, val);
     return `<div class="prem-signal risk-${risk}">
       <div class="prem-signal-name">${s.label}</div>
@@ -223,7 +244,7 @@ async function selectVessel(conn, mmsi) {
     </div>`;
   }).join("");
 
-  document.getElementById("sc-premium-comparison").innerHTML = `
+  document.getElementById("sc-premium-comparison")!.innerHTML = `
     <div class="prem-tier">
       <div class="prem-tier-label">Traditional underwriting</div>
       <div class="prem-tier-factors">Flag state · Vessel age · Vessel type</div>
@@ -254,14 +275,12 @@ const conn = await initDB();
 await renderFleetOverview(conn);
 await renderVesselList(conn);
 
-// Auto-select: URL param (?mmsi=) takes priority, falls back to demo spotlight
 const autoMmsi = new URLSearchParams(location.search).get("mmsi") ?? "563012345";
 await selectVessel(conn, autoMmsi);
 if (location.search.includes("mmsi=")) {
   document.querySelector(".vessel-item.active")?.scrollIntoView({ block: "center", behavior: "smooth" });
 }
 
-// Search
-document.getElementById("vessel-search").addEventListener("input", e => {
-  renderVesselList(conn, e.target.value);
+document.getElementById("vessel-search")!.addEventListener("input", (e) => {
+  renderVesselList(conn, (e.target as HTMLInputElement).value);
 });
