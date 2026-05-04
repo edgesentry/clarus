@@ -131,6 +131,15 @@
     #fleet-chart { min-height: 180px; }
     #dist-chart  { min-height: 140px; }
 
+    /* documaris cross-link */
+    .documaris-link {
+      margin-left: auto; font-size: 12px; color: var(--accent);
+      text-decoration: none; padding: 4px 10px;
+      border: 1px solid var(--accent); border-radius: 5px; white-space: nowrap;
+      font-weight: 400; letter-spacing: 0;
+    }
+    .documaris-link:hover { background: rgba(88,166,255,0.1); }
+
     /* Loading / empty */
     .loading { color: var(--muted); font-size: 13px; padding: 40px; text-align: center; }
     #scorecard { display: none; }
@@ -194,7 +203,7 @@
       <div id="scorecard">
         <!-- Score header -->
         <div class="card">
-          <h3 id="sc-title">—<span class="mmsi" id="sc-mmsi"></span></h3>
+          <h3 id="sc-title">—<span class="mmsi" id="sc-mmsi"></span><a id="sc-documaris-link" class="documaris-link" href="#" target="_blank" rel="noopener noreferrer" style="display:none">View port call documents in documaris →</a></h3>
           <div class="score-header">
             <div class="score-box" id="sc-score-box">
               <div class="label">Behavioral Risk Score</div>
