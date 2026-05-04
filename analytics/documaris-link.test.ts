@@ -15,20 +15,20 @@ describe("updateDocumarisLink", () => {
 
   it("sets href to documaris with ?mmsi= query param", () => {
     updateDocumarisLink("563012345");
-    const link = document.getElementById("sc-documaris-link");
+    const link = document.getElementById("sc-documaris-link") as HTMLAnchorElement;
     expect(link.href).toBe("https://documaris.edgesentry.io/?mmsi=563012345");
   });
 
   it("makes the link visible", () => {
     updateDocumarisLink("563012345");
-    const link = document.getElementById("sc-documaris-link");
+    const link = document.getElementById("sc-documaris-link") as HTMLAnchorElement;
     expect(link.style.display).toBe("inline");
   });
 
   it("updates href when called again with a different mmsi", () => {
     updateDocumarisLink("111111111");
     updateDocumarisLink("999999999");
-    const link = document.getElementById("sc-documaris-link");
+    const link = document.getElementById("sc-documaris-link") as HTMLAnchorElement;
     expect(link.href).toBe("https://documaris.edgesentry.io/?mmsi=999999999");
   });
 
