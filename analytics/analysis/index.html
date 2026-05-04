@@ -67,6 +67,8 @@
     .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; }
     .card h3 { font-size: 15px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
     .card h3 .mmsi { font-size: 12px; color: var(--muted); font-weight: 400; font-family: monospace; }
+    .documaris-link { margin-left: auto; font-size: 12px; color: var(--accent); text-decoration: none; padding: 4px 10px; border: 1px solid var(--accent); border-radius: 5px; white-space: nowrap; font-weight: 400; }
+    .documaris-link:hover { background: rgba(88,166,255,0.1); }
 
     /* Score header */
     .score-header { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 20px; }
@@ -194,7 +196,7 @@
       <div id="scorecard">
         <!-- Score header -->
         <div class="card">
-          <h3 id="sc-title">—<span class="mmsi" id="sc-mmsi"></span></h3>
+          <h3 id="sc-title">—<span class="mmsi" id="sc-mmsi"></span><a id="sc-documaris-link" class="documaris-link" href="#" target="_blank" rel="noopener noreferrer" style="display:none">View port call documents in documaris →</a></h3>
           <div class="score-header">
             <div class="score-box" id="sc-score-box">
               <div class="label">Behavioral Risk Score</div>
