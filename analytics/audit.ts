@@ -1,17 +1,42 @@
-// EdgeSentry Audit Chain — audit.js
-// Fetches AuditRecord JSON from clarus-dev-public-audit, verifies hash chain
-// integrity, and renders a tamper-evidence timeline.
+// EdgeSentry Audit Chain — audit.ts
+export {}; // make this a module so top-level await and const status don't conflict with globals
 
-const status = document.getElementById("status");
+interface AuditRecord {
+  sequence: number;
+  timestamp_ms: number | string;
+  rule_id?: string;
+  object_ref?: string;
+  evidence_quality?: string;
+  confidence_cv?: number | string;
+  record_hash_hex?: string;
+  prev_record_hash_hex?: string;
+  payload_hash_hex?: string;
+  signature_hex?: string;
+  device_id?: string;
+  entity_ids?: string | string[];
+}
+
+interface AuditIndex {
+  keys: string[];
+  sites: string[];
+}
+
+interface VerifyResult {
+  gaps: number;
+  hashFails: number;
+  intact: boolean;
+}
+
+const status = document.getElementById("status") as HTMLElement;
 
 // ── Fetch + parse ─────────────────────────────────────────────────────────────
 
-async function fetchIndex(site) {
+async function fetchIndex(site: string | null): Promise<AuditIndex> {
   const url = site ? `/api/audit-index?site=${site}` : "/api/audit-index";
   return fetch(url).then(r => r.json()).catch(() => ({ keys: [], sites: [] }));
 }
 
-async function fetchRecord(key) {
+async function fetchRecord(key: string): Promise<AuditRecord | null> {
   const resp = await fetch(`/data/audit/${key}`);
   if (!resp.ok) return null;
   return resp.json();
@@ -19,7 +44,7 @@ async function fetchRecord(key) {
 
 // ── Chain verification ────────────────────────────────────────────────────────
 
-function verifyChain(records) {
+function verifyChain(records: AuditRecord[]): VerifyResult {
   let gaps = 0, hashFails = 0;
   for (let i = 0; i < records.length; i++) {
     if (i === 0) continue;
@@ -31,19 +56,19 @@ function verifyChain(records) {
 
 // ── Integrity banner ──────────────────────────────────────────────────────────
 
-function renderBanner(n, { intact, gaps, hashFails }) {
-  const banner = document.getElementById("integrity-banner");
-  const icon   = banner.querySelector(".integrity-icon");
-  const title  = banner.querySelector(".integrity-title");
-  const sub    = document.getElementById("integrity-sub");
+function renderBanner(n: number, { intact, gaps, hashFails }: VerifyResult): void {
+  const banner = document.getElementById("integrity-banner")!;
+  const icon   = banner.querySelector(".integrity-icon") as HTMLElement;
+  const title  = banner.querySelector(".integrity-title") as HTMLElement;
+  const sub    = document.getElementById("integrity-sub")!;
 
   if (intact) {
-    banner.className = "integrity-banner intact";
+    banner.className  = "integrity-banner intact";
     icon.textContent  = "✅";
     title.textContent = `Chain intact — ${n} record${n !== 1 ? "s" : ""}, 0 gaps`;
     sub.textContent   = "All prev_record_hash values match. No records deleted or modified.";
   } else {
-    banner.className = "integrity-banner broken";
+    banner.className  = "integrity-banner broken";
     icon.textContent  = "❌";
     title.textContent = "Chain integrity failure";
     sub.textContent   = [
@@ -55,7 +80,7 @@ function renderBanner(n, { intact, gaps, hashFails }) {
 
 // ── Table render ──────────────────────────────────────────────────────────────
 
-function qualClass(q) {
+function qualClass(q: string | undefined): string {
   if (!q) return "";
   const lower = q.toLowerCase();
   if (lower === "certified") return "qual-certified";
@@ -63,27 +88,24 @@ function qualClass(q) {
   return "qual-rejected";
 }
 
-function renderTable(records) {
-  const container = document.getElementById("chain-container");
-  document.getElementById("record-count").textContent = `${records.length} record(s)`;
+function renderTable(records: AuditRecord[]): void {
+  const container = document.getElementById("chain-container")!;
+  document.getElementById("record-count")!.textContent = `${records.length} record(s)`;
 
   if (records.length === 0) {
     container.innerHTML = '<div class="empty">No records found for this site.</div>';
     return;
   }
 
-  // Show newest first
   const sorted = [...records].reverse();
-
   const table = document.createElement("table");
   table.className = "chain-table";
   table.innerHTML = `<thead><tr>
     <th>Seq</th><th>Time (UTC)</th><th>Rule</th><th>Quality</th>
     <th>Confidence</th><th>Record hash</th><th>Chain link</th>
   </tr></thead><tbody></tbody>`;
-  const tbody = table.querySelector("tbody");
+  const tbody = table.querySelector("tbody")!;
 
-  // Build a lookup by sequence for chain link display
   const bySeq = Object.fromEntries(records.map(r => [r.sequence, r]));
 
   for (const r of sorted) {
@@ -92,8 +114,7 @@ function renderTable(records) {
       : "—";
     const hashShort = r.record_hash_hex ? r.record_hash_hex.slice(0, 12) + "…" : "—";
 
-    // Chain link verification
-    let linkHtml;
+    let linkHtml: string;
     if (r.sequence === 0) {
       linkHtml = `<span class="link-genesis">genesis</span>`;
     } else {
@@ -116,7 +137,6 @@ function renderTable(records) {
       <td>${linkHtml}</td>
     `;
 
-    // Expandable detail row
     const detailRow = document.createElement("tr");
     detailRow.className = "detail-row";
     detailRow.style.display = "none";
@@ -129,24 +149,22 @@ function renderTable(records) {
     detailTd.innerHTML = `<div class="detail-grid">
       <span class="detail-label">Device</span>
       <span class="detail-val">${r.device_id ?? "—"}</span>
-
       <span class="detail-label">Record hash</span>
       <span class="detail-val">${r.record_hash_hex ?? "—"}</span>
-
       <span class="detail-label">Prev hash</span>
       <span class="detail-val">${r.prev_record_hash_hex ?? "—"}</span>
-
       <span class="detail-label">Chain link</span>
       <span class="detail-val ${chainOk ? "ok" : "fail"}">
-        ${r.sequence === 0 ? "genesis — no previous record" : chainOk ? "✓ prev_hash matches record[" + (r.sequence - 1) + "].record_hash" : "✗ hash mismatch — record may have been tampered"}
+        ${r.sequence === 0
+          ? "genesis — no previous record"
+          : chainOk
+            ? `✓ prev_hash matches record[${r.sequence - 1}].record_hash`
+            : "✗ hash mismatch — record may have been tampered"}
       </span>
-
       <span class="detail-label">Payload hash</span>
       <span class="detail-val">${r.payload_hash_hex ?? "—"}</span>
-
       <span class="detail-label">Signature</span>
       <span class="detail-val">${r.signature_hex ? r.signature_hex.slice(0, 32) + "…" : "—"}</span>
-
       <span class="detail-label">Entity IDs</span>
       <span class="detail-val">${Array.isArray(r.entity_ids) ? r.entity_ids.join(", ") : (r.entity_ids ?? "—")}</span>
     </div>`;
@@ -166,7 +184,7 @@ function renderTable(records) {
 
 // ── Site selector ─────────────────────────────────────────────────────────────
 
-async function loadSite(site) {
+async function loadSite(site: string): Promise<void> {
   status.textContent = `Fetching chain for ${site}…`;
   const { keys } = await fetchIndex(site);
 
@@ -178,7 +196,7 @@ async function loadSite(site) {
   }
 
   status.textContent = `Loading ${keys.length} record(s)…`;
-  const records = (await Promise.all(keys.map(fetchRecord))).filter(Boolean);
+  const records = (await Promise.all(keys.map(fetchRecord))).filter((r): r is AuditRecord => r !== null);
   records.sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
 
   const result = verifyChain(records);
@@ -193,19 +211,18 @@ status.textContent = "Fetching index…";
 const { keys, sites } = await fetchIndex(null);
 
 if (keys.length === 0) {
-  document.getElementById("no-data").style.display = "flex";
+  (document.getElementById("no-data") as HTMLElement).style.display = "flex";
   status.textContent = "No records";
 } else {
-  document.getElementById("audit-content").style.display = "block";
+  (document.getElementById("audit-content") as HTMLElement).style.display = "block";
 
-  const sel = document.getElementById("site-select");
+  const sel = document.getElementById("site-select") as HTMLSelectElement;
   for (const s of sites) {
     const opt = document.createElement("option");
     opt.value = opt.textContent = s;
     sel.appendChild(opt);
   }
 
-  // Auto-select from URL param or first site
   const urlSite = new URLSearchParams(location.search).get("site");
   if (urlSite && sites.includes(urlSite)) sel.value = urlSite;
 

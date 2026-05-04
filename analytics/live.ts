@@ -1,10 +1,40 @@
-// EdgeSentry Operations Monitor — live.js
-import * as duckdb from "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.29.0/+esm";
-import * as Plot   from "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6/+esm";
+// EdgeSentry Operations Monitor — live.ts
+
+import * as duckdb from "@duckdb/duckdb-wasm";
+import * as Plot from "@observablehq/plot";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface AlertRow {
+  timestamp_ms: number | string;
+  site_id: string;
+  rule_id: string;
+  severity: string;
+  evidence_quality: string;
+  confidence_cv: number | string;
+  measured_value: number | string;
+  threshold: number | string;
+  entity_ids: string;
+  sequence?: number;
+}
+
+interface HeartbeatRow {
+  timestamp_ms: number | string;
+  site_id: string;
+  calibration_status: string;
+  drift_score: number | string;
+  certified_count: number | string;
+  degraded_count: number | string;
+  rejected_count: number | string;
+}
+
+interface LiveIndex {
+  heartbeats: string[];
+  alerts: string[];
+  sites: string[];
+}
 
 // ── LLM alert explanation ─────────────────────────────────────────────────────
-// Calls local llama.cpp via Caddy HTTPS proxy (run_llama.sh starts both).
-// Caches results in DuckDB WASM so each alert is only explained once.
 
 const LLM_ENDPOINT = "https://localhost:8443/v1/chat/completions";
 const LLM_TIMEOUT_MS = 30_000;
@@ -17,7 +47,7 @@ const SYSTEM_PROMPT =
   "STRICT: no mention of evidence quality, confidence, or admissibility — that will be added separately. " +
   "No markdown. No bullet points. Maximum 2 sentences.";
 
-function buildAlertPrompt(r) {
+function buildAlertPrompt(r: AlertRow): string {
   const entities = (() => { try { return JSON.parse(r.entity_ids).join(", "); } catch { return r.entity_ids; } })();
   const qualNote = r.evidence_quality === "Certified"
     ? "CERTIFIED — full evidential weight, admissible"
@@ -35,7 +65,7 @@ function buildAlertPrompt(r) {
   ].join("\n");
 }
 
-async function initExplainCache(conn) {
+async function initExplainCache(conn: duckdb.AsyncDuckDBConnection): Promise<void> {
   await conn.query(`
     CREATE TABLE IF NOT EXISTS alert_explanations (
       cache_key  TEXT PRIMARY KEY,
@@ -45,28 +75,27 @@ async function initExplainCache(conn) {
   `);
 }
 
-function alertCacheKey(r) {
+function alertCacheKey(r: AlertRow): string {
   return `${r.site_id}:${r.rule_id}:${r.timestamp_ms}`;
 }
 
-async function getCachedExplanation(conn, key) {
+async function getCachedExplanation(conn: duckdb.AsyncDuckDBConnection, key: string): Promise<string | null> {
   const res = await conn.query(
-    `SELECT explanation FROM alert_explanations WHERE cache_key = '${key.replace(/'/g,"''")}' LIMIT 1`
+    `SELECT explanation FROM alert_explanations WHERE cache_key = '${key.replace(/'/g, "''")}' LIMIT 1`
   );
   const rows = res.toArray();
-  return rows.length > 0 ? rows[0].explanation : null;
+  return rows.length > 0 ? rows[0].explanation as string : null;
 }
 
-async function saveExplanation(conn, key, text) {
+async function saveExplanation(conn: duckdb.AsyncDuckDBConnection, key: string, text: string): Promise<void> {
   await conn.query(`
     INSERT INTO alert_explanations (cache_key, explanation)
-    VALUES ('${key.replace(/'/g,"''")}', '${text.replace(/'/g,"''")}')
+    VALUES ('${key.replace(/'/g, "''")}', '${text.replace(/'/g, "''")}')
     ON CONFLICT (cache_key) DO UPDATE SET explanation = excluded.explanation, generated_at = now()
   `);
 }
 
-// Build the evidence quality sentence deterministically — never trust the LLM for this.
-function evidenceQualitySentence(r) {
+function evidenceQualitySentence(r: AlertRow): string {
   const conf = Number(r.confidence_cv).toFixed(2);
   switch (r.evidence_quality) {
     case "Certified":
@@ -78,7 +107,7 @@ function evidenceQualitySentence(r) {
   }
 }
 
-async function fetchExplanation(row) {
+async function fetchExplanation(row: AlertRow): Promise<string> {
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), LLM_TIMEOUT_MS);
   try {
@@ -96,9 +125,8 @@ async function fetchExplanation(row) {
       signal: ac.signal,
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
+    const data = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
     const llmText = (data?.choices?.[0]?.message?.content ?? "").trim();
-    // Inject the deterministic evidence quality sentence between LLM sentences 1 and 2.
     const sentences = llmText.split(/(?<=\.)\s+/);
     const s1 = sentences[0] ?? llmText;
     const rest = sentences.slice(1).join(" ");
@@ -108,25 +136,25 @@ async function fetchExplanation(row) {
   }
 }
 
-// Entity → MMSI mapping for Flow 1→2 demo navigation
-const VESSEL_MMSI = { "V-001": "563012345" };
+const VESSEL_MMSI: Record<string, string> = { "V-001": "563012345" };
 
-const status = document.getElementById("db-status");
+const status = document.getElementById("db-status") as HTMLElement;
 
 // ── DuckDB init ───────────────────────────────────────────────────────────────
 
-async function initDB() {
+async function initDB(): Promise<duckdb.AsyncDuckDB> {
   status.textContent = "Initialising database…";
   const bundle = await duckdb.selectBundle(duckdb.getJsDelivrBundles());
   const workerUrl = URL.createObjectURL(
-    new Blob([`importScripts("${bundle.mainWorker}");`], { type: "text/javascript" })
+    new Blob([`importScripts("${bundle.mainWorker!}");`], { type: "text/javascript" }),
   );
-  const db = new duckdb.AsyncDuckDB(new duckdb.ConsoleLogger(duckdb.LogLevel.WARNING), new Worker(workerUrl));
+  const db = new duckdb.AsyncDuckDB(
+    new duckdb.ConsoleLogger(duckdb.LogLevel.WARNING),
+    new Worker(workerUrl),
+  );
   await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
   URL.revokeObjectURL(workerUrl);
 
-  // Persist alert_explanations cache across page reloads via OPFS.
-  // Falls back to in-memory if OPFS is unavailable (Safari Private mode).
   try {
     await db.open({ path: "opfs://clarus-analytics.db" });
     status.textContent = "Database ready (persistent)";
@@ -138,9 +166,14 @@ async function initDB() {
   return db;
 }
 
-async function loadParquetFiles(db, conn, keys, tableName) {
+async function loadParquetFiles(
+  db: duckdb.AsyncDuckDB,
+  conn: duckdb.AsyncDuckDBConnection,
+  keys: string[],
+  tableName: string,
+): Promise<boolean> {
   if (keys.length === 0) return false;
-  const fnames = [];
+  const fnames: string[] = [];
   for (const [i, key] of keys.entries()) {
     const resp = await fetch(`/data/raw/${key}`);
     if (!resp.ok) continue;
@@ -158,20 +191,19 @@ async function loadParquetFiles(db, conn, keys, tableName) {
 
 // ── Site selector ─────────────────────────────────────────────────────────────
 
-let selectedSite = null; // null = all sites
+let selectedSite: string | null = null;
 
-function siteWhere(alias = "") {
+function siteWhere(alias = ""): string {
   const prefix = alias ? `${alias}.` : "";
   return selectedSite ? `${prefix}site_id = '${selectedSite}'` : "1=1";
 }
 
-// ── Site status cards (clickable) ─────────────────────────────────────────────
+// ── Site status cards ─────────────────────────────────────────────────────────
 
-async function renderSiteStatus(conn, sites) {
-  const grid = document.getElementById("site-grid");
+async function renderSiteStatus(conn: duckdb.AsyncDuckDBConnection, sites: string[]): Promise<void> {
+  const grid = document.getElementById("site-grid")!;
   grid.innerHTML = "";
 
-  // "All" card
   const allCard = document.createElement("div");
   allCard.className = "site-card" + (selectedSite === null ? " selected" : "");
   allCard.dataset.site = "";
@@ -185,7 +217,7 @@ async function renderSiteStatus(conn, sites) {
       FROM heartbeats WHERE site_id = '${site}'
       ORDER BY timestamp_ms DESC LIMIT 1
     `);
-    const rows = res.toArray();
+    const rows = res.toArray() as HeartbeatRow[];
     if (rows.length === 0) continue;
     const r = rows[0];
     const cal = r.calibration_status;
@@ -199,13 +231,12 @@ async function renderSiteStatus(conn, sites) {
     card.innerHTML = `
       <div class="name"><span class="dot ${dotCls}"></span>${site}</div>
       <div class="status">${cal} &nbsp;·&nbsp; drift ${Number(r.drift_score).toFixed(3)} m</div>
-      <div class="meta">Last: ${ageStr} &nbsp;·&nbsp; ${r.total} events</div>
+      <div class="meta">Last: ${ageStr} &nbsp;·&nbsp; ${(r as unknown as Record<string, unknown>)["total"]} events</div>
     `;
     grid.appendChild(card);
   }
 
-  // Click handler
-  grid.querySelectorAll(".site-card").forEach(card => {
+  grid.querySelectorAll<HTMLElement>(".site-card").forEach(card => {
     card.addEventListener("click", async () => {
       selectedSite = card.dataset.site || null;
       await refreshCharts(conn, sites);
@@ -215,23 +246,23 @@ async function renderSiteStatus(conn, sites) {
 
 // ── Charts ────────────────────────────────────────────────────────────────────
 
-async function renderDriftChart(conn) {
+async function renderDriftChart(conn: duckdb.AsyncDuckDBConnection): Promise<void> {
   const res = await conn.query(`
     SELECT timestamp_ms, site_id, drift_score, calibration_status
     FROM heartbeats WHERE ${siteWhere()}
     ORDER BY timestamp_ms
   `);
   const data = res.toArray().map(r => ({
-    ts: new Date(Number(r.timestamp_ms)), site: r.site_id,
-    drift: Number(r.drift_score), status: r.calibration_status,
+    ts: new Date(Number(r.timestamp_ms)), site: r.site_id as string,
+    drift: Number(r.drift_score), status: r.calibration_status as string,
   }));
   const chart = Plot.plot({
     width: 520, height: 150,
     marginLeft: 42, marginBottom: 28, marginTop: 8, marginRight: 12,
-    style: { background: "transparent", color: "#8b949e", fontSize: 11 },
-    x: { label: null, tickFormat: d => `${d.getHours()}:${String(d.getMinutes()).padStart(2,"0")}` },
+    style: { background: "transparent", color: "#8b949e", fontSize: "11px" },
+    x: { label: null, tickFormat: (d: unknown) => { const date = d as Date; return `${date.getHours()}:${String(date.getMinutes()).padStart(2, "0")}`; } },
     y: { label: "drift (m)", domain: [0, 0.9] },
-    color: { domain: ["VALID","DEGRADED","UNCALIBRATED"], range: ["#3fb950","#d29922","#f85149"] },
+    color: { domain: ["VALID", "DEGRADED", "UNCALIBRATED"], range: ["#3fb950", "#d29922", "#f85149"] },
     marks: [
       Plot.ruleY([0.3], { stroke: "#d29922", strokeDasharray: "4 2", strokeWidth: 1 }),
       Plot.ruleY([0.6], { stroke: "#f85149", strokeDasharray: "4 2", strokeWidth: 1 }),
@@ -239,52 +270,52 @@ async function renderDriftChart(conn) {
       Plot.dot(data,  { x: "ts", y: "drift", fill: "status", r: 3 }),
     ],
   });
-  document.getElementById("drift-chart").replaceChildren(chart);
+  document.getElementById("drift-chart")!.replaceChildren(chart);
 }
 
-async function renderQualityChart(conn) {
+async function renderQualityChart(conn: duckdb.AsyncDuckDBConnection): Promise<void> {
   const res = await conn.query(`
     SELECT timestamp_ms, site_id, certified_count, degraded_count, rejected_count
     FROM heartbeats WHERE ${siteWhere()}
     ORDER BY timestamp_ms
   `);
   const data = res.toArray().flatMap(r => [
-    { ts: new Date(Number(r.timestamp_ms)), site: r.site_id, quality: "Certified", count: Number(r.certified_count) },
-    { ts: new Date(Number(r.timestamp_ms)), site: r.site_id, quality: "Degraded",  count: Number(r.degraded_count) },
-    { ts: new Date(Number(r.timestamp_ms)), site: r.site_id, quality: "Rejected",  count: Number(r.rejected_count) },
+    { ts: new Date(Number(r.timestamp_ms)), site: r.site_id as string, quality: "Certified", count: Number(r.certified_count) },
+    { ts: new Date(Number(r.timestamp_ms)), site: r.site_id as string, quality: "Degraded",  count: Number(r.degraded_count) },
+    { ts: new Date(Number(r.timestamp_ms)), site: r.site_id as string, quality: "Rejected",  count: Number(r.rejected_count) },
   ]);
   const chart = Plot.plot({
     width: 520, height: 150,
     marginLeft: 32, marginBottom: 28, marginTop: 8, marginRight: 12,
-    style: { background: "transparent", color: "#8b949e", fontSize: 11 },
-    x: { label: null, tickFormat: d => `${d.getHours()}:${String(d.getMinutes()).padStart(2,"0")}` },
+    style: { background: "transparent", color: "#8b949e", fontSize: "11px" },
+    x: { label: null, tickFormat: (d: unknown) => { const date = d as Date; return `${date.getHours()}:${String(date.getMinutes()).padStart(2, "0")}`; } },
     y: { label: "events" },
-    color: { domain: ["Certified","Degraded","Rejected"], range: ["#3fb950","#d29922","#f85149"] },
+    color: { domain: ["Certified", "Degraded", "Rejected"], range: ["#3fb950", "#d29922", "#f85149"] },
     marks: [
       Plot.barY(data, Plot.stackY({ x: "ts", y: "count", fill: "quality" })),
       Plot.ruleY([0], { stroke: "#30363d" }),
     ],
   });
-  document.getElementById("quality-chart").replaceChildren(chart);
+  document.getElementById("quality-chart")!.replaceChildren(chart);
 }
 
-async function populateRuleFilter(conn) {
+async function populateRuleFilter(conn: duckdb.AsyncDuckDBConnection): Promise<void> {
   const res = await conn.query(`SELECT DISTINCT rule_id FROM audit_chain ORDER BY rule_id`);
-  const sel = document.getElementById("filter-rule");
+  const sel = document.getElementById("filter-rule") as HTMLSelectElement;
   const existing = [...sel.options].map(o => o.value);
   for (const r of res.toArray()) {
-    if (!existing.includes(r.rule_id)) {
+    if (!existing.includes(r.rule_id as string)) {
       const opt = document.createElement("option");
-      opt.value = opt.textContent = r.rule_id;
+      opt.value = opt.textContent = r.rule_id as string;
       sel.appendChild(opt);
     }
   }
 }
 
-async function renderAlerts(conn) {
-  const rule     = document.getElementById("filter-rule")?.value     || "";
-  const severity = document.getElementById("filter-severity")?.value || "";
-  const quality  = document.getElementById("filter-quality")?.value  || "";
+async function renderAlerts(conn: duckdb.AsyncDuckDBConnection): Promise<void> {
+  const rule     = (document.getElementById("filter-rule")     as HTMLSelectElement)?.value || "";
+  const severity = (document.getElementById("filter-severity") as HTMLSelectElement)?.value || "";
+  const quality  = (document.getElementById("filter-quality")  as HTMLSelectElement)?.value || "";
 
   const conditions = [siteWhere()];
   if (rule)     conditions.push(`rule_id = '${rule}'`);
@@ -292,16 +323,15 @@ async function renderAlerts(conn) {
   if (quality)  conditions.push(`evidence_quality = '${quality}'`);
 
   const where = conditions.join(" AND ");
-
   const res = await conn.query(`
     SELECT timestamp_ms, site_id, rule_id, severity, evidence_quality,
            confidence_cv, measured_value, entity_ids
     FROM audit_chain WHERE ${where}
     ORDER BY timestamp_ms DESC LIMIT 100
   `);
-  const rows = res.toArray();
-  const container = document.getElementById("alert-container");
-  document.getElementById("filter-count").textContent = `${rows.length} row(s)`;
+  const rows = res.toArray() as AlertRow[];
+  const container = document.getElementById("alert-container")!;
+  document.getElementById("filter-count")!.textContent = `${rows.length} row(s)`;
 
   if (rows.length === 0) {
     container.innerHTML = '<div class="empty">No alerts match the current filter.</div>';
@@ -314,21 +344,23 @@ async function renderAlerts(conn) {
     <th>Time (UTC)</th><th>Site</th><th>Rule</th><th>Severity</th>
     <th>Quality</th><th>Confidence</th><th>Value</th><th>Entities</th><th></th>
   </tr></thead><tbody></tbody>`;
-  const tbody = table.querySelector("tbody");
+  const tbody = table.querySelector("tbody")!;
 
   for (const r of rows) {
     const qualCls = r.evidence_quality === "Certified" ? "qual-certified"
                   : r.evidence_quality === "Degraded"  ? "qual-degraded" : "qual-rejected";
     const sevCls  = r.severity === "Critical" ? "sev-critical" : "sev-high";
-    const entityArr = (() => { try { return JSON.parse(r.entity_ids); } catch { return [r.entity_ids ?? "—"]; } })();
+    const entityArr: string[] = (() => {
+      try { return JSON.parse(r.entity_ids) as string[]; }
+      catch { return [r.entity_ids ?? "—"]; }
+    })();
     const entitiesHtml = entityArr.map(e => {
       const mmsi = VESSEL_MMSI[e];
       return mmsi
         ? `${e} <a href="/analysis/?mmsi=${mmsi}" style="color:var(--accent);font-size:10px;text-decoration:none" title="View vessel risk profile">→ profile</a>`
         : e;
     }).join(", ");
-    const ts = new Date(Number(r.timestamp_ms)).toISOString().replace("T"," ").slice(0,19) + " UTC";
-
+    const ts = new Date(Number(r.timestamp_ms)).toISOString().replace("T", " ").slice(0, 19) + " UTC";
     const auditLink = r.sequence != null
       ? `<a href="/audit?site=${r.site_id}&seq=${r.sequence}" style="color:var(--accent);font-size:10px;text-decoration:none;white-space:nowrap" title="View in audit chain">→ chain</a>`
       : "";
@@ -345,7 +377,6 @@ async function renderAlerts(conn) {
       <td>${auditLink}</td>
     `;
 
-    // Expandable explanation row
     const expRow = document.createElement("tr");
     expRow.className = "explain-row";
     expRow.style.display = "none";
@@ -357,50 +388,51 @@ async function renderAlerts(conn) {
     tr.addEventListener("click", async () => {
       const isOpen = expRow.style.display !== "none";
       if (isOpen) { expRow.style.display = "none"; return; }
-
       expRow.style.display = "table-row";
       expTd.innerHTML = `<span class="explain-loading">Thinking…</span>`;
 
       const key = alertCacheKey(r);
-      const cached = await getCachedExplanation(conn, key);
-      if (cached) { render(cached, true); return; }
 
       const vesselLink = entityArr.find(e => VESSEL_MMSI[e])
         ? (() => {
-            const e = entityArr.find(e => VESSEL_MMSI[e]);
+            const e = entityArr.find(e => VESSEL_MMSI[e])!;
             return ` <a href="/analysis/?mmsi=${VESSEL_MMSI[e]}" style="color:var(--accent);font-weight:600;text-decoration:none">View ${e} vessel risk profile →</a>`;
           })()
         : "";
 
-      const render = (text, fromCache) => {
+      const render = (text: string) => {
         expTd.innerHTML = `
           <div class="explain-inner">
             <span>${text}${vesselLink}</span>
             <button class="regen-btn" title="Regenerate explanation">↻</button>
           </div>
         `;
-        expTd.querySelector(".regen-btn").addEventListener("click", async (e) => {
+        expTd.querySelector<HTMLButtonElement>(".regen-btn")!.addEventListener("click", async (e) => {
           e.stopPropagation();
           expTd.innerHTML = `<span class="explain-loading">Regenerating…</span>`;
           try {
             const fresh = await fetchExplanation(r);
             await saveExplanation(conn, key, fresh);
-            render(fresh, false);
+            render(fresh);
           } catch (err) {
-            expTd.innerHTML = `<span style="color:var(--red)">Error: ${err.message}</span>`;
+            expTd.innerHTML = `<span style="color:var(--red)">Error: ${(err as Error).message}</span>`;
           }
         });
       };
 
+      const cached = await getCachedExplanation(conn, key);
+      if (cached) { render(cached); return; }
+
       try {
         const text = await fetchExplanation(r);
         await saveExplanation(conn, key, text);
-        render(text, false);
+        render(text);
       } catch (e) {
-        const isOffline = e.name === "AbortError" || e.message.includes("fetch") || e.message.includes("Load failed");
+        const err = e as Error;
+        const isOffline = err.name === "AbortError" || err.message.includes("fetch") || err.message.includes("Load failed");
         expTd.innerHTML = isOffline
           ? `<span style="color:var(--amber)">LLM offline — run <code>./scripts/run_llama.sh</code> to enable explanations</span>`
-          : `<span style="color:var(--red)">Error: ${e.message}</span>`;
+          : `<span style="color:var(--red)">Error: ${err.message}</span>`;
       }
     });
 
@@ -410,9 +442,7 @@ async function renderAlerts(conn) {
   container.replaceChildren(table);
 }
 
-// ── Refresh all charts with current site filter ───────────────────────────────
-
-async function refreshCharts(conn, sites) {
+async function refreshCharts(conn: duckdb.AsyncDuckDBConnection, sites: string[]): Promise<void> {
   await renderSiteStatus(conn, sites);
   await renderDriftChart(conn);
   await renderQualityChart(conn);
@@ -426,34 +456,34 @@ const conn = await db.connect();
 
 status.textContent = "Fetching live index…";
 const { heartbeats: hbKeys, alerts: alertKeys, sites } =
-  await fetch("/api/live-index").then(r => r.json())
-  .catch(() => ({ heartbeats: [], alerts: [], sites: [] }));
+  await fetch("/api/live-index").then(r => r.json() as Promise<LiveIndex>)
+  .catch((): LiveIndex => ({ heartbeats: [], alerts: [], sites: [] }));
 
 if (hbKeys.length === 0 && alertKeys.length === 0) {
-  document.getElementById("no-data").style.display = "flex";
+  (document.getElementById("no-data") as HTMLElement).style.display = "flex";
   status.textContent = "No data";
 } else {
-  document.getElementById("live-content").style.display = "block";
+  (document.getElementById("live-content") as HTMLElement).style.display = "block";
   status.textContent = `Loading ${hbKeys.length + alertKeys.length} file(s)…`;
 
-  const hasHB  = await loadParquetFiles(db, conn, hbKeys,    "heartbeats");
-  const hasAlt = await loadParquetFiles(db, conn, alertKeys, "audit_chain");
+  await loadParquetFiles(db, conn, hbKeys,    "heartbeats");
+  await loadParquetFiles(db, conn, alertKeys, "audit_chain");
 
-  const n = await conn.query("SELECT COUNT(*) AS n FROM heartbeats").then(r => r.toArray()[0]?.n ?? 0);
+  const n = await conn.query("SELECT COUNT(*) AS n FROM heartbeats")
+    .then(r => Number(r.toArray()[0]?.n ?? 0));
   status.textContent = `${n} heartbeats · ${sites.length} site(s)`;
 
   await initExplainCache(conn);
   await populateRuleFilter(conn);
   await refreshCharts(conn, sites);
 
-  // Alert filter listeners
   ["filter-rule", "filter-severity", "filter-quality"].forEach(id => {
     document.getElementById(id)?.addEventListener("change", () => renderAlerts(conn));
   });
-  document.getElementById("filter-clear")?.addEventListener("click", () => {
-    document.getElementById("filter-rule").value     = "";
-    document.getElementById("filter-severity").value = "";
-    document.getElementById("filter-quality").value  = "";
+  (document.getElementById("filter-clear") as HTMLButtonElement)?.addEventListener("click", () => {
+    (document.getElementById("filter-rule")     as HTMLSelectElement).value = "";
+    (document.getElementById("filter-severity") as HTMLSelectElement).value = "";
+    (document.getElementById("filter-quality")  as HTMLSelectElement).value = "";
     renderAlerts(conn);
   });
 }
