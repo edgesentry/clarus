@@ -217,7 +217,7 @@ Goal: end-to-end screen-recordable demo showing Flow 1 (live alerts) → Flow 2 
 ### Production-quality profile
 
 > Production profiles with jurisdiction-specific regulatory citations are commercial IP
-> and distributed separately. The profile format is documented in `edgesentry-rs/docs/pipeline/profile-authoring.md`.
+> and distributed separately. The profile format is documented in [edgesentry-rs/docs/pipeline/profile-authoring.md](https://github.com/edgesentry/edgesentry-rs/blob/main/docs/pipeline/profile-authoring.md).
 
 - [ ] Expand sg-port-safety profile from 3 seed rules to full set:
   - All MPA Port Safety Circular No. 14 of 2023 rules (§§3–7)

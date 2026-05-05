@@ -1,0 +1,52 @@
+site_name: clarus
+site_description: Tauri GUI application for the edgesentry-rs safety and compliance toolkit.
+site_url: https://edgesentry.github.io/clarus/
+repo_url: https://github.com/edgesentry/clarus
+repo_name: edgesentry/clarus
+edit_uri: edit/main/docs/
+
+docs_dir: docs
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.tracking
+    - search.highlight
+    - content.action.edit
+    - content.code.copy
+
+plugins:
+  - search
+
+markdown_extensions:
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - tables
+  - admonition
+
+nav:
+  - Home: index.md
+  - Reference:
+    - Architecture: ref-architecture.md
+    - Audit Chain: ref-audit-chain.md
+    - R2 Data Layout: ref-r2-data-layout.md
+  - UI & Personas: ui-personas.md
+  - Roadmap:
+    - Overview: roadmap/index.md
+    - PoC → Production: roadmap/core-poc.md
+  - Related:
+    - edgesentry-rs: https://github.com/edgesentry/edgesentry-rs
+    - documaris: https://github.com/edgesentry/documaris
