@@ -59,6 +59,38 @@ eds report generate --events events.jsonl --assessment assessment.jsonl \
 
 ---
 
+## Platform integration
+
+clarus is one of two products in the EdgeSentry platform. Both operate on the **same vessel entity**.
+
+```
+clarus (vessel risk intelligence)          documaris (port call documentation)
+─────────────────────────────────          ───────────────────────────────────
+AIS gaps · STS transfers                   FAL Form 1 · BWM certificate check
+Behavioural risk score                     Compliance alerts · Audit record
+https://clarus-d5d.pages.dev               https://documaris.pages.dev
+         │                                          │
+         └──────────── same vessel (MMSI) ──────────┘
+```
+
+### Analytics app (`analytics/`)
+
+In addition to the Tauri desktop app, this repo contains a Cloudflare Pages web app at `analytics/` — the live vessel risk scorecard at **[clarus-d5d.pages.dev](https://clarus-d5d.pages.dev)**. Built with TypeScript + Vite, querying vessel Parquet data from R2 via DuckDB-WASM in the browser.
+
+### Cross-link deep-link API
+
+The analytics app accepts `?mmsi=<mmsi>` to auto-select a vessel:
+
+```
+https://clarus-d5d.pages.dev?mmsi=563012345
+```
+
+When a vessel is selected, the scorecard header shows **"View port call documents in documaris →"** linking to `https://documaris.pages.dev?mmsi=<mmsi>`. documaris accepts the same param and runs the FAL Form 1 pipeline for that vessel immediately.
+
+See [`edgesentry-commercial/docs/strategy/platform-story.md`](https://github.com/edgesentry/edgesentry-commercial) for the full platform narrative.
+
+---
+
 ## Open / commercial boundary
 
 | What | Repo | License |
