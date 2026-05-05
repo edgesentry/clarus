@@ -129,7 +129,7 @@ Object Lock (Standard mode) is enabled on the audit bucket — records are immut
 
 The `ui/` directory is a separate **Tauri 2** application — not deployed to the web. It links edgesentry-rs crates directly via Cargo path dependencies and is used for the local 14-stage demo.
 
-See [AGENTS.md](../AGENTS.md) for checkout requirements and Tauri command list.
+See [AGENTS.md](https://github.com/edgesentry/clarus/blob/main/AGENTS.md) for checkout requirements and Tauri command list.
 
 ---
 
