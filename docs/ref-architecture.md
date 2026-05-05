@@ -16,6 +16,44 @@ clarus has two delivery surfaces:
 
 ---
 
+## Related systems
+
+### edgesentry-rs
+
+clarus's Tauri backend links [edgesentry-rs](https://github.com/edgesentry/edgesentry-rs) crates directly via Cargo path dependencies (`ui/src-tauri/Cargo.toml`). The engine (`eds ingest`, `eds evaluate`, `eds audit sign/verify`) runs in-process — no separate binary or network call.
+
+Both repos must be siblings on disk:
+```
+edgesentry/
+  edgesentry-rs/   ← Rust engine + eds CLI
+  clarus/          ← this repo
+```
+
+### documaris
+
+[documaris](https://github.com/edgesentry/documaris) is the sister product for port call documentation. Both products operate on the **same vessel entity (MMSI)**.
+
+```
+clarus (vessel risk intelligence)      documaris (port call documentation)
+─────────────────────────────────      ───────────────────────────────────
+AIS gaps · STS transfers               FAL Form 1 · BWM certificate check
+Behavioural risk score                 Compliance alerts · Audit record
+https://clarus.edgesentry.io           https://documaris.pages.dev
+         │                                       │
+         └──────────── same vessel (MMSI) ───────┘
+```
+
+Both apps accept a `?mmsi=<mmsi>` URL parameter for deep-linking:
+
+| From | To | Trigger |
+|------|----|---------|
+| clarus scorecard | documaris | "View port call documents in documaris →" |
+| documaris result | clarus | "View risk profile in clarus →" |
+
+The audit chain format (BLAKE3 + Ed25519, Cloudflare R2 Object Lock) is shared between both products.
+
+---
+
 ## Web app (Cloudflare Pages)
 
 ### Hosting

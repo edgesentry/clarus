@@ -30,6 +30,13 @@ edgesentry/
 | `scripts/run_local_demo.sh` | Full 14-stage pipeline demo |
 | `scripts/run_llama.sh` | Start local LLM server for explain step |
 
+## Related repos
+
+| Repo | Role | Relationship |
+|------|------|-------------|
+| [edgesentry-rs](https://github.com/edgesentry/edgesentry-rs) | Rust engine + `eds` CLI | clarus links its crates via Cargo path deps (`ui/src-tauri/Cargo.toml`) |
+| [documaris](https://github.com/edgesentry/documaris) | Port call documentation | Sister product — shares the same vessel entity (MMSI); cross-links via `?mmsi=` deep-link |
+
 ## Key design decisions
 
 | Decision | Detail |

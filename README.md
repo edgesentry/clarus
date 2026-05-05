@@ -23,6 +23,22 @@ eds audit sign / verify                 audit chains, manages profiles
 
 The Tauri backend calls edgesentry-rs crates via Cargo path dependencies — no separate process needed.
 
+## Platform
+
+clarus and [documaris](https://github.com/edgesentry/documaris) form the EdgeSentry platform — both operate on the same vessel entity (MMSI):
+
+```
+clarus (vessel risk intelligence)      documaris (port call documentation)
+─────────────────────────────────      ───────────────────────────────────
+AIS gaps · STS transfers               FAL Form 1 · BWM certificate check
+Behavioural risk score                 Compliance alerts · Audit record
+https://clarus.edgesentry.io           https://documaris.pages.dev
+         │                                       │
+         └──────────── same vessel (MMSI) ───────┘
+```
+
+Both apps accept `?mmsi=<mmsi>` for deep-linking. The clarus scorecard links forward to the vessel's port call documents in documaris, and vice versa.
+
 ## Quick start
 
 ```bash
