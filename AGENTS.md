@@ -1,6 +1,6 @@
 # AGENTS
 
-Tauri GUI application layer for edgesentry-rs. The engine, CLI, and all pipeline crates live in edgesentry-rs — no pipeline logic belongs here.
+Tauri GUI application layer for [edgesentry-rs](https://github.com/edgesentry/edgesentry-rs). The engine, CLI, and all pipeline crates live in edgesentry-rs — no pipeline logic belongs here.
 
 ## Checkout requirement
 

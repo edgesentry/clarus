@@ -8,7 +8,7 @@ clarus is the **Tauri GUI application layer** for edgesentry-rs. The engine, CLI
 
 | Layer | Where | What belongs there |
 |---|---|---|
-| IoT security primitives | edgesentry-rs | Signing, audit chain, physics engine, rule evaluation |
+| IoT security primitives | [edgesentry-rs](https://github.com/edgesentry/edgesentry-rs) | Signing, audit chain, physics engine, rule evaluation |
 | GUI application | this repo | Tauri commands, frontend, demo profiles, fixtures |
 
 ## Checkout requirement
