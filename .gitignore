@@ -12,3 +12,4 @@
 data/**/*.parquet
 analytics/node_modules/
 analytics/dist/
+site/
