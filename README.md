@@ -32,7 +32,7 @@ clarus (vessel risk intelligence)      documaris (port call documentation)
 ─────────────────────────────────      ───────────────────────────────────
 AIS gaps · STS transfers               FAL Form 1 · BWM certificate check
 Behavioural risk score                 Compliance alerts · Audit record
-https://clarus.edgesentry.io           https://documaris.pages.dev
+https://clarus.edgesentry.io/analysis/ https://documaris.edgesentry.io/analysis/
          │                                       │
          └──────────── same vessel (MMSI) ───────┘
 ```
