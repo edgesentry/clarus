@@ -2,6 +2,8 @@
 
 Tauri GUI application layer for [edgesentry-rs](https://github.com/edgesentry/edgesentry-rs). The engine, CLI, and all pipeline crates live in edgesentry-rs — no pipeline logic belongs here.
 
+**Demo app:** [clarus.edgesentry.io](https://clarus.edgesentry.io/) (Cloudflare Pages — analytics web app)
+
 ## Checkout requirement
 
 Both repos must be siblings:

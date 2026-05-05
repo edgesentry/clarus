@@ -40,6 +40,7 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Reference:
+    - Architecture: ref-architecture.md
     - Audit Chain: ref-audit-chain.md
     - R2 Data Layout: ref-r2-data-layout.md
   - UI & Personas: ui-personas.md
