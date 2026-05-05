@@ -47,3 +47,6 @@ nav:
   - Roadmap:
     - Overview: roadmap/index.md
     - PoC → Production: roadmap/core-poc.md
+  - Related:
+    - edgesentry-rs: https://github.com/edgesentry/edgesentry-rs
+    - documaris: https://github.com/edgesentry/documaris
