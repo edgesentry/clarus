@@ -50,6 +50,7 @@ edgesentry/
 
 - Rust: same as edgesentry-rs (`thiserror`, no `unwrap`, Rust 2021)
 - Frontend: TypeScript strict mode
+- Docs: use Mermaid for diagrams — see [CONTRIBUTING.md](CONTRIBUTING.md#diagrams)
 
 ## Commit convention
 

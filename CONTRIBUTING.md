@@ -37,6 +37,19 @@ All files under `docs/` use `kebab-case.md` with role prefixes:
 | `ref-` | Design references, data layout, architecture |
 | `ui-` | UI/UX specifications and personas |
 
+### Diagrams
+
+Use Mermaid for all diagrams in `docs/`. Raw ASCII art in docs is not allowed — it does not render in the MkDocs site.
+
+```
+```mermaid
+flowchart TD
+    A --> B
+```
+```
+
+`mkdocs.yml` already has `pymdownx.superfences` with `custom_fences` for Mermaid — no additional config needed.
+
 ### Skill-first policy
 
 Before adding a procedure to `docs/`, create a Skill instead. Only reference material (facts, schemas, design decisions) goes in `docs/`.
