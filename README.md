@@ -6,6 +6,7 @@ Physics-based safety monitoring and compliance evidence platform. The same engin
 |---|---|---|
 | `sg-port-safety/` | Port worker / forklift safety — MPA + MOM WSH | PIER71-14 |
 | `sg-maritime-security/` | Vessel restricted zone + AIS gap monitoring | CAP Vista (dual-use) |
+| `sg-bca-greenmark/` | BCA Green Mark Platinum — EUI / COP / LPD thresholds | BEAMP (next cycle) |
 | `demo/` | Generic citations — OSS demo only | — |
 
 ## What's in this repo
@@ -38,7 +39,7 @@ clarus (safety monitoring)             documaris (port call documentation)
 ──────────────────────────             ───────────────────────────────────
 Near-miss detection · Physics alerts   FAL Form 1 · BWM certificate check
 Tamper-proof audit records             Compliance alerts · Audit record
-https://clarus.edgesentry.io/live      https://documaris.edgesentry.io/analysis/
+https://clarus.edgesentry.io/admin/live    https://documaris.edgesentry.io/analysis/
          │                                       │
          └──────────── same vessel (MMSI) ───────┘
 ```
