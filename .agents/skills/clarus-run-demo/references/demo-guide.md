@@ -1,10 +1,11 @@
 # clarus — Demo Guide
 
-Two independent demo paths depending on the audience:
+Three independent demo paths depending on the audience:
 
 | Path | What it shows | URL |
 |---|---|---|
-| **Web demo** (CAP Vista / PIER71) | Flow 1 (live alerts) → Flow 2 (vessel scorecard) → audit chain | `clarus-analytics.pages.dev` |
+| **Web demo — maritime** (CAP Vista / PIER71) | Flow 1 (live alerts) → Flow 2 (vessel scorecard) → audit chain | `clarus.edgesentry.io` |
+| **Web demo — BCA Green Mark** (Rafael Tan / BEAMP) | BCA sensor thresholds → tamper-proof evidence → upload status | `clarus.edgesentry.io` |
 | **CLI demo** (technical deep-dive) | Rust rule engine, physics vs generic AI, LLM explanation | local terminal |
 
 ---
@@ -15,11 +16,12 @@ Two independent demo paths depending on the audience:
 
 ```
 Edge daemon (local)
-  clarus/edge/   →  clarus-dev-public-raw     →  /live  Operations Monitor
-                 →  clarus-dev-public-audit   →  /audit (coming: #55)
+  clarus/edge/   →  clarus-dev-public-raw     →  /admin/live   Operations Monitor
+                 →  clarus-dev-public-audit   →  /admin/audit  Audit Chain
+                                              →  /admin/status Upload Status
 
 Synthetic data
-  generate_synthetic.py  →  clarus-dev-public-analytics  →  /  Risk Intelligence
+  generate_synthetic.py  →  clarus-dev-public-analytics  →  /maritime/analytics/  Risk Intelligence
 ```
 
 ### Prerequisites
@@ -76,7 +78,7 @@ python scripts/generate_live_demo.py
 
 ### Step 3 — Start local LLM (optional)
 
-Enables AI-generated alert explanations in `/live`.
+Enables AI-generated alert explanations in `/admin/live`.
 
 ```bash
 cd clarus
@@ -89,12 +91,12 @@ Starts llama-server on `:8080` + Caddy HTTPS proxy on `:8443`. The analytics app
 
 | Page | URL | What to show |
 |---|---|---|
-| Operations Monitor | https://feat-analytics-scorecard.clarus-analytics.pages.dev/live | Flow 1 |
-| Risk Intelligence | https://feat-analytics-scorecard.clarus-analytics.pages.dev/ | Flow 2 |
+| Operations Monitor | https://clarus.edgesentry.io/admin/live | Flow 1 |
+| Risk Intelligence | https://clarus.edgesentry.io/maritime/analytics/ | Flow 2 |
 
 ### Demo flow (5–7 min)
 
-**Flow 1 — Operations Monitor** (`/live`)
+**Flow 1 — Operations Monitor** (`/admin/live`)
 
 1. **Site Status cards** — `site_sgp_001` with VALID / DEGRADED / UNCALIBRATED states
 2. **Calibration Drift chart** — periodic spikes when drift > 0.3 m (DEGRADED) or > 0.6 m (UNCALIBRATED)
@@ -103,7 +105,7 @@ Starts llama-server on `:8080` + Caddy HTTPS proxy on `:8443`. The analytics app
 5. LLM explanation expands with evidence quality sentence injected deterministically
 6. Click **"View V-001 vessel risk profile →"**
 
-**Flow 2 — Risk Intelligence** (`/`)
+**Flow 2 — Risk Intelligence** (`/maritime/analytics/`)
 
 7. MV Fortune Star auto-selected (same vessel as V-001)
 8. Behavioral score **74.3 / 100**, HIGH RISK
@@ -185,7 +187,7 @@ python3 scripts/sim-unity-udp.py --scenario safe   # safe pass — no alerts
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `/live` shows "No live data yet" | Edge daemon not running or no data uploaded | Run `./edge/run.sh` and wait 30 s |
+| `/admin/live` shows "No live data yet" | Edge daemon not running or no data uploaded | Run `./edge/run.sh` and wait 30 s |
 | LLM explanation shows "LLM offline" | llama.cpp not running | `./scripts/run_llama.sh` |
 | R2 upload failed | wrangler not logged in | `wrangler login` |
 | `clarus-dev-public-audit` upload fails | Object Lock — delete attempted | Object Lock is working correctly; writes still succeed |

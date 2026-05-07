@@ -31,9 +31,9 @@
 
 | Value | Contents | Written by | Read by |
 |-------|----------|------------|---------|
-| `raw` | Raw device output — heartbeats, alerts, EntityStream | Edge daemon | `/live` Operations Monitor |
-| `audit` | Signed AuditRecord chain (tamper-evident) | Edge daemon | Auditors, insurers |
-| `analytics` | Post-processed data — vessel features, risk scores | maridb pipelines | `/` Risk Intelligence |
+| `raw` | Raw device output — heartbeats, alerts, EntityStream | Edge daemon | `/admin/live` Operations Monitor |
+| `audit` | Signed AuditRecord chain (tamper-evident) | Edge daemon | Auditors, insurers, `/admin/audit` |
+| `analytics` | Post-processed data — vessel features, risk scores | maridb / indago pipelines | `/maritime/analytics/`, `/bca/analytics/` |
 
 ---
 
@@ -65,10 +65,22 @@
 
 ### Analytics app (Cloudflare Pages)
 
+URL structure: use-case analytics under `/<usecase>/analytics/`; profile-agnostic pipeline monitoring under `/admin/`.
+
 | Page | Bucket | Binding |
 |------|--------|---------|
-| `/live` Operations Monitor | `clarus-dev-public-raw` | `CLARUS_DEV_PUBLIC_RAW` |
-| `/` Risk Intelligence | `clarus-dev-public-analytics` | `CLARUS_DEV_PUBLIC_ANALYTICS` |
+| `/admin/live` Operations Monitor | `clarus-dev-public-raw` | `CLARUS_DEV_PUBLIC_RAW` |
+| `/admin/audit` Audit Chain | `clarus-dev-public-audit` | `CLARUS_DEV_PUBLIC_AUDIT` |
+| `/admin/status` Upload Status | both raw + audit | `CLARUS_DEV_PUBLIC_RAW`, `CLARUS_DEV_PUBLIC_AUDIT` |
+| `/maritime/analytics/` Risk Intelligence | `clarus-dev-public-analytics` | `CLARUS_DEV_PUBLIC_ANALYTICS` |
+
+### WORM audit key format
+
+```
+chains/{site_id}/{run_id}/{sequence:020}.json
+```
+
+`run_id` is the epoch-ms timestamp at daemon startup. Each restart generates a new prefix, so the Object Lock policy never blocks an upload by trying to overwrite a locked key from a previous run. The sequence counter resets to 0 on each restart but lives under a unique run namespace.
 
 ### Edge daemon
 
