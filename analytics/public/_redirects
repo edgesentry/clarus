@@ -1,1 +1,7 @@
 / /maritime/analytics/ 301
+/live /admin/live 301
+/live/ /admin/live 301
+/audit /admin/audit 301
+/audit/ /admin/audit 301
+/analysis/ /maritime/analytics/ 301
+/analysis /maritime/analytics/ 301
