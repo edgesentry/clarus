@@ -1,6 +1,14 @@
 # AGENTS
 
-Tauri GUI application layer for [edgesentry-rs](https://github.com/edgesentry/edgesentry-rs). The engine, CLI, and all pipeline crates live in edgesentry-rs — no pipeline logic belongs here.
+Physics-based safety monitoring platform — application layer for [edgesentry-rs](https://github.com/edgesentry/edgesentry-rs). The active use case is determined by the loaded profile; the engine and binary are domain-agnostic.
+
+| Profile | Domain | Submission |
+|---|---|---|
+| `sg-port-safety/` | Port worker / forklift safety (MPA + MOM WSH) | PIER71-14 (primary) |
+| `sg-maritime-security/` | Vessel restricted zone + AIS gap | CAP Vista (dual-use) |
+| `demo/` | Generic OSS demo | — |
+
+The engine, CLI, and all pipeline crates live in edgesentry-rs — no pipeline logic belongs here.
 
 **Demo app:** [clarus.edgesentry.io](https://clarus.edgesentry.io/) (Cloudflare Pages — analytics web app)
 

@@ -1,5 +1,7 @@
 # clarus — User Personas
 
+clarus is a profile-switchable safety monitoring platform. The personas below use the **`sg-port-safety` profile** as the primary example — the same engine and audit chain apply to any domain (maritime security, construction, logistics) via profile swap.
+
 There are four users. Each has a different problem. clarus does not solve "we have no records." It solves "our records are not trusted."
 
 ---

@@ -34,8 +34,8 @@ edgesentry/
 [documaris](https://github.com/edgesentry/documaris) is the sister product for port call documentation. Both products operate on the **same vessel entity (MMSI)**.
 
 ```
-clarus (physical port safety)          documaris (port call documentation)
-─────────────────────────────          ───────────────────────────────────
+clarus (safety monitoring)             documaris (port call documentation)
+──────────────────────────             ───────────────────────────────────
 Near-miss detection · Physics alerts   FAL Form 1 · BWM certificate check
 Tamper-proof audit records             Compliance alerts · Audit record
 https://clarus.edgesentry.io           https://documaris.pages.dev
