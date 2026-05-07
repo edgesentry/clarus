@@ -1,5 +1,5 @@
 name = "clarus"
-compatibility_date = "2026-05-02"
+compatibility_date = "2026-04-22"
 pages_build_output_dir = "dist"
 
 # /live Operations Monitor reads raw device data

@@ -96,7 +96,7 @@ fn wrangler_put(bucket: &str, key: &str, data: &[u8]) -> Result<()> {
     ));
     std::fs::write(&tmp, data)?;
 
-    let status = Command::new("wrangler")
+    let output = Command::new("wrangler")
         .args([
             "r2", "object", "put",
             &format!("{bucket}/{key}"),
@@ -105,14 +105,14 @@ fn wrangler_put(bucket: &str, key: &str, data: &[u8]) -> Result<()> {
             "--remote",
         ])
         .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()
+        .output()
         .context("wrangler not found — install with: npm i -g wrangler")?;
 
-    std::fs::remove_file(&tmp)?;
+    std::fs::remove_file(&tmp).ok();
 
-    if !status.success() {
-        anyhow::bail!("wrangler r2 object put failed for {bucket}/{key}");
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        anyhow::bail!("wrangler r2 object put failed for {bucket}/{key}: {stderr}");
     }
     Ok(())
 }

@@ -76,6 +76,10 @@ async fn main() -> Result<()> {
     let cycle_dur = Duration::from_secs(config.cycle_interval_secs);
     let hb_interval = Duration::from_secs(config.heartbeat_interval_secs);
 
+    // Unique run prefix so each daemon restart gets its own key namespace in the
+    // WORM bucket — object lock prevents overwriting existing keys at the same path.
+    let run_id = now_millis();
+
     let mut sequence: u64 = 0;
     let mut prev_hash: [u8; 32] = AuditRecord::zero_hash();
     let mut cycle: u64 = 0;
@@ -117,7 +121,7 @@ async fn main() -> Result<()> {
             db::insert_audit_record(&conn, &record, event)?;
 
             let envelope = build_audit_envelope(&record, record_hash, event);
-            let worm_key = format!("chains/{}/{:020}.json", config.site_id, sequence);
+            let worm_key = format!("chains/{}/{run_id}/{:020}.json", config.site_id, sequence);
             match storage.put_audit(&worm_key, serde_json::to_vec(&envelope)?.into()).await {
                 Ok(()) => {}
                 Err(e) => warn!("WORM upload failed (retried next cycle): {e}"),

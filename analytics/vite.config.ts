@@ -11,6 +11,7 @@ export default defineConfig({
         analysis: resolve(__dirname, "analysis/index.html"),
         audit:    resolve(__dirname, "audit.html"),
         live:     resolve(__dirname, "live.html"),
+        status:   resolve(__dirname, "status.html"),
       },
     },
   },
