@@ -38,9 +38,7 @@ jobs:
 
       - name: Build
         working-directory: analytics
-        run: |
-          npm run build
-          cp -r functions dist/functions
+        run: npm run build
 
       - name: Deploy to Cloudflare Pages
         working-directory: analytics
