@@ -34,10 +34,10 @@ edgesentry/
 [documaris](https://github.com/edgesentry/documaris) is the sister product for port call documentation. Both products operate on the **same vessel entity (MMSI)**.
 
 ```
-clarus (vessel risk intelligence)      documaris (port call documentation)
-─────────────────────────────────      ───────────────────────────────────
-AIS gaps · STS transfers               FAL Form 1 · BWM certificate check
-Behavioural risk score                 Compliance alerts · Audit record
+clarus (safety monitoring)             documaris (port call documentation)
+──────────────────────────             ───────────────────────────────────
+Near-miss detection · Physics alerts   FAL Form 1 · BWM certificate check
+Tamper-proof audit records             Compliance alerts · Audit record
 https://clarus.edgesentry.io           https://documaris.pages.dev
          │                                       │
          └──────────── same vessel (MMSI) ───────┘
@@ -67,7 +67,7 @@ Pages includes **Cloudflare Pages Functions** (`analytics/functions/`) — edge 
 
 | Path | Entry point | Purpose |
 |------|-------------|---------|
-| `/` | `index.html` / `app.ts` | Risk Intelligence — vessel scores + alerts |
+| `/` | `index.html` / `app.ts` | Analytics — vessel scores (CAP Vista dual-use scenario) |
 | `/live` | `live.html` / `live.ts` | Operations Monitor — live heartbeats |
 | `/audit` | `audit.html` | Audit chain verification |
 | `/analysis/` | `analysis/index.html` | Deep-dive analysis |
@@ -117,7 +117,7 @@ Three public Cloudflare R2 buckets (see [ref-r2-data-layout.md](ref-r2-data-layo
 | Bucket | Binding | Written by | Read by |
 |--------|---------|-----------|---------|
 | `clarus-dev-public-raw` | `CLARUS_DEV_PUBLIC_RAW` | Edge daemon | `/live` Operations Monitor |
-| `clarus-dev-public-analytics` | `CLARUS_DEV_PUBLIC_ANALYTICS` | maridb pipelines | `/` Risk Intelligence |
+| `clarus-dev-public-analytics` | `CLARUS_DEV_PUBLIC_ANALYTICS` | edgesentry-rs pipelines | `/` Analytics |
 | `clarus-dev-public-audit` | `CLARUS_DEV_PUBLIC_AUDIT` | Edge daemon | `/audit` chain verification |
 
 Object format: **Parquet** (raw + analytics), **JSONL** (audit chain).  
