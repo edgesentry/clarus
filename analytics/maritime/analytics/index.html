@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EdgeSentry Vessel Risk Intelligence</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0d1117;
+      --surface:  #161b22;
+      --border:   #30363d;
+      --text:     #e6edf3;
+      --muted:    #8b949e;
+      --accent:   #58a6ff;
+      --green:    #3fb950;
+      --amber:    #d29922;
+      --red:      #f85149;
+      --certified:#3fb950;
+      --degraded: #d29922;
+      --rejected: #f85149;
+    }
+
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; line-height: 1.6; }
+
+    header { border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; gap: 12px; }
+    header h1 { font-size: 18px; font-weight: 600; }
+    header .badge { background: var(--accent); color: var(--bg); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 12px; }
+    .nav { margin-left: auto; display: flex; gap: 16px; }
+    .nav a { color: var(--muted); text-decoration: none; font-size: 13px; }
+    .nav a.active, .nav a:hover { color: var(--accent); }
+
+    .layout { display: grid; grid-template-columns: 320px 1fr; min-height: calc(100vh - 57px); }
+
+    /* Left sidebar */
+    .sidebar { border-right: 1px solid var(--border); padding: 20px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; }
+    .sidebar h2 { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 8px; }
+
+    .search-box { position: relative; }
+    .search-box input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 13px; padding: 8px 12px; outline: none; }
+    .search-box input:focus { border-color: var(--accent); }
+    .search-box input::placeholder { color: var(--muted); }
+
+    .vessel-list { display: flex; flex-direction: column; gap: 4px; max-height: 320px; overflow-y: auto; }
+    .vessel-item { padding: 8px 10px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; transition: background 0.1s; }
+    .vessel-item:hover { background: var(--surface); }
+    .vessel-item.active { background: var(--surface); border-color: var(--accent); }
+    .vessel-item .name { font-weight: 500; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .vessel-item .meta { font-size: 11px; color: var(--muted); display: flex; justify-content: space-between; }
+    .score-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
+    .dot-high { background: var(--red); }
+    .dot-medium { background: var(--amber); }
+    .dot-low { background: var(--green); }
+
+    .fleet-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+    .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 10px; text-align: center; }
+    .stat .value { font-size: 20px; font-weight: 700; }
+    .stat .label { font-size: 11px; color: var(--muted); }
+    .stat.high .value  { color: var(--red); }
+    .stat.medium .value { color: var(--amber); }
+    .stat.low .value   { color: var(--green); }
+
+    /* Main content */
+    .main { padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 24px; }
+
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; }
+    .card h3 { font-size: 15px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .card h3 .mmsi { font-size: 12px; color: var(--muted); font-weight: 400; font-family: monospace; }
+    .documaris-link { margin-left: auto; font-size: 12px; color: var(--accent); text-decoration: none; padding: 4px 10px; border: 1px solid var(--accent); border-radius: 5px; white-space: nowrap; font-weight: 400; }
+    .documaris-link:hover { background: rgba(88,166,255,0.1); }
+
+    /* Score header */
+    .score-header { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+    .score-box { border: 1px solid var(--border); border-radius: 6px; padding: 14px; }
+    .score-box .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+    .score-box .value { font-size: 28px; font-weight: 700; }
+    .score-box .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .score-high  .value { color: var(--red); }
+    .score-medium .value { color: var(--amber); }
+    .score-low   .value { color: var(--green); }
+
+    /* Indicator bars */
+    .indicator-grid { display: flex; flex-direction: column; gap: 10px; }
+    .indicator-row { display: grid; grid-template-columns: 180px 1fr 60px; align-items: center; gap: 10px; }
+    .indicator-name { font-size: 12px; color: var(--muted); }
+    .bar-track { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+    .bar-fill  { height: 100%; border-radius: 4px; transition: width 0.4s ease; }
+    .bar-high   { background: var(--red); }
+    .bar-medium { background: var(--amber); }
+    .bar-low    { background: var(--green); }
+    .indicator-val { font-size: 12px; color: var(--muted); text-align: right; font-family: monospace; }
+
+    /* Premium comparison */
+    .prem-tier { padding: 14px 0; }
+    .prem-tier + .prem-tier { border-top: 1px solid var(--border); }
+    .prem-tier-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 4px; }
+    .prem-tier-factors { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+    .prem-amount { font-size: 22px; font-weight: 700; }
+    .prem-delta-row { display: flex; align-items: center; gap: 12px; padding: 16px 0 4px; }
+    .prem-delta-col { display: flex; flex-direction: column; gap: 2px; }
+    .prem-delta-label { font-size: 11px; color: var(--muted); }
+    .prem-delta-amount { font-size: 24px; font-weight: 700; }
+    .prem-delta-amount.delta-base { color: var(--text); }
+    .prem-delta-amount.delta-high { color: var(--red); }
+    .prem-delta-arrow { font-size: 20px; color: var(--muted); padding: 0 4px; margin-top: 14px; }
+    .prem-delta-badge { background: rgba(248,81,73,0.15); color: var(--red); font-size: 13px; font-weight: 700; padding: 2px 10px; border-radius: 10px; margin-top: 16px; }
+    .prem-divider { display: flex; align-items: center; gap: 10px; padding: 10px 0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); }
+    .prem-divider::before, .prem-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .prem-signals { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .prem-signal { border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; min-width: 130px; }
+    .prem-signal.risk-high { border-color: rgba(248,81,73,0.45); background: rgba(248,81,73,0.06); }
+    .prem-signal.risk-med  { border-color: rgba(210,153,34,0.45); background: rgba(210,153,34,0.06); }
+    .prem-signal.risk-ok   { border-color: rgba(63,185,80,0.35);  background: rgba(63,185,80,0.05); }
+    .prem-signal-name { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+    .prem-signal-val  { font-size: 15px; font-weight: 700; }
+    .prem-signal.risk-high .prem-signal-val { color: var(--red); }
+    .prem-signal.risk-med  .prem-signal-val { color: var(--amber); }
+    .prem-signal.risk-ok   .prem-signal-val { color: var(--green); }
+    .premium-note { display: flex; align-items: flex-start; gap: 8px; margin-top: 14px; padding: 10px 12px; background: rgba(210,153,34,0.08); border: 1px solid rgba(210,153,34,0.35); border-radius: 6px; font-size: 12px; color: var(--text); line-height: 1.5; }
+    .premium-note .note-icon { color: var(--amber); font-style: normal; flex-shrink: 0; font-weight: 700; }
+
+    /* Layer status */
+    .layer-table { width: 100%; border-collapse: collapse; }
+    .layer-table th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+    .layer-table td { padding: 8px 10px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .layer-table tr:last-child td { border-bottom: none; }
+    .status-ok      { color: var(--green); font-weight: 600; }
+    .status-partial { color: var(--amber); font-weight: 600; }
+    .status-missing { color: var(--red); font-weight: 600; }
+
+    /* Fleet chart placeholder */
+    #fleet-chart { min-height: 180px; }
+    #dist-chart  { min-height: 140px; }
+
+    /* Loading / empty */
+    .loading { color: var(--muted); font-size: 13px; padding: 40px; text-align: center; }
+    #scorecard { display: none; }
+    #no-selection { color: var(--muted); font-size: 13px; padding: 60px; text-align: center; }
+
+    /* Cohort bar */
+    .cohort-row { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+    .cohort-track { flex: 1; height: 12px; background: var(--border); border-radius: 6px; position: relative; overflow: visible; }
+    .cohort-fill { height: 100%; border-radius: 6px; background: linear-gradient(to right, var(--green), var(--amber), var(--red)); }
+    .cohort-marker { position: absolute; top: -3px; width: 3px; height: 18px; background: white; border-radius: 2px; transform: translateX(-50%); }
+    .cohort-label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { border-right: none; border-bottom: 1px solid var(--border); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>EdgeSentry Vessel Risk Intelligence</h1>
+    <span class="badge">Flow 2 MVP</span>
+    <nav class="nav">
+      <a href="/maritime/analytics/" class="active">Risk Intelligence</a>
+      <a href="/admin/live">Operations Monitor</a>
+      <a href="/admin/audit">Audit Chain</a>
+    </nav>
+    <span style="margin-left:16px;color:var(--muted);font-size:12px" id="db-status">Loading…</span>
+  </header>
+
+  <div class="layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div>
+        <h2>Fleet Overview</h2>
+        <div class="fleet-stats" id="fleet-stats">
+          <div class="stat low">  <div class="value" id="cnt-low">—</div>  <div class="label">Low</div>  </div>
+          <div class="stat medium"><div class="value" id="cnt-med">—</div><div class="label">Medium</div></div>
+          <div class="stat high"> <div class="value" id="cnt-high">—</div><div class="label">High</div>  </div>
+        </div>
+        <div id="dist-chart" style="margin-top:14px"></div>
+      </div>
+
+      <div>
+        <h2>Select Vessel</h2>
+        <div class="search-box" style="margin-bottom:10px">
+          <input id="vessel-search" type="text" placeholder="Search name or MMSI…" autocomplete="off" />
+        </div>
+        <div class="vessel-list" id="vessel-list"></div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+      <div id="no-selection" class="loading">
+        Select a vessel from the sidebar to view its risk scorecard.
+        <br><br>
+        <span style="font-size:12px">Try <strong>MV Fortune Star</strong> (MMSI 563012345) for the demo spotlight.</span>
+      </div>
+
+      <div id="scorecard">
+        <!-- Score header -->
+        <div class="card">
+          <h3 id="sc-title">—<span class="mmsi" id="sc-mmsi"></span><a id="sc-documaris-link" class="documaris-link" href="#" target="_blank" rel="noopener noreferrer" style="display:none">View port call documents in documaris →</a></h3>
+          <div class="score-header">
+            <div class="score-box" id="sc-score-box">
+              <div class="label">Behavioral Risk Score</div>
+              <div class="value" id="sc-score">—</div>
+              <div class="sub" id="sc-tier">—</div>
+            </div>
+            <div class="score-box">
+              <div class="label">Cohort Percentile</div>
+              <div class="value" id="sc-percentile">—</div>
+              <div class="sub" id="sc-cohort-desc">—</div>
+            </div>
+            <div class="score-box">
+              <div class="label">Vessel</div>
+              <div class="value" style="font-size:14px;padding-top:4px" id="sc-meta">—</div>
+            </div>
+          </div>
+          <div class="cohort-row">
+            <span class="cohort-label">0</span>
+            <div class="cohort-track">
+              <div class="cohort-fill" id="sc-cohort-fill" style="width:100%"></div>
+              <div class="cohort-marker" id="sc-cohort-marker" style="left:0%"></div>
+            </div>
+            <span class="cohort-label">100</span>
+          </div>
+        </div>
+
+        <!-- Behavioral indicators -->
+        <div class="card">
+          <h3>Behavioral Risk Indicators</h3>
+          <div class="indicator-grid" id="sc-indicators"></div>
+        </div>
+
+        <!-- Premium comparison -->
+        <div class="card">
+          <h3>Premium Impact</h3>
+          <div id="sc-premium-comparison"></div>
+          <p class="premium-note"><em class="note-icon">!</em><span>Premium figures are directional estimates. Behavioral factor weights are illustrative until Layer A (incident outcome data) is established with an insurer partner — see Actuarial Data Availability below.</span></p>
+        </div>
+
+        <!-- Actuarial layers -->
+        <div class="card">
+          <h3>Actuarial Data Availability</h3>
+          <table class="layer-table">
+            <thead>
+              <tr><th>Layer</th><th>Description</th><th>Status</th><th>Gap</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>A</td><td>Incident outcome data</td><td class="status-missing">❌ Missing</td><td>Critical — closes feedback loop to calibrated probability</td></tr>
+              <tr><td>B</td><td>Pre-incident signal quality (RiskEvent stream)</td><td class="status-ok">✅ Available</td><td>—</td></tr>
+              <tr><td>C</td><td>Vessel behavioral risk profile (AIS features)</td><td class="status-ok">✅ Available</td><td>—</td></tr>
+              <tr><td>D</td><td>Operational context (weather, port congestion)</td><td class="status-partial">△ Partial</td><td>Weather / visibility not yet collecting</td></tr>
+              <tr><td>E</td><td>Frequency &amp; severity model</td><td class="status-missing">❌ Not built</td><td>Requires Layer A first</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="app.ts"></script>
+</body>
+</html>
