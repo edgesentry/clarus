@@ -76,6 +76,10 @@ async fn main() -> Result<()> {
     let cycle_dur = Duration::from_secs(config.cycle_interval_secs);
     let hb_interval = Duration::from_secs(config.heartbeat_interval_secs);
 
+    // Unique run prefix so each daemon restart gets its own key namespace in the
+    // WORM bucket — object lock prevents overwriting existing keys at the same path.
+    let run_id = now_millis();
+
     let mut sequence: u64 = 0;
     let mut prev_hash: [u8; 32] = AuditRecord::zero_hash();
     let mut cycle: u64 = 0;
@@ -117,7 +121,7 @@ async fn main() -> Result<()> {
             db::insert_audit_record(&conn, &record, event)?;
 
             let envelope = build_audit_envelope(&record, record_hash, event);
-            let worm_key = format!("chains/{}/{:020}.json", config.site_id, sequence);
+            let worm_key = format!("chains/{}/{run_id}/{:020}.json", config.site_id, sequence);
             match storage.put_audit(&worm_key, serde_json::to_vec(&envelope)?.into()).await {
                 Ok(()) => {}
                 Err(e) => warn!("WORM upload failed (retried next cycle): {e}"),
@@ -343,5 +347,25 @@ mod tests {
         assert_eq!(env["device_id"].as_str().unwrap(), "site_test");
         assert!((env["confidence_cv"].as_f64().unwrap() - 0.92).abs() < 1e-5);
         assert_eq!(env["entity_ids"][0].as_str().unwrap(), "V-001");
+    }
+
+    #[test]
+    fn worm_key_includes_run_id_and_zero_padded_sequence() {
+        // Keys must be unique across restarts: chains/{site}/{run_id}/{seq:020}.json
+        // run_id is the epoch-ms at startup; each restart gets a new prefix so
+        // the WORM bucket's object-lock policy never sees a duplicate key.
+        let run_id: u64 = 1_700_000_000_000;
+        let site_id = "MCH-OUTLET-042";
+
+        let key0 = format!("chains/{}/{run_id}/{:020}.json", site_id, 0u64);
+        let key9 = format!("chains/{}/{run_id}/{:020}.json", site_id, 9u64);
+
+        assert_eq!(key0, "chains/MCH-OUTLET-042/1700000000000/00000000000000000000.json");
+        assert_eq!(key9, "chains/MCH-OUTLET-042/1700000000000/00000000000000000009.json");
+
+        // Different run_id → different key → no WORM conflict on restart
+        let run_id2: u64 = 1_700_000_001_000;
+        let key0_run2 = format!("chains/{}/{run_id2}/{:020}.json", site_id, 0u64);
+        assert_ne!(key0, key0_run2);
     }
 }

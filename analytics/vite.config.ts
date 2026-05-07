@@ -7,10 +7,11 @@ export default defineConfig({
     outDir: "dist",
     rollupOptions: {
       input: {
-        main:     resolve(__dirname, "index.html"),
-        analysis: resolve(__dirname, "analysis/index.html"),
-        audit:    resolve(__dirname, "audit.html"),
-        live:     resolve(__dirname, "live.html"),
+        main:               resolve(__dirname, "index.html"),
+        maritimeAnalytics:  resolve(__dirname, "maritime/analytics/index.html"),
+        adminLive:          resolve(__dirname, "admin/live.html"),
+        adminAudit:         resolve(__dirname, "admin/audit.html"),
+        adminStatus:        resolve(__dirname, "admin/status.html"),
       },
     },
   },

@@ -4,3 +4,5 @@ target/
 *.db-wal
 config.env
 /tmp/
+.wrangler/
+chains/

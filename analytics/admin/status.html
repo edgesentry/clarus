@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EdgeSentry Upload Status</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:      #0d1117; --surface: #161b22; --border: #30363d;
+      --text:    #e6edf3; --muted:   #8b949e; --accent: #58a6ff;
+      --green:   #3fb950; --amber:   #d29922; --red:    #f85149;
+    }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; line-height: 1.6; }
+
+    header { border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; gap: 12px; }
+    header h1 { font-size: 18px; font-weight: 600; }
+    .badge { background: var(--accent); color: var(--bg); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 12px; }
+    .nav { margin-left: auto; display: flex; gap: 16px; }
+    .nav a { color: var(--muted); text-decoration: none; font-size: 13px; }
+    .nav a.active, .nav a:hover { color: var(--accent); }
+    #status-line { font-size: 12px; color: var(--muted); }
+
+    .content { padding: 24px; max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+
+    .summary-row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; flex: 1; min-width: 160px; }
+    .kpi .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 6px; }
+    .kpi .value { font-size: 26px; font-weight: 700; font-family: monospace; }
+    .kpi .sub   { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .kpi.green .value { color: var(--green); }
+    .kpi.amber .value { color: var(--amber); }
+    .kpi.red   .value { color: var(--red); }
+
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; }
+    .card h3 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 14px; }
+
+    .site-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .site-table th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 6px 12px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    .site-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .site-table tr:last-child td { border-bottom: none; }
+    .site-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+    .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; flex-shrink: 0; }
+    .dot-green { background: var(--green); }
+    .dot-amber { background: var(--amber); }
+    .dot-red   { background: var(--red); animation: blink 1s step-end infinite; }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    .pill { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; }
+    .pill-green { background: rgba(63,185,80,0.15); color: var(--green); }
+    .pill-amber { background: rgba(210,153,34,0.15); color: var(--amber); }
+    .pill-red   { background: rgba(248,81,73,0.15); color: var(--red); }
+    .pill-muted { background: rgba(139,148,158,0.12); color: var(--muted); }
+
+    .run-list { display: flex; flex-direction: column; gap: 3px; }
+    .run-row  { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); font-family: monospace; }
+    .run-count { color: var(--green); font-weight: 600; min-width: 28px; text-align: right; }
+
+    .refresh-bar { display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--muted); }
+    .refresh-bar button { background: none; border: 1px solid var(--border); color: var(--muted); font-size: 12px; padding: 4px 12px; border-radius: 5px; cursor: pointer; }
+    .refresh-bar button:hover { border-color: var(--accent); color: var(--accent); }
+
+    .empty { color: var(--muted); text-align: center; padding: 40px; font-size: 13px; }
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>EdgeSentry Upload Status</h1>
+    <span class="badge">R2 Sync</span>
+    <nav class="nav">
+      <a href="/admin/live">Operations Monitor</a>
+      <a href="/admin/audit">Audit Chain</a>
+      <a href="/admin/status" class="active">Upload Status</a>
+    </nav>
+    <span id="status-line"><span class="spinner"></span></span>
+  </header>
+  <main class="content">
+    <div class="summary-row" id="kpi-row">
+      <div class="kpi"><div class="label">Sites monitored</div><div class="value">—</div></div>
+      <div class="kpi"><div class="label">Raw Parquet files</div><div class="value">—</div></div>
+      <div class="kpi"><div class="label">WORM audit records</div><div class="value">—</div></div>
+      <div class="kpi"><div class="label">Last sync age</div><div class="value">—</div></div>
+    </div>
+
+    <div class="card">
+      <h3>Per-site pipeline status</h3>
+      <div id="site-table-container"><div class="empty">Loading…</div></div>
+    </div>
+
+    <div class="refresh-bar">
+      <span id="generated-at">—</span>
+      <button id="refresh-btn">↻ Refresh</button>
+      <span id="countdown"></span>
+    </div>
+  </main>
+  <script type="module" src="./status.ts"></script>
+</body>
+</html>
