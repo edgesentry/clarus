@@ -1,0 +1,5 @@
+profile_version = "1.0.0"
+calibration_status = "reference"
+jurisdiction = "SG"
+regulations = ["BCA-GreenMark-2021-Section4", "BCA-EE-Act-2012", "SS-553-2016"]
+created_date = "2026-05-07"

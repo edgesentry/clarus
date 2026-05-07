@@ -1,0 +1,20 @@
+[
+  {
+    "rule_id": "EUI_PLATINUM_EXCEEDED",
+    "condition": "sensor_value:eui_kwh_m2 > 115.0",
+    "severity": "HIGH",
+    "regulation": "BCA Green Mark 2021 Section 4.1 — EUI must be ≤ 115 kWh/m²/year for Platinum"
+  },
+  {
+    "rule_id": "CHILLER_COP_EXCEEDED",
+    "condition": "sensor_value:chiller_cop > 0.65",
+    "severity": "HIGH",
+    "regulation": "BCA Green Mark 2021 Section 4.2 — Chiller COP must be ≤ 0.65 kW/RT for Platinum"
+  },
+  {
+    "rule_id": "LPD_PLATINUM_EXCEEDED",
+    "condition": "sensor_value:lpd_w_m2 > 15.0",
+    "severity": "HIGH",
+    "regulation": "BCA Green Mark 2021 Section 4.3 — LPD must be ≤ 15 W/m² for Platinum"
+  }
+]

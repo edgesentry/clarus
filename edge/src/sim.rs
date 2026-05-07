@@ -16,11 +16,15 @@ pub enum Scenario {
     PortSafety,
     /// Vessel enters restricted zone — RESTRICTED_ZONE_APPROACH
     Maritime,
+    /// BCA Green Mark energy sensor monitoring — EUI / COP / LPD thresholds
+    BcaGreenMark,
 }
 
 impl Scenario {
     pub fn from_profile(profile: &str) -> Self {
-        if profile.contains("maritime") {
+        if profile.contains("bca-greenmark") || profile.contains("bca_greenmark") {
+            Scenario::BcaGreenMark
+        } else if profile.contains("maritime") {
             Scenario::Maritime
         } else {
             Scenario::PortSafety
@@ -32,8 +36,9 @@ impl Scenario {
 pub fn generate_frames(scenario: &Scenario, cycle: u64, base_ms: u64) -> Vec<Frame> {
     (0..10)
         .map(|f| match scenario {
-            Scenario::PortSafety => port_safety_frame(cycle, f, base_ms + f * 500),
-            Scenario::Maritime   => maritime_frame(cycle, f, base_ms + f * 500),
+            Scenario::PortSafety  => port_safety_frame(cycle, f, base_ms + f * 500),
+            Scenario::Maritime    => maritime_frame(cycle, f, base_ms + f * 500),
+            Scenario::BcaGreenMark => bca_greenmark_frame(cycle, f, base_ms + f * 500),
         })
         .collect()
 }
@@ -73,7 +78,7 @@ fn port_safety_frame(cycle: u64, frame: u64, timestamp_ms: u64) -> Frame {
                 velocity: Vec2::new(-step * 0.8, 0.0),
                 timestamp_ms,
                 sensor: Some(SensorReading::simulation()),
-                position_z: None, velocity_z: None, computed_confidence: None,
+                position_z: None, velocity_z: None, computed_confidence: None, sensor_values: None,
             },
             Entity {
                 id: "W-03".into(),
@@ -82,7 +87,7 @@ fn port_safety_frame(cycle: u64, frame: u64, timestamp_ms: u64) -> Frame {
                 velocity: Vec2::new(0.0, 0.0),
                 timestamp_ms,
                 sensor: Some(SensorReading::simulation()),
-                position_z: None, velocity_z: None, computed_confidence: None,
+                position_z: None, velocity_z: None, computed_confidence: None, sensor_values: None,
             },
         ],
     }
@@ -104,7 +109,43 @@ fn maritime_frame(cycle: u64, frame: u64, timestamp_ms: u64) -> Frame {
                 velocity: Vec2::new(2.0, 0.0),
                 timestamp_ms,
                 sensor: Some(SensorReading::simulation()),
+                position_z: None, velocity_z: None, computed_confidence: None, sensor_values: None,
+            },
+        ],
+    }
+}
+
+// ── BCA Green Mark ────────────────────────────────────────────────────────────
+
+fn bca_greenmark_frame(cycle: u64, _frame: u64, timestamp_ms: u64) -> Frame {
+    // Sensor values oscillate deterministically to cross thresholds periodically.
+    // eui_kwh_m2: base 105.0 + 15.0 * sin(cycle * 0.15) → oscillates 90–120 (threshold 115)
+    // chiller_cop: base 0.60 + 0.08 * sin(cycle * 0.20) → oscillates 0.52–0.68 (threshold 0.65)
+    // lpd_w_m2:   base 13.5 + 2.5  * sin(cycle * 0.10) → oscillates 11–16    (threshold 15)
+    let eui = 105.0_f32 + 15.0 * (cycle as f32 * 0.15).sin();
+    let cop = 0.60_f32  + 0.08 * (cycle as f32 * 0.20).sin();
+    let lpd = 13.5_f32  + 2.5  * (cycle as f32 * 0.10).sin();
+
+    // Round to 1 decimal place for readability
+    let round1 = |v: f32| -> f64 { (v * 10.0).round() as f64 / 10.0 };
+
+    let mut sensor_values = std::collections::HashMap::new();
+    sensor_values.insert("eui_kwh_m2".to_string(),  round1(eui));
+    sensor_values.insert("chiller_cop".to_string(),  round1(cop));
+    sensor_values.insert("lpd_w_m2".to_string(),     round1(lpd));
+
+    Frame {
+        timestamp_ms,
+        entities: vec![
+            Entity {
+                id: "OUTLET-SENSORS".into(),
+                class: EntityClass::Person,
+                position: Vec2::new(0.0, 0.0),
+                velocity: Vec2::new(0.0, 0.0),
+                timestamp_ms,
+                sensor: Some(SensorReading::simulation()),
                 position_z: None, velocity_z: None, computed_confidence: None,
+                sensor_values: Some(sensor_values),
             },
         ],
     }
@@ -137,5 +178,50 @@ mod tests {
     #[test]
     fn drift_score_valid_at_cycle0() {
         assert!(drift_score(0) < 0.3, "cycle 0 should be VALID");
+    }
+
+    // ── BCA Green Mark tests ──────────────────────────────────────────────────
+
+    #[test]
+    fn bca_greenmark_generates_10_frames() {
+        let frames = generate_frames(&Scenario::BcaGreenMark, 0, 0);
+        assert_eq!(frames.len(), 10);
+        assert_eq!(frames[0].entities.len(), 1);
+        assert_eq!(frames[0].entities[0].id, "OUTLET-SENSORS");
+    }
+
+    #[test]
+    fn bca_greenmark_frame_has_sensor_values() {
+        let frames = generate_frames(&Scenario::BcaGreenMark, 0, 0);
+        let sv = frames[0].entities[0].sensor_values.as_ref()
+            .expect("OUTLET-SENSORS must have sensor_values");
+        assert!(sv.contains_key("eui_kwh_m2"), "must have eui_kwh_m2");
+        assert!(sv.contains_key("chiller_cop"), "must have chiller_cop");
+        assert!(sv.contains_key("lpd_w_m2"), "must have lpd_w_m2");
+    }
+
+    #[test]
+    fn bca_greenmark_eui_oscillates_across_threshold() {
+        // Over 100 cycles, EUI must both exceed and stay below 115 kWh/m²/year
+        let mut above = false;
+        let mut below = false;
+        for cycle in 0..100_u64 {
+            let frames = generate_frames(&Scenario::BcaGreenMark, cycle, 0);
+            let sv = frames[0].entities[0].sensor_values.as_ref().unwrap();
+            let eui = sv["eui_kwh_m2"];
+            if eui > 115.0 { above = true; }
+            if eui < 115.0 { below = true; }
+            if above && below { break; }
+        }
+        assert!(above, "EUI must exceed 115 in at least one of 100 cycles");
+        assert!(below, "EUI must be below 115 in at least one of 100 cycles");
+    }
+
+    #[test]
+    fn scenario_from_profile_bca_greenmark() {
+        assert_eq!(Scenario::from_profile("sg-bca-greenmark"), Scenario::BcaGreenMark);
+        assert_eq!(Scenario::from_profile("bca_greenmark"), Scenario::BcaGreenMark);
+        assert_eq!(Scenario::from_profile("sg-maritime-security"), Scenario::Maritime);
+        assert_eq!(Scenario::from_profile("sg-port-safety"), Scenario::PortSafety);
     }
 }
