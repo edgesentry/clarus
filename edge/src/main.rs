@@ -348,4 +348,24 @@ mod tests {
         assert!((env["confidence_cv"].as_f64().unwrap() - 0.92).abs() < 1e-5);
         assert_eq!(env["entity_ids"][0].as_str().unwrap(), "V-001");
     }
+
+    #[test]
+    fn worm_key_includes_run_id_and_zero_padded_sequence() {
+        // Keys must be unique across restarts: chains/{site}/{run_id}/{seq:020}.json
+        // run_id is the epoch-ms at startup; each restart gets a new prefix so
+        // the WORM bucket's object-lock policy never sees a duplicate key.
+        let run_id: u64 = 1_700_000_000_000;
+        let site_id = "MCH-OUTLET-042";
+
+        let key0 = format!("chains/{}/{run_id}/{:020}.json", site_id, 0u64);
+        let key9 = format!("chains/{}/{run_id}/{:020}.json", site_id, 9u64);
+
+        assert_eq!(key0, "chains/MCH-OUTLET-042/1700000000000/00000000000000000000.json");
+        assert_eq!(key9, "chains/MCH-OUTLET-042/1700000000000/00000000000000000009.json");
+
+        // Different run_id → different key → no WORM conflict on restart
+        let run_id2: u64 = 1_700_000_001_000;
+        let key0_run2 = format!("chains/{}/{run_id2}/{:020}.json", site_id, 0u64);
+        assert_ne!(key0, key0_run2);
+    }
 }

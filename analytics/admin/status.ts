@@ -1,4 +1,5 @@
 // EdgeSentry Upload Status dashboard — no DuckDB needed, pure R2 index queries.
+import { ageStr, ageClass, dotClass } from "./status-helpers.js";
 
 interface RawStat { hb_files: number; chain_files: number; latest_ms: number; }
 interface WormRun  { run_id: string; count: number; }
@@ -14,30 +15,6 @@ const tableWrap   = document.getElementById("site-table-container")!;
 const generatedAt = document.getElementById("generated-at")!;
 const countdownEl = document.getElementById("countdown")!;
 const refreshBtn  = document.getElementById("refresh-btn") as HTMLButtonElement;
-
-function ageStr(ms: number): string {
-  if (ms === 0) return "—";
-  const s = Math.round((Date.now() - ms) / 1000);
-  if (s < 60)  return `${s}s ago`;
-  if (s < 3600) return `${Math.round(s / 60)}m ago`;
-  return `${Math.round(s / 3600)}h ago`;
-}
-
-function ageClass(ms: number): string {
-  if (ms === 0) return "red";
-  const s = (Date.now() - ms) / 1000;
-  if (s < 120)  return "green";
-  if (s < 600)  return "amber";
-  return "red";
-}
-
-function dotClass(ms: number): string {
-  if (ms === 0) return "dot-red";
-  const s = (Date.now() - ms) / 1000;
-  if (s < 120)  return "dot-green";
-  if (s < 600)  return "dot-amber";
-  return "dot-red";
-}
 
 function renderKpis(data: StatusIndex): void {
   const totalRaw  = data.sites.reduce((s, x) => s + x.raw.hb_files + x.raw.chain_files, 0);
