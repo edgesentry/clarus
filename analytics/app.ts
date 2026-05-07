@@ -1,4 +1,4 @@
-// EdgeSentry Vessel Risk Intelligence — app.ts
+// clarus port safety analytics — app.ts
 
 import * as duckdb from "@duckdb/duckdb-wasm";
 import * as Plot from "@observablehq/plot";

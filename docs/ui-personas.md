@@ -57,12 +57,11 @@ Singapore's MOM WSH penalties have tightened. P&I claims after serious incidents
 
 1. Opens `/live` — watches alert table showing rule, severity, evidence quality, confidence score
 2. Understands: "if this accumulates monthly, I can calculate a near-miss frequency"
-3. Clicks `RESTRICTED_ZONE_APPROACH` alert → sees "View V-001 vessel risk profile →"
-4. Navigates to `/` Risk Intelligence — MV Fortune Star auto-selected
-5. Reads behavioral score 74.3/100, sees AIS gaps, STS transfers, sanctions proximity
-6. **Premium Impact section**: Traditional $180,000 → With EdgeSentry $340,000 (+89%)
-7. Sees "Blind spot" in the traditional column for all behavioral signals
-8. Understands: "the $160k gap is exactly what I'm missing in my current underwriting"
+3. Clicks `RESTRICTED_ZONE_APPROACH` alert → reads physics evidence: clearance 3.2m vs 5m required, confidence CERTIFIED
+4. Sees LLM explanation citing MPA Port Safety Circular 2024-07, section 3.1
+5. Navigates to `/audit` — confirms hash chain is intact, record cannot be edited
+6. **Premium Impact**: tamper-proof near-miss frequency record → actuarially defensible premium discount
+7. Understands: "two years of this data and I can compute a near-miss rate. No one has brought me this before."
 
 ### The moment her goal is achieved
 
@@ -140,8 +139,8 @@ In most cases the operator asserts the system was active. The only evidence avai
 | `/live` site status + drift chart | ✓ Sees monitoring is active | — | ✓ Sees calibration quality | — |
 | `/live` alert table with evidence quality | ✓ Reads regulation citation | ✓ Sees structured data fields | ✓ Confirms physics-based firing | — |
 | `/live` LLM explanation | ✓ Reads plain-language alert | — | ✓ Understands physics basis | — |
-| `/` vessel risk scorecard | — | ✓ Sees behavioral indicators | — | — |
-| `/` premium impact (Blind spot → $340k) | — | ✓ **Core feature** | — | — |
+| `/audit` near-miss frequency record | — | ✓ Sees structured tamper-proof data | — | — |
+| `/live` physics evidence + LLM citation | — | ✓ **Core feature** | — | — |
 | `/audit` chain verification *(coming: #55)* | ✓ Understands tamper-evidence | ✓ Confirms operator cannot edit | — | ✓ **Core feature** |
 
 ---

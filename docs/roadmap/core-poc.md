@@ -160,7 +160,7 @@ Goal: `RiskEvent` → natural-language explanation with verifiable regulation ci
 
 ### Week 5: Browser demo (due: 1 June)
 
-Goal: end-to-end screen-recordable demo showing Flow 1 (live alerts) → Flow 2 (vessel risk scorecard).
+Goal: end-to-end screen-recordable demo showing Flow 1 (live alerts) → Flow 2 (analytics).
 
 **Implemented** ([PR #52](https://github.com/edgesentry/clarus/pull/52), merged 2026-05-02):
 
