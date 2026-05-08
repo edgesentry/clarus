@@ -29,8 +29,23 @@ function latestPerSite(keys) {
   return result;
 }
 
+// Parse cutoff timestamp from ?days= (default 90). Returns 0 if disabled.
+function cutoffMs(params) {
+  const days = parseInt(params.get("days") ?? "90", 10);
+  if (!days || days <= 0) return 0;
+  return Date.now() - days * 86_400_000;
+}
+
+// Filename is the timestamp_ms: live/{site}/{table}/{timestamp_ms}.parquet
+function keyTs(key) {
+  const name = key.split("/").pop() ?? "";
+  return parseInt(name, 10) || 0;
+}
+
 export async function onRequestGet({ env, request }) {
-  const allMode = new URL(request.url).searchParams.get("all") === "1";
+  const params  = new URL(request.url).searchParams;
+  const allMode = params.get("all") === "1";
+  const cutoff  = allMode ? 0 : cutoffMs(params);
 
   // List both rollup/ and live/ prefixes in parallel
   const [rollupResult, liveResult] = await Promise.all([
@@ -39,7 +54,11 @@ export async function onRequestGet({ env, request }) {
   ]);
 
   const rollupKeys = rollupResult.objects.map((o) => o.key);
-  const liveKeys   = liveResult.objects.map((o) => o.key);
+  // Apply time-window filter at key level — filename IS the timestamp_ms,
+  // so we never download files older than the cutoff.
+  const liveKeys = liveResult.objects
+    .map((o) => o.key)
+    .filter((k) => cutoff === 0 || keyTs(k) >= cutoff);
 
   // Sites present in either bucket
   const rollupSites = new Set(rollupKeys.map((k) => k.split("/")[1]).filter(Boolean));
