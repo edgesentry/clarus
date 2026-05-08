@@ -1,10 +1,13 @@
 /**
  * GET /api/live-index
- * Lists Parquet files in clarus-dev-public-raw under live/ prefix.
+ * Returns Parquet keys for /admin/live to load via DuckDB WASM.
  *
- * By default returns only the latest MAX_PER_SITE files per site per table,
- * so the browser loads a small fixed number regardless of history depth.
- * Pass ?all=1 to get every file (debug only).
+ * Priority (fastest → most complete):
+ *   1. rollup/{site}/heartbeats.parquet + rollup/{site}/alerts.parquet
+ *      Written hourly by indago rollup_clarus_live.py — one file per site.
+ *   2. Fallback: latest MAX_PER_SITE raw files per site (if no rollup yet).
+ *
+ * Pass ?all=1 to skip rollup and return every raw file (debug).
  *
  * Returns { heartbeats: string[], alerts: string[], sites: string[] }
  */
@@ -12,8 +15,6 @@
 const MAX_PER_SITE = 5;
 
 function latestPerSite(keys) {
-  // keys are named live/{site}/{table}/{timestamp_ms}.parquet
-  // lexicographic sort on the full key works because timestamp is zero-padded by ms precision
   const bySite = {};
   for (const k of keys) {
     const site = k.split("/")[1];
@@ -30,24 +31,47 @@ function latestPerSite(keys) {
 
 export async function onRequestGet({ env, request }) {
   const allMode = new URL(request.url).searchParams.get("all") === "1";
-  const result = await env.CLARUS_DEV_PUBLIC_RAW.list({ prefix: "live/" });
 
-  const keys = result.objects.map((o) => o.key);
-  let heartbeats = keys.filter(
-    (k) => k.includes("/heartbeats/") && k.endsWith(".parquet")
-  );
-  let alerts = keys.filter(
-    (k) => k.includes("/audit_chain/") && k.endsWith(".parquet")
-  );
+  // List both rollup/ and live/ prefixes in parallel
+  const [rollupResult, liveResult] = await Promise.all([
+    env.CLARUS_DEV_PUBLIC_RAW.list({ prefix: "rollup/" }),
+    env.CLARUS_DEV_PUBLIC_RAW.list({ prefix: "live/"   }),
+  ]);
 
-  if (!allMode) {
-    heartbeats = latestPerSite(heartbeats);
-    alerts     = latestPerSite(alerts);
+  const rollupKeys = rollupResult.objects.map((o) => o.key);
+  const liveKeys   = liveResult.objects.map((o) => o.key);
+
+  // Sites present in either bucket
+  const rollupSites = new Set(rollupKeys.map((k) => k.split("/")[1]).filter(Boolean));
+  const liveSites   = [...new Set(liveKeys.map((k) => k.split("/")[1]).filter(Boolean))];
+
+  let heartbeats, alerts;
+
+  if (!allMode && rollupSites.size > 0) {
+    // Prefer rollup files — one file per site per table
+    heartbeats = rollupKeys.filter((k) => k.endsWith("/heartbeats.parquet"));
+    alerts     = rollupKeys.filter((k) => k.endsWith("/alerts.parquet"));
+
+    // Supplement with raw fallback for sites not yet rolled up
+    const rawHb = liveKeys.filter((k) => k.includes("/heartbeats/") && k.endsWith(".parquet"));
+    const rawAl = liveKeys.filter((k) => k.includes("/audit_chain/") && k.endsWith(".parquet"));
+    for (const k of latestPerSite(rawHb)) {
+      const site = k.split("/")[1];
+      if (!rollupSites.has(site)) heartbeats.push(k);
+    }
+    for (const k of latestPerSite(rawAl)) {
+      const site = k.split("/")[1];
+      if (!rollupSites.has(site)) alerts.push(k);
+    }
+  } else {
+    // No rollup or ?all=1 — fall back to latest raw files
+    const rawHb = liveKeys.filter((k) => k.includes("/heartbeats/") && k.endsWith(".parquet"));
+    const rawAl = liveKeys.filter((k) => k.includes("/audit_chain/") && k.endsWith(".parquet"));
+    heartbeats = allMode ? rawHb : latestPerSite(rawHb);
+    alerts     = allMode ? rawAl : latestPerSite(rawAl);
   }
 
-  const sites = [
-    ...new Set(keys.map((k) => k.split("/")[1]).filter(Boolean)),
-  ];
+  const sites = [...new Set([...rollupSites, ...liveSites])].sort();
 
   return Response.json(
     { heartbeats, alerts, sites },
