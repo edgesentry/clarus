@@ -2,6 +2,7 @@
 
 import * as duckdb from "@duckdb/duckdb-wasm";
 import * as Plot from "@observablehq/plot";
+import { fetchParquetCached } from "./opfs-cache.js";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -175,9 +176,9 @@ async function loadParquetFiles(
   if (keys.length === 0) return false;
   const fnames: string[] = [];
   for (const [i, key] of keys.entries()) {
-    const resp = await fetch(`/data/raw/${key}`);
-    if (!resp.ok) continue;
-    await db.registerFileBuffer(`${tableName}_${i}.parquet`, new Uint8Array(await resp.arrayBuffer()));
+    const buf = await fetchParquetCached(`/data/raw/${key}`, key);
+    if (!buf) continue;
+    await db.registerFileBuffer(`${tableName}_${i}.parquet`, new Uint8Array(buf));
     fnames.push(`${tableName}_${i}.parquet`);
   }
   if (fnames.length === 0) return false;
