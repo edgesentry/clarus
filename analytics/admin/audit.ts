@@ -1,5 +1,6 @@
 // EdgeSentry Audit Chain — audit.ts
 export {}; // make this a module so top-level await and const status don't conflict with globals
+import { getCachedAuditRecord, setCachedAuditRecord } from "./opfs-cache.js";
 
 interface AuditRecord {
   sequence: number;
@@ -37,9 +38,13 @@ async function fetchIndex(site: string | null): Promise<AuditIndex> {
 }
 
 async function fetchRecord(key: string): Promise<AuditRecord | null> {
+  const cached = await getCachedAuditRecord(key);
+  if (cached) return JSON.parse(cached) as AuditRecord;
   const resp = await fetch(`/data/audit/${key}`);
   if (!resp.ok) return null;
-  return resp.json();
+  const text = await resp.text();
+  await setCachedAuditRecord(key, text);
+  return JSON.parse(text) as AuditRecord;
 }
 
 // ── Chain verification ────────────────────────────────────────────────────────
