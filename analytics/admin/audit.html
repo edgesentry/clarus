@@ -36,7 +36,17 @@
     .integrity-sub   { font-size: 12px; color: var(--muted); margin-top: 2px; }
     .worm-badge { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--amber); background: rgba(210,153,34,0.1); border: 1px solid rgba(210,153,34,0.3); padding: 4px 10px; border-radius: 12px; }
 
-    /* Site selector */
+    /* Run cards */
+    .run-grid { display: flex; flex-direction: column; gap: 6px; }
+    .run-site-header { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 8px 0 4px; }
+    .run-card { border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; cursor: pointer; transition: border-color 0.15s; }
+    .run-card:hover { border-color: var(--accent); }
+    .run-card.selected { border-color: var(--accent); background: rgba(88,166,255,0.07); }
+    .run-card-title { font-size: 13px; font-weight: 600; }
+    .run-card-meta  { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .run-card-id    { font-size: 11px; font-family: monospace; color: var(--muted); margin-top: 3px; }
+
+    /* Site selector (kept for backward compat) */
     .site-select { background: var(--bg); border: 1px solid var(--border); color: var(--text); font-size: 13px; padding: 6px 10px; border-radius: 6px; outline: none; cursor: pointer; }
     .site-select:focus { border-color: var(--accent); }
 
@@ -89,23 +99,31 @@
       <code>cd clarus/edge &amp;&amp; ./run.sh</code>
     </div>
 
-    <div id="audit-content" style="display:none">
-      <div id="integrity-banner" class="integrity-banner loading">
-        <span class="integrity-icon">⏳</span>
-        <div>
-          <div class="integrity-title">Verifying chain…</div>
-          <div class="integrity-sub" id="integrity-sub"></div>
+    <div id="audit-content" style="display:none; flex-direction:row; gap:20px; align-items:flex-start;">
+      <div style="width:220px;flex-shrink:0">
+        <div class="card" style="padding:16px">
+          <h3>Runs</h3>
+          <div id="run-grid" class="run-grid"></div>
         </div>
-        <div class="worm-badge">🔒 Object Lock — deletion not possible</div>
       </div>
 
-      <div class="card">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
-          <h3 style="margin:0">Signed Records</h3>
-          <select id="site-select" class="site-select"></select>
-          <span id="record-count" style="font-size:12px;color:var(--muted);margin-left:auto"></span>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:16px">
+        <div id="integrity-banner" class="integrity-banner loading">
+          <span class="integrity-icon">⏳</span>
+          <div>
+            <div class="integrity-title">Select a run to verify</div>
+            <div class="integrity-sub" id="integrity-sub"></div>
+          </div>
+          <div class="worm-badge">🔒 Object Lock — deletion not possible</div>
         </div>
-        <div id="chain-container"></div>
+
+        <div class="card">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+            <h3 style="margin:0">Signed Records</h3>
+            <span id="record-count" style="font-size:12px;color:var(--muted);margin-left:auto"></span>
+          </div>
+          <div id="chain-container"></div>
+        </div>
       </div>
     </div>
   </div>
