@@ -63,10 +63,14 @@ impl Storage {
     async fn put(&self, bucket: &str, key: &str, data: Bytes) -> Result<()> {
         match self.backend.as_str() {
             "r2" => {
-                self.s3_audit.as_ref().unwrap()
-                    .put(&Path::from(key), data.into())
+                let store = if bucket == &self.audit_bucket {
+                    self.s3_audit.as_ref().unwrap()
+                } else {
+                    self.s3_analytics.as_ref().unwrap()
+                };
+                store.put(&Path::from(key), data.into())
                     .await
-                    .context("R2 put failed")?;
+                    .with_context(|| format!("R2 put failed for {bucket}/{key}"))?;
             }
             "minio" => {
                 // Use the right store based on bucket name
