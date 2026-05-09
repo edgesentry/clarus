@@ -17,6 +17,7 @@ function makeCache(hit = null) {
 }
 
 function makeCtx() {
+  // Pages Functions receive waitUntil directly on context, not via a ctx object
   return { waitUntil: vi.fn(p => p) };
 }
 
@@ -34,7 +35,7 @@ describe("status-index: aggregation", () => {
         "live/SITE-A/audit_chain/1002.parquet",
       ],
     });
-    const res = await onRequestGet({ env, request: new Request("https://x/api/status-index"), ctx: makeCtx() });
+    const res = await onRequestGet({ env, request: new Request("https://x/api/status-index"), waitUntil: makeCtx().waitUntil });
     const { sites } = await res.json();
     const a = sites.find(s => s.site_id === "SITE-A");
     expect(a.raw.hb_files).toBe(2);
@@ -50,7 +51,7 @@ describe("status-index: aggregation", () => {
         "chains/SITE-A/1778999999999/00000000000000000000.json",
       ],
     });
-    const res = await onRequestGet({ env, request: new Request("https://x/api/status-index"), ctx: makeCtx() });
+    const res = await onRequestGet({ env, request: new Request("https://x/api/status-index"), waitUntil: makeCtx().waitUntil });
     const { sites } = await res.json();
     const a = sites.find(s => s.site_id === "SITE-A");
     expect(a.worm.total).toBe(3);
@@ -67,7 +68,7 @@ describe("status-index: aggregation", () => {
         "chains/SITE-A/00000000000000000001.json",
       ],
     });
-    const res = await onRequestGet({ env, request: new Request("https://x/api/status-index"), ctx: makeCtx() });
+    const res = await onRequestGet({ env, request: new Request("https://x/api/status-index"), waitUntil: makeCtx().waitUntil });
     const { sites } = await res.json();
     const a = sites.find(s => s.site_id === "SITE-A");
     expect(a.worm.runs[0].run_id).toBe("legacy");
@@ -80,7 +81,7 @@ describe("status-index: aggregation", () => {
       rawKeys:   ["live/RAW-ONLY/heartbeats/1000.parquet"],
       auditKeys: ["chains/WORM-ONLY/1000/00000000000000000000.json"],
     });
-    const res = await onRequestGet({ env, request: new Request("https://x/api/status-index"), ctx: makeCtx() });
+    const res = await onRequestGet({ env, request: new Request("https://x/api/status-index"), waitUntil: makeCtx().waitUntil });
     const { sites } = await res.json();
     const ids = sites.map(s => s.site_id);
     expect(ids).toContain("RAW-ONLY");
@@ -93,7 +94,7 @@ describe("status-index: caching", () => {
     const hit = Response.json({ sites: [{ site_id: "CACHED" }], generated_at_ms: 0 });
     vi.stubGlobal("caches", makeCache(hit));
     const env = makeEnv();
-    const res = await onRequestGet({ env, request: new Request("https://x/api/status-index"), ctx: makeCtx() });
+    const res = await onRequestGet({ env, request: new Request("https://x/api/status-index"), waitUntil: makeCtx().waitUntil });
     const { sites } = await res.json();
 
     expect(env.CLARUS_DEV_PUBLIC_RAW.list).not.toHaveBeenCalled();
@@ -103,8 +104,8 @@ describe("status-index: caching", () => {
   it("stores response in cache on miss", async () => {
     const cache = makeCache();
     vi.stubGlobal("caches", cache);
-    const ctx = makeCtx();
-    await onRequestGet({ env: makeEnv(), request: new Request("https://x/api/status-index"), ctx });
+    const { waitUntil } = makeCtx();
+    await onRequestGet({ env: makeEnv(), request: new Request("https://x/api/status-index"), waitUntil });
     expect(cache.default.put).toHaveBeenCalled();
   });
 });

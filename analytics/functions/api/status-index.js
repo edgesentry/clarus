@@ -10,7 +10,7 @@
  *   generated_at_ms
  * }
  */
-export async function onRequestGet({ env, request, ctx }) {
+export async function onRequestGet({ env, request, waitUntil }) {
   const cacheKey = new Request(request.url);
   const cached = await caches.default.match(cacheKey);
   if (cached) return cached;
@@ -70,6 +70,6 @@ export async function onRequestGet({ env, request, ctx }) {
     { sites, generated_at_ms: Date.now() },
     { headers: { "Access-Control-Allow-Origin": "*", "Cache-Control": "public, s-maxage=60, max-age=10" } }
   );
-  ctx.waitUntil(caches.default.put(cacheKey, response.clone()));
+  waitUntil(caches.default.put(cacheKey, response.clone()));
   return response;
 }

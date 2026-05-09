@@ -13,8 +13,8 @@ function makeCache(hit = null) {
   return { default: { match: vi.fn(async () => hit), put: vi.fn(async () => {}) } };
 }
 
-function makeCtx() {
-  return { waitUntil: vi.fn(p => p) };
+function makeWaitUntil() {
+  return vi.fn(p => p);
 }
 
 beforeEach(() => {
@@ -29,21 +29,16 @@ describe("audit-index: key listing", () => {
       "chains/SITE-A/1000/00000000000000000000.json",
       "chains/SITE-A/1000/00000000000000000001.json",
     ]);
-    const req = new Request("https://x/api/audit-index");
-    const res = await onRequestGet({ env, request: req, ctx: makeCtx() });
+    const res = await onRequestGet({ env, request: new Request("https://x/api/audit-index"), waitUntil: makeWaitUntil() });
     const body = await res.json();
-
     expect(body.keys[0]).toContain("00000000000000000000.json");
     expect(body.keys[2]).toContain("00000000000000000002.json");
   });
 
   it("filters by site when ?site= is provided", async () => {
     vi.stubGlobal("caches", makeCache());
-    const env = makeEnv([
-      "chains/SITE-A/1000/00000000000000000000.json",
-    ]);
-    const req = new Request("https://x/api/audit-index?site=SITE-A");
-    await onRequestGet({ env, request: req, ctx: makeCtx() });
+    const env = makeEnv(["chains/SITE-A/1000/00000000000000000000.json"]);
+    await onRequestGet({ env, request: new Request("https://x/api/audit-index?site=SITE-A"), waitUntil: makeWaitUntil() });
     const [{ prefix }] = env.CLARUS_DEV_PUBLIC_AUDIT.list.mock.calls[0];
     expect(prefix).toBe("chains/SITE-A/");
   });
@@ -55,8 +50,7 @@ describe("audit-index: key listing", () => {
       "chains/SITE-B/1000/00000000000000000000.json",
       "chains/SITE-A/1000/00000000000000000001.json",
     ]);
-    const req = new Request("https://x/api/audit-index");
-    const res = await onRequestGet({ env, request: req, ctx: makeCtx() });
+    const res = await onRequestGet({ env, request: new Request("https://x/api/audit-index"), waitUntil: makeWaitUntil() });
     const { sites } = await res.json();
     expect(sites).toHaveLength(2);
     expect(sites).toEqual(expect.arrayContaining(["SITE-A", "SITE-B"]));
@@ -68,10 +62,8 @@ describe("audit-index: caching", () => {
     const hit = Response.json({ keys: ["cached"], sites: ["X"] });
     vi.stubGlobal("caches", makeCache(hit));
     const env = makeEnv([]);
-    const req = new Request("https://x/api/audit-index");
-    const res = await onRequestGet({ env, request: req, ctx: makeCtx() });
+    const res = await onRequestGet({ env, request: new Request("https://x/api/audit-index"), waitUntil: makeWaitUntil() });
     const { keys } = await res.json();
-
     expect(env.CLARUS_DEV_PUBLIC_AUDIT.list).not.toHaveBeenCalled();
     expect(keys).toEqual(["cached"]);
   });
@@ -79,9 +71,8 @@ describe("audit-index: caching", () => {
   it("stores response in cache on miss", async () => {
     const cache = makeCache();
     vi.stubGlobal("caches", cache);
-    const env = makeEnv([]);
-    const ctx = makeCtx();
-    await onRequestGet({ env, request: new Request("https://x/api/audit-index"), ctx });
+    const waitUntil = makeWaitUntil();
+    await onRequestGet({ env: makeEnv([]), request: new Request("https://x/api/audit-index"), waitUntil });
     expect(cache.default.put).toHaveBeenCalled();
   });
 });
