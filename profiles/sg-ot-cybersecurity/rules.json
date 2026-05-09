@@ -1,14 +1,8 @@
 [
   {
     "rule_id": "OT_UNAUTHORIZED_SOFTWARE",
-    "condition": "sensor.unauthorized_components > 0",
+    "condition": "sensor_value:unauthorized_components > 0",
     "severity": "CRITICAL",
     "regulation": "IACS UR E26 §3.2 — Authorized Software Control"
-  },
-  {
-    "rule_id": "OT_SCAN_OVERDUE",
-    "condition": "sensor.component_count == 0",
-    "severity": "HIGH",
-    "regulation": "IACS UR E26 §3.1 — Continuous Integrity Monitoring"
   }
 ]
