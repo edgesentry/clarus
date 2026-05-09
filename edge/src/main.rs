@@ -162,7 +162,24 @@ async fn main() -> Result<()> {
             let envelope = build_audit_envelope(&record, record_hash, event, zk_proof.as_ref());
             let worm_key = format!("chains/{}/{run_id}/{:020}.json", config.site_id, sequence);
             match storage.put_audit(&worm_key, serde_json::to_vec(&envelope)?.into()).await {
-                Ok(()) => {}
+                Ok(()) => {
+                    // Update the zkp-latest pointer whenever a ZKP proof is attached,
+                    // so documaris can discover the newest attested record via a single
+                    // strongly-consistent GET without waiting for R2 list consistency.
+                    if zk_proof.is_some() {
+                        let pointer = serde_json::json!({
+                            "run_id": run_id.to_string(),
+                            "last_seq": sequence,
+                            "site_id": config.site_id,
+                        });
+                        // Write pointer to raw bucket (not audit) — pointers are
+                        // mutable navigation hints, not WORM evidence records.
+                        let ptr_key = format!("zkp-latest/{}.json", config.site_id);
+                        if let Err(e) = storage.put_raw(&ptr_key, serde_json::to_vec(&pointer)?.into()).await {
+                            warn!("zkp-latest pointer update failed: {e}");
+                        }
+                    }
+                }
                 Err(e) => warn!("WORM upload failed (retried next cycle): {e}"),
             }
 
