@@ -211,16 +211,21 @@ async function renderSiteStatus(conn: duckdb.AsyncDuckDBConnection, sites: strin
   allCard.innerHTML = `<div class="name">All sites</div><div class="meta">${sites.length} site(s)</div>`;
   grid.appendChild(allCard);
 
+  // Single query: latest heartbeat per site (DISTINCT ON replaces N serial queries)
+  const latestRes = await conn.query(`
+    SELECT DISTINCT ON (site_id)
+      site_id, calibration_status, drift_score, timestamp_ms,
+      certified_count + degraded_count + rejected_count AS total
+    FROM heartbeats
+    ORDER BY site_id, timestamp_ms DESC
+  `);
+  const latestBySite = Object.fromEntries(
+    (latestRes.toArray() as HeartbeatRow[]).map(r => [r.site_id, r])
+  );
+
   for (const site of sites) {
-    const res = await conn.query(`
-      SELECT calibration_status, drift_score, timestamp_ms,
-             certified_count + degraded_count + rejected_count AS total
-      FROM heartbeats WHERE site_id = '${site}'
-      ORDER BY timestamp_ms DESC LIMIT 1
-    `);
-    const rows = res.toArray() as HeartbeatRow[];
-    if (rows.length === 0) continue;
-    const r = rows[0];
+    const r = latestBySite[site];
+    if (!r) continue;
     const cal = r.calibration_status;
     const dotCls = cal === "VALID" ? "dot-valid" : cal === "DEGRADED" ? "dot-degraded" : "dot-uncalibrated";
     const age = Math.round((Date.now() - Number(r.timestamp_ms)) / 1000);

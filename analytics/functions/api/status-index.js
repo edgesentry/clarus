@@ -10,7 +10,11 @@
  *   generated_at_ms
  * }
  */
-export async function onRequestGet({ env }) {
+export async function onRequestGet({ env, request, ctx }) {
+  const cacheKey = new Request(request.url);
+  const cached = await caches.default.match(cacheKey);
+  if (cached) return cached;
+
   const [rawList, auditList] = await Promise.all([
     env.CLARUS_DEV_PUBLIC_RAW.list({ prefix: "live/" }),
     env.CLARUS_DEV_PUBLIC_AUDIT.list({ prefix: "chains/", limit: 1000 }),
@@ -62,8 +66,10 @@ export async function onRequestGet({ env }) {
     return { site_id, raw, worm: { runs, total } };
   });
 
-  return Response.json(
+  const response = Response.json(
     { sites, generated_at_ms: Date.now() },
-    { headers: { "Access-Control-Allow-Origin": "*" } }
+    { headers: { "Access-Control-Allow-Origin": "*", "Cache-Control": "public, s-maxage=60, max-age=10" } }
   );
+  ctx.waitUntil(caches.default.put(cacheKey, response.clone()));
+  return response;
 }

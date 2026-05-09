@@ -7,7 +7,7 @@ interface WormStat { runs: WormRun[]; total: number; }
 interface SiteStat { site_id: string; raw: RawStat; worm: WormStat; }
 interface StatusIndex { sites: SiteStat[]; generated_at_ms: number; }
 
-const REFRESH_INTERVAL_S = 30;
+const REFRESH_INTERVAL_S = 120;
 
 const statusLine  = document.getElementById("status-line")!;
 const kpiRow      = document.getElementById("kpi-row")!;
