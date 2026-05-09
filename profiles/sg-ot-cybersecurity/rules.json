@@ -1,0 +1,8 @@
+[
+  {
+    "rule_id": "OT_UNAUTHORIZED_SOFTWARE",
+    "condition": "sensor_value:unauthorized_components > 0",
+    "severity": "CRITICAL",
+    "regulation": "IACS UR E26 §3.2 — Authorized Software Control"
+  }
+]

@@ -18,12 +18,16 @@ pub enum Scenario {
     Maritime,
     /// BCA Green Mark energy sensor monitoring — EUI / COP / LPD thresholds
     BcaGreenMark,
+    /// OT/IT cybersecurity integrity — IACS UR E26/E27 software attestation
+    OtCybersecurity,
 }
 
 impl Scenario {
     pub fn from_profile(profile: &str) -> Self {
         if profile.contains("bca-greenmark") || profile.contains("bca_greenmark") {
             Scenario::BcaGreenMark
+        } else if profile.contains("ot-cyber") || profile.contains("ot_cyber") || profile.contains("cybersecurity") {
+            Scenario::OtCybersecurity
         } else if profile.contains("maritime") {
             Scenario::Maritime
         } else {
@@ -36,9 +40,10 @@ impl Scenario {
 pub fn generate_frames(scenario: &Scenario, cycle: u64, base_ms: u64) -> Vec<Frame> {
     (0..10)
         .map(|f| match scenario {
-            Scenario::PortSafety  => port_safety_frame(cycle, f, base_ms + f * 500),
-            Scenario::Maritime    => maritime_frame(cycle, f, base_ms + f * 500),
-            Scenario::BcaGreenMark => bca_greenmark_frame(cycle, f, base_ms + f * 500),
+            Scenario::PortSafety     => port_safety_frame(cycle, f, base_ms + f * 500),
+            Scenario::Maritime       => maritime_frame(cycle, f, base_ms + f * 500),
+            Scenario::BcaGreenMark   => bca_greenmark_frame(cycle, f, base_ms + f * 500),
+            Scenario::OtCybersecurity => ot_cybersecurity_frame(cycle, f, base_ms + f * 500),
         })
         .collect()
 }
@@ -151,6 +156,40 @@ fn bca_greenmark_frame(cycle: u64, _frame: u64, timestamp_ms: u64) -> Frame {
     }
 }
 
+// ── OT Cybersecurity ──────────────────────────────────────────────────────────
+
+/// Simulate an OT device scan cycle.
+///
+/// The frame carries a `sensor_values` map with a single key:
+/// - `unauthorized_components`: 0.0 (clean) or N > 0 (violation detected)
+///
+/// The ZKP prover (`OtIntegrityProgram`) generates the actual attestation
+/// proof separately using `ot_integrity::sim_inputs()`.  The frame is used
+/// by the rules engine to fire `OT_UNAUTHORIZED_SOFTWARE` when > 0.
+fn ot_cybersecurity_frame(cycle: u64, _frame: u64, timestamp_ms: u64) -> Frame {
+    // Every 7th cycle simulate a violation (matches sim_inputs logic)
+    let unauthorized = if cycle % 7 == 6 { 1.0_f64 } else { 0.0_f64 };
+
+    let mut sensor_values = std::collections::HashMap::new();
+    sensor_values.insert("unauthorized_components".to_string(), unauthorized);
+    sensor_values.insert("component_count".to_string(), 8.0_f64);
+
+    Frame {
+        timestamp_ms,
+        entities: vec![Entity {
+            id: "OT-DEVICE-NAV".into(),
+            class: EntityClass::Person,
+            position: Vec2::new(0.0, 0.0),
+            velocity: Vec2::new(0.0, 0.0),
+            timestamp_ms,
+            sensor: Some(SensorReading::simulation()),
+            position_z: None,
+            velocity_z: None,
+            computed_confidence: None,
+            sensor_values: Some(sensor_values),
+        }],
+    }
+}
 
 #[cfg(test)]
 mod tests {

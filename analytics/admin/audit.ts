@@ -219,7 +219,7 @@ if (keys.length === 0) {
   (document.getElementById("no-data") as HTMLElement).style.display = "flex";
   status.textContent = "No records";
 } else {
-  (document.getElementById("audit-content") as HTMLElement).style.display = "block";
+  (document.getElementById("audit-content") as HTMLElement).style.display = "flex";
 
   const sel = document.getElementById("site-select") as HTMLSelectElement;
   for (const s of sites) {

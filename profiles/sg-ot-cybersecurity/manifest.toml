@@ -1,0 +1,14 @@
+profile_version = "1.0.0"
+calibration_status = "reference"
+jurisdiction = "SG"
+regulations = ["IACS-UR-E26-2024", "IACS-UR-E27-2024", "IMO-MSC-FAL1-Circ3", "MPA-Port-Marine-Notice-43-2023"]
+created_date = "2026-05-09"
+
+# PIER71-02: Managing Cybersecurity Risks and Incidences
+#
+# This profile attests OT/IT software integrity for maritime vessels and port
+# infrastructure under IACS UR E26/E27 (new vessels from Jan 2024) and IMO
+# cyber risk management guidelines.
+#
+# ZKP: OtIntegrityProgram proves all running OT components are on the approved
+# allowlist without revealing which specific software is installed.
