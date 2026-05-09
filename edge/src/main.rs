@@ -19,11 +19,14 @@ mod config;
 mod db;
 mod sim;
 mod storage;
+mod zkp;
 
 use config::Config;
 use edgesentry_audit::{generate_keypair, inspect_key, sign_record, AuditRecord};
 use edgesentry_evaluate::{evaluate, EvidenceQuality, RiskEvent};
 use edgesentry_profile::load_profile;
+use edgesentry_zkp::ZkProgram;
+use zkp::{GreenMarkInputs, GreenMarkProgram};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -70,6 +73,15 @@ async fn main() -> Result<()> {
         inspect_key(&config.private_key_hex)?
     };
     info!(public_key = %keypair.public_key_hex, site = %config.site_id, "Identity ready");
+
+    // ── ZKP prover (profile-specific) ─────────────────────────────────────
+    let zkp_prover: Option<Box<dyn ZkProgram>> =
+        if config.profile.contains("bca-greenmark") || config.profile.contains("bca_greenmark") {
+            info!("ZKP prover: BCA Green Mark 2021 (mock — SP1 ELF pending)");
+            Some(Box::new(GreenMarkProgram))
+        } else {
+            None
+        };
 
     // ── Pipeline state ────────────────────────────────────────────────────
     let scenario = sim::Scenario::from_profile(&config.profile);
@@ -120,7 +132,34 @@ async fn main() -> Result<()> {
             prev_hash = record_hash;
             db::insert_audit_record(&conn, &record, event)?;
 
-            let envelope = build_audit_envelope(&record, record_hash, event);
+            // Generate ZKP proof when prover is active (BCA Green Mark profile).
+            // Sensor values from the triggering frame are the private inputs;
+            // only the attestation (score, cert level, pass/fail) is committed.
+            let zk_proof = zkp_prover.as_ref().and_then(|prover| {
+                let sensor_vals = frames
+                    .iter()
+                    .flat_map(|f| f.entities.iter())
+                    .find_map(|e| e.sensor_values.as_ref())
+                    .cloned()
+                    .unwrap_or_default();
+
+                let inputs = GreenMarkInputs {
+                    site_id: config.site_id.clone(),
+                    eui_kwh_m2: *sensor_vals.get("eui_kwh_m2").unwrap_or(&0.0) as f32,
+                    chiller_cop: *sensor_vals.get("chiller_cop").unwrap_or(&0.0) as f32,
+                    lpd_w_m2: *sensor_vals.get("lpd_w_m2").unwrap_or(&0.0) as f32,
+                    period_start_ms: now_ms.saturating_sub(config.cycle_interval_secs * 1_000),
+                    period_end_ms: now_ms,
+                };
+
+                match serde_json::to_vec(&inputs).map(|b| prover.prove(&b)) {
+                    Ok(Ok(proof)) => Some(proof),
+                    Ok(Err(e))    => { warn!("ZKP prove failed: {e}"); None }
+                    Err(e)        => { warn!("ZKP input serialise failed: {e}"); None }
+                }
+            });
+
+            let envelope = build_audit_envelope(&record, record_hash, event, zk_proof.as_ref());
             let worm_key = format!("chains/{}/{run_id}/{:020}.json", config.site_id, sequence);
             match storage.put_audit(&worm_key, serde_json::to_vec(&envelope)?.into()).await {
                 Ok(()) => {}
@@ -235,12 +274,16 @@ fn now_millis() -> u64 {
 /// Build the browser-friendly JSON envelope for a WORM audit upload.
 /// Pre-computes hex fields so browsers can verify the hash chain with a
 /// simple string comparison — no postcard or BLAKE3 needed in the browser.
+///
+/// When `zk_proof` is present the envelope includes `zk_proof` so that
+/// documaris can verify the attestation without accessing raw sensor data.
 fn build_audit_envelope(
     record: &AuditRecord,
     record_hash: [u8; 32],
     event: &RiskEvent,
+    zk_proof: Option<&edgesentry_zkp::ZkProof>,
 ) -> serde_json::Value {
-    serde_json::json!({
+    let mut envelope = serde_json::json!({
         "device_id":             record.device_id,
         "sequence":              record.sequence,
         "timestamp_ms":          record.timestamp_ms,
@@ -254,7 +297,18 @@ fn build_audit_envelope(
         "evidence_quality":      format!("{:?}", event.evidence_quality),
         "confidence_cv":         event.confidence_cv,
         "entity_ids":            event.entity_ids,
-    })
+    });
+
+    if let Some(proof) = zk_proof {
+        envelope["zk_proof"] = serde_json::json!({
+            "framework":    proof.framework,
+            "program_id":   proof.program_id,
+            "proof_bytes":  proof.proof_bytes,
+            "public_values": proof.public_values,
+        });
+    }
+
+    envelope
 }
 
 #[cfg(test)]
@@ -294,7 +348,7 @@ mod tests {
     fn envelope_has_all_required_hex_fields() {
         let (record, hash) = make_record(0, AuditRecord::zero_hash());
         let event = make_event();
-        let env = build_audit_envelope(&record, hash, &event);
+        let env = build_audit_envelope(&record, hash, &event, None);
 
         for field in ["record_hash_hex", "prev_record_hash_hex", "payload_hash_hex", "signature_hex"] {
             let val = env[field].as_str().expect(field);
@@ -318,9 +372,9 @@ mod tests {
         let (r1, h1) = make_record(1, h0);
         let (r2, _)  = make_record(2, h1);
 
-        let e0 = build_audit_envelope(&r0, h0, &event);
-        let e1 = build_audit_envelope(&r1, h1, &event);
-        let e2 = build_audit_envelope(&r2, [0u8; 32], &event); // hash not needed here
+        let e0 = build_audit_envelope(&r0, h0, &event, None);
+        let e1 = build_audit_envelope(&r1, h1, &event, None);
+        let e2 = build_audit_envelope(&r2, [0u8; 32], &event, None);
 
         // genesis: prev_record_hash of record 0 is all zeros
         assert_eq!(e0["prev_record_hash_hex"].as_str().unwrap(), "0".repeat(64));
@@ -340,7 +394,7 @@ mod tests {
     fn envelope_event_fields_match_risk_event() {
         let (record, hash) = make_record(42, AuditRecord::zero_hash());
         let event = make_event();
-        let env = build_audit_envelope(&record, hash, &event);
+        let env = build_audit_envelope(&record, hash, &event, None);
 
         assert_eq!(env["rule_id"].as_str().unwrap(), "RESTRICTED_ZONE_APPROACH");
         assert_eq!(env["sequence"].as_u64().unwrap(), 42);

@@ -15,6 +15,7 @@ edgesentry-types    = { path = "../../edgesentry-rs/crates/edgesentry-types" }
 edgesentry-evaluate = { path = "../../edgesentry-rs/crates/edgesentry-evaluate" }
 edgesentry-profile  = { path = "../../edgesentry-rs/crates/edgesentry-profile" }
 edgesentry-audit    = { path = "../../edgesentry-rs/crates/edgesentry-audit" }
+edgesentry-zkp      = { path = "../../edgesentry-rs/crates/edgesentry-zkp" }
 
 # S3-compatible storage (R2 + MinIO)
 object_store = { version = "0.11", features = ["aws"] }
@@ -34,6 +35,9 @@ hex        = "0.4"
 # Config + CLI
 dotenvy = "0.15"
 clap    = { version = "4", features = ["derive", "env"] }
+
+# Cryptography (mock ZKP proof digest)
+blake3 = "1"
 
 # Observability
 anyhow            = "1"
