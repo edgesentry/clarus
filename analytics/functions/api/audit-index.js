@@ -6,7 +6,11 @@
  *
  * Keys are sorted lexicographically (zero-padded sequence → ascending order).
  */
-export async function onRequestGet({ env, request }) {
+export async function onRequestGet({ env, request, waitUntil }) {
+  const cacheKey = new Request(request.url);
+  const cached = await caches.default.match(cacheKey);
+  if (cached) return cached;
+
   const params = new URL(request.url).searchParams;
   const site   = params.get("site");
   const run    = params.get("run");   // optional run_id filter
@@ -20,7 +24,9 @@ export async function onRequestGet({ env, request }) {
   const keys = listed.objects.map(o => o.key).sort();
   const sites = [...new Set(keys.map(k => k.split("/")[1]))].filter(Boolean);
 
-  return Response.json({ keys, sites }, {
-    headers: { "Access-Control-Allow-Origin": "*" },
+  const response = Response.json({ keys, sites }, {
+    headers: { "Access-Control-Allow-Origin": "*", "Cache-Control": "public, s-maxage=60, max-age=10" },
   });
+  waitUntil(caches.default.put(cacheKey, response.clone()));
+  return response;
 }

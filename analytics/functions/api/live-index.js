@@ -42,7 +42,11 @@ function keyTs(key) {
   return parseInt(name, 10) || 0;
 }
 
-export async function onRequestGet({ env, request }) {
+export async function onRequestGet({ env, request, waitUntil }) {
+  const cacheKey = new Request(request.url);
+  const cached = await caches.default.match(cacheKey);
+  if (cached) return cached;
+
   const params  = new URL(request.url).searchParams;
   const allMode = params.get("all") === "1";
   const cutoff  = allMode ? 0 : cutoffMs(params);
@@ -92,8 +96,10 @@ export async function onRequestGet({ env, request }) {
 
   const sites = [...new Set([...rollupSites, ...liveSites])].sort();
 
-  return Response.json(
+  const response = Response.json(
     { heartbeats, alerts, sites },
-    { headers: { "Access-Control-Allow-Origin": "*" } }
+    { headers: { "Access-Control-Allow-Origin": "*", "Cache-Control": "public, s-maxage=60, max-age=10" } }
   );
+  waitUntil(caches.default.put(cacheKey, response.clone()));
+  return response;
 }
