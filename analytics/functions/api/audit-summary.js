@@ -14,7 +14,7 @@ export async function onRequestGet({ env, request }) {
   }
 
   const prefix = `chains/${site}/`;
-  const listed = await env.CLARUS_DEV_PUBLIC_AUDIT.list({ prefix, limit: 5000 });
+  const listed = await env.CLARUS_DEV_PUBLIC_AUDIT.list({ prefix, limit: 1000 });
   const keys = listed.objects.map(o => o.key);
 
   // Group by run_id (second path segment after site)
