@@ -7,8 +7,14 @@
  * Keys are sorted lexicographically (zero-padded sequence → ascending order).
  */
 export async function onRequestGet({ env, request }) {
-  const site = new URL(request.url).searchParams.get("site");
-  const prefix = site ? `chains/${site}/` : "chains/";
+  const params = new URL(request.url).searchParams;
+  const site   = params.get("site");
+  const run    = params.get("run");   // optional run_id filter
+
+  // Narrow prefix as much as possible to minimise list overhead
+  let prefix = "chains/";
+  if (site && run)  prefix = `chains/${site}/${run}/`;
+  else if (site)    prefix = `chains/${site}/`;
 
   const listed = await env.CLARUS_DEV_PUBLIC_AUDIT.list({ prefix, limit: 1000 });
   const keys = listed.objects.map(o => o.key).sort();
