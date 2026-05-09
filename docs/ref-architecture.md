@@ -123,6 +123,17 @@ Three public Cloudflare R2 buckets (see [ref-r2-data-layout.md](ref-r2-data-layo
 Object format: **Parquet** (raw + analytics), **JSONL** (audit chain).  
 Object Lock (Standard mode) is enabled on the audit bucket — records are immutable.
 
+### ZKP proving (edge daemon)
+
+When the loaded profile has a registered `ZkProgram`, the edge daemon generates a zero-knowledge proof for each `RiskEvent` before uploading the WORM record. The proof commits only the **public attestation** — never raw sensor values:
+
+| Profile | ZkProgram | Public attestation |
+|---------|-----------|-------------------|
+| `sg-bca-greenmark` | `GreenMarkProgram` | `cert_level`, `all_criteria_pass`, `cop_pass`, `lpd_pass` |
+| `sg-ot-cybersecurity` | `OtIntegrityProgram` | `all_authorized`, `unauthorized_count`, `status` |
+
+The edge also writes a pointer key `zkp-latest/{site_id}.json` on every ZKP cycle so that external consumers (e.g. documaris) can discover the latest attested record via a single strongly-consistent GET, without relying on R2 list operations.
+
 ---
 
 ## Tauri desktop app

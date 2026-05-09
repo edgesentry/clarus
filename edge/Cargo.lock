@@ -521,6 +521,7 @@ name = "clarus-edge"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "blake3",
  "bytes",
  "clap",
  "dotenvy",
@@ -529,6 +530,7 @@ dependencies = [
  "edgesentry-evaluate",
  "edgesentry-profile",
  "edgesentry-types",
+ "edgesentry-zkp",
  "hex",
  "object_store",
  "serde",
@@ -856,6 +858,17 @@ name = "edgesentry-types"
 version = "0.2.0"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "edgesentry-zkp"
+version = "0.2.0"
+dependencies = [
+ "base64",
+ "hex",
+ "serde",
+ "serde_json",
+ "thiserror",
 ]
 
 [[package]]

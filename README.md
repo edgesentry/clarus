@@ -7,12 +7,14 @@ Physics-based safety monitoring and compliance evidence platform. The same engin
 | `sg-port-safety/` | Port worker / forklift safety — MPA + MOM WSH | PIER71-14 |
 | `sg-maritime-security/` | Vessel restricted zone + AIS gap monitoring | CAP Vista (dual-use) |
 | `sg-bca-greenmark/` | BCA Green Mark Platinum — EUI / COP / LPD thresholds | BEAMP (next cycle) |
+| `sg-ot-cybersecurity/` | OT software integrity — component allowlist (IACS UR E26/E27) | PIER71-02 |
 | `demo/` | Generic citations — OSS demo only | — |
 
 ## What's in this repo
 
 | Path | Purpose |
 |---|---|
+| `edge/` | Rust edge daemon — sensor ingestion, rule evaluation, WORM audit chain, ZKP proving |
 | `ui/` | Tauri desktop app (Vite frontend + Rust Tauri backend) |
 | `profiles/` | Per-domain rule sets, KB snippets, regulatory citations |
 | `fixtures/` | CSV fixtures for demo scenarios |

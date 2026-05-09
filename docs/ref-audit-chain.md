@@ -30,10 +30,10 @@ Records are chained: each record embeds the hash of the previous one. Removing o
 Records are uploaded to R2 immediately after signing, one file per record:
 
 ```
-chains/{site_id}/{sequence:020}.json
+chains/{site_id}/{run_id}/{sequence:020}.json
 ```
 
-Example: `chains/site_sgp_001/00000000000000000042.json`
+Example: `chains/site_sgp_001/01HZ5X3K7Q2W8NVBP4D6FGJYRE/00000000000000000042.json`
 
 The zero-padded sequence ensures lexicographic ordering matches logical ordering — bucket listing returns records in chain order without sorting.
 
@@ -48,11 +48,19 @@ The zero-padded sequence ensures lexicographic ordering matches logical ordering
   "signature": [56, 78, ...],
   "prev_record_hash": [90, 12, ...],
   "object_ref": "risk-event:RESTRICTED_ZONE_APPROACH",
-  "record_hash_hex": "a3f1c2..."
+  "record_hash_hex": "a3f1c2...",
+  "zk_proof": {
+    "framework": "mock",
+    "program_id": "bca-green-mark-2021-v1-mock",
+    "proof_bytes": "<base64>",
+    "public_values": "<base64(JSON(GreenMarkAttestation))>"
+  }
 }
 ```
 
 `record_hash_hex` is pre-computed by the edge daemon (BLAKE3 of `postcard::to_allocvec(record)`) and stored alongside the record so that browsers and external tools can verify the chain without implementing postcard serialization.
+
+`zk_proof` is optional — only present when the profile has a registered `ZkProgram`. Raw sensor values are the private inputs and are never stored in the record.
 
 ---
 
