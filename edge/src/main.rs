@@ -26,7 +26,7 @@ use edgesentry_audit::{generate_keypair, inspect_key, sign_record, AuditRecord};
 use edgesentry_evaluate::{evaluate, EvidenceQuality, RiskEvent};
 use edgesentry_profile::load_profile;
 use edgesentry_zkp::ZkProgram;
-use zkp::{GreenMarkInputs, GreenMarkProgram};
+use zkp::{GreenMarkInputs, GreenMarkProgram, OtIntegrityProgram, ot_sim_inputs};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -79,6 +79,9 @@ async fn main() -> Result<()> {
         if config.profile.contains("bca-greenmark") || config.profile.contains("bca_greenmark") {
             info!("ZKP prover: BCA Green Mark 2021 (mock — SP1 ELF pending)");
             Some(Box::new(GreenMarkProgram))
+        } else if config.profile.contains("ot-cyber") || config.profile.contains("ot_cyber") || config.profile.contains("cybersecurity") {
+            info!("ZKP prover: OT Integrity — IACS UR E26/E27 (mock — SP1 ELF pending)");
+            Some(Box::new(OtIntegrityProgram))
         } else {
             None
         };
@@ -132,31 +135,39 @@ async fn main() -> Result<()> {
             prev_hash = record_hash;
             db::insert_audit_record(&conn, &record, event)?;
 
-            // Generate ZKP proof when prover is active (BCA Green Mark profile).
-            // Sensor values from the triggering frame are the private inputs;
-            // only the attestation (score, cert level, pass/fail) is committed.
+            // Generate ZKP proof when a profile-specific prover is active.
+            // Private inputs are built from the current frame's sensor values;
+            // only the public attestation is committed to the WORM envelope.
             let zk_proof = zkp_prover.as_ref().and_then(|prover| {
-                let sensor_vals = frames
-                    .iter()
-                    .flat_map(|f| f.entities.iter())
-                    .find_map(|e| e.sensor_values.as_ref())
-                    .cloned()
-                    .unwrap_or_default();
-
-                let inputs = GreenMarkInputs {
-                    site_id: config.site_id.clone(),
-                    eui_kwh_m2: *sensor_vals.get("eui_kwh_m2").unwrap_or(&0.0) as f32,
-                    chiller_cop: *sensor_vals.get("chiller_cop").unwrap_or(&0.0) as f32,
-                    lpd_w_m2: *sensor_vals.get("lpd_w_m2").unwrap_or(&0.0) as f32,
-                    period_start_ms: now_ms.saturating_sub(config.cycle_interval_secs * 1_000),
-                    period_end_ms: now_ms,
+                let raw_inputs: Option<Vec<u8>> = match scenario {
+                    sim::Scenario::BcaGreenMark => {
+                        let sv = frames
+                            .iter()
+                            .flat_map(|f| f.entities.iter())
+                            .find_map(|e| e.sensor_values.as_ref())
+                            .cloned()
+                            .unwrap_or_default();
+                        let inputs = GreenMarkInputs {
+                            site_id: config.site_id.clone(),
+                            eui_kwh_m2: *sv.get("eui_kwh_m2").unwrap_or(&0.0) as f32,
+                            chiller_cop: *sv.get("chiller_cop").unwrap_or(&0.0) as f32,
+                            lpd_w_m2: *sv.get("lpd_w_m2").unwrap_or(&0.0) as f32,
+                            period_start_ms: now_ms.saturating_sub(config.cycle_interval_secs * 1_000),
+                            period_end_ms: now_ms,
+                        };
+                        serde_json::to_vec(&inputs).ok()
+                    }
+                    sim::Scenario::OtCybersecurity => {
+                        let inputs = ot_sim_inputs(&config.site_id, cycle, now_ms);
+                        serde_json::to_vec(&inputs).ok()
+                    }
+                    _ => None,
                 };
 
-                match serde_json::to_vec(&inputs).map(|b| prover.prove(&b)) {
-                    Ok(Ok(proof)) => Some(proof),
-                    Ok(Err(e))    => { warn!("ZKP prove failed: {e}"); None }
-                    Err(e)        => { warn!("ZKP input serialise failed: {e}"); None }
-                }
+                raw_inputs.and_then(|b| match prover.prove(&b) {
+                    Ok(proof)  => Some(proof),
+                    Err(e)     => { warn!("ZKP prove failed: {e}"); None }
+                })
             });
 
             let envelope = build_audit_envelope(&record, record_hash, event, zk_proof.as_ref());
