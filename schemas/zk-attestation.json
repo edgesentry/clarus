@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://clarus.edgesentry.io/schemas/zk-attestation.json",
+  "title": "ZkAttestation",
+  "description": "ZKP proof envelope and public attestation types produced by the clarus edge daemon. Source of truth for clarus (Rust) and documaris (TypeScript) — both CIs validate against this schema.",
+  "$defs": {
+    "ZkFramework": {
+      "type": "string",
+      "enum": ["sp1", "risc0", "mock"],
+      "description": "Proving framework that generated the proof."
+    },
+    "ZkProof": {
+      "type": "object",
+      "description": "Serialisable proof envelope stored in AuditRecord.zk_proof.",
+      "required": ["framework", "program_id", "proof_bytes", "public_values"],
+      "additionalProperties": false,
+      "properties": {
+        "framework":     { "$ref": "#/$defs/ZkFramework" },
+        "program_id":    { "type": "string", "minLength": 1, "description": "Stable guest program identifier (e.g. SP1 vkey hash)." },
+        "proof_bytes":   { "type": "string", "description": "Base64-encoded proof bytes." },
+        "public_values": { "type": "string", "description": "Base64-encoded committed public outputs." }
+      }
+    },
+    "CertLevel": {
+      "type": "string",
+      "enum": ["not_certified", "certified", "gold", "gold_plus", "platinum"],
+      "description": "BCA Green Mark 2021 certification level (existing buildings, Section 4)."
+    },
+    "GreenMarkAttestation": {
+      "type": "object",
+      "description": "Public attestation committed by the BCA Green Mark ZK guest program. Decoded from ZkProof.public_values.",
+      "required": [
+        "site_id", "eui_kwh_m2", "cert_level",
+        "all_criteria_pass", "cop_pass", "lpd_pass",
+        "period_start_ms", "period_end_ms"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "site_id":          { "type": "string", "minLength": 1 },
+        "eui_kwh_m2":       { "type": "number", "minimum": 0, "description": "Annual energy use intensity (kWh/m²/year)." },
+        "cert_level":       { "$ref": "#/$defs/CertLevel" },
+        "all_criteria_pass":{ "type": "boolean", "description": "True when EUI, COP, and LPD all pass." },
+        "cop_pass":         { "type": "boolean", "description": "Chiller COP ≥ 0.65 (SS 553:2016)." },
+        "lpd_pass":         { "type": "boolean", "description": "Lighting power density ≤ 15 W/m²." },
+        "period_start_ms":  { "type": "integer", "minimum": 0, "description": "Measurement period start (Unix ms)." },
+        "period_end_ms":    { "type": "integer", "minimum": 0, "description": "Measurement period end (Unix ms)." }
+      }
+    }
+  },
+  "oneOf": [
+    { "$ref": "#/$defs/ZkProof" },
+    { "$ref": "#/$defs/GreenMarkAttestation" }
+  ]
+}
