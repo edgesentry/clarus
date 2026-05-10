@@ -3,18 +3,24 @@ import type { AuditRecord, Env, R2BucketMinimal } from "./_zk-types.js";
 interface RunEntry { run_id: string; last_seq: number }
 
 /**
- * Fetch the most recent audit record containing a zk_proof for the given site.
+ * Fetch the most recent audit record containing a compliance attestation
+ * (top-level `attestation` field) or a legacy `zk_proof` for the given site.
  *
  * Strategy:
- * 1. Read zkp-latest/{site}.json pointer (written on each proof cycle, strongly consistent).
- * 2. Fallback: scan audit chain key listing for the newest run.
+ * 1. Read compliance-latest/{site}.json pointer (written on each BCA cycle).
+ * 2. Fallback: read zkp-latest/{site}.json pointer (legacy format).
+ * 3. Fallback: scan audit chain key listing for the newest run.
  *
  * Scans at most 10 records from the tail of the newest run.
  */
 export async function fetchLatestZkRecord(siteId: string, env: Env): Promise<AuditRecord | null> {
-  const ptr = await env.CLARUS_DEV_PUBLIC_RAW.get(`zkp-latest/${siteId}.json`);
-  if (ptr) {
-    const { run_id, last_seq } = JSON.parse(await ptr.text()) as { run_id: string; last_seq: number };
+  // Try compliance-latest first (new format), then zkp-latest (legacy)
+  const ptrObj =
+    await env.CLARUS_DEV_PUBLIC_RAW.get(`compliance-latest/${siteId}.json`) ??
+    await env.CLARUS_DEV_PUBLIC_RAW.get(`zkp-latest/${siteId}.json`);
+
+  if (ptrObj) {
+    const { run_id, last_seq } = JSON.parse(await ptrObj.text()) as { run_id: string; last_seq: number };
     if (run_id != null && last_seq != null) {
       const record = await scanRun(siteId, run_id, last_seq, env);
       if (record) return record;
@@ -46,7 +52,7 @@ async function scanRun(siteId: string, runId: string, lastSeq: number, env: Env)
     const obj = await env.CLARUS_DEV_PUBLIC_AUDIT.get(key);
     if (!obj) continue;
     const record = JSON.parse(await obj.text()) as AuditRecord;
-    if (record.zk_proof) return record;
+    if (record.attestation || record.zk_proof) return record;
   }
   return null;
 }

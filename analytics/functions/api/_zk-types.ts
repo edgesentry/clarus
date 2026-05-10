@@ -23,10 +23,11 @@ export interface GreenMarkAttestation {
 }
 
 export interface AuditRecord {
-  sequence:        number;
-  timestamp_ms:    number;
+  sequence:         number;
+  timestamp_ms:     number;
   record_hash_hex?: string;
-  zk_proof?:       ZkProof;
+  attestation?:     GreenMarkAttestation; // top-level BCA compliance result (new format)
+  zk_proof?:        ZkProof;              // optional ZKP proof for future SP1 / B2B path
 }
 
 // Minimal R2 surface used by these functions — avoids @cloudflare/workers-types
