@@ -1,8 +1,20 @@
+# COOP is safe to apply globally
 /*
   Cross-Origin-Opener-Policy: same-origin
+
+# COEP require-corp is required only for pages that use DuckDB WASM (SharedArrayBuffer).
+# Applying it globally breaks /api-docs (Scalar), so it is set per-page instead.
+/
   Cross-Origin-Embedder-Policy: require-corp
 
-# /api-docs uses Scalar which loads inline assets — relax COEP for this page only
-/api-docs
-  Cross-Origin-Opener-Policy: same-origin
-  Cross-Origin-Embedder-Policy: unsafe-none
+/maritime/analytics/
+  Cross-Origin-Embedder-Policy: require-corp
+
+/admin/live
+  Cross-Origin-Embedder-Policy: require-corp
+
+/admin/status
+  Cross-Origin-Embedder-Policy: require-corp
+
+/admin/audit
+  Cross-Origin-Embedder-Policy: require-corp
