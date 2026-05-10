@@ -6,3 +6,4 @@ config.env
 /tmp/
 .wrangler/
 chains/
+.env
