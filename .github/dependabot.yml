@@ -1,0 +1,22 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /analytics
+    schedule:
+      interval: weekly
+    ignore:
+      # dompurify@3.2.7 is pinned by @scalar/api-reference via monaco-editor@0.55.1.
+      # No patched version resolvable until @scalar/api-reference upgrades monaco-editor.
+      # Mitigated locally via npm overrides (dompurify >= 3.4.0 in package.json).
+      - dependency-name: dompurify
+        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+
+  - package-ecosystem: cargo
+    directory: /edge
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: npm
+    directory: /ui
+    schedule:
+      interval: weekly
