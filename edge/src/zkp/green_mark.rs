@@ -1,20 +1,20 @@
-/// BCA Green Mark 2021 — ZKP computation layer.
-///
-/// This module implements [`edgesentry_zkp::ZkProgram`] for the BCA Green Mark
-/// energy compliance calculation.  The prover takes raw sensor readings as
-/// private input and commits only the pass/fail result and the computed score —
-/// raw energy, occupancy, and area data never leave the edge device.
-///
-/// # Certification levels (Section 4 — Existing Buildings)
-///
-/// | Level    | EUI threshold (kWh/m²/year) |
-/// |----------|-----------------------------|
-/// | Certified | ≤ 135                      |
-/// | Gold      | ≤ 115                      |
-/// | GoldPlus  | ≤  95                      |
-/// | Platinum  | ≤  75                      |
-///
-/// References: BCA Green Mark 2021, SS 553:2016, BCA Energy Efficiency Act 2012.
+//! BCA Green Mark 2021 — ZKP computation layer.
+//!
+//! This module implements [`edgesentry_zkp::ZkProgram`] for the BCA Green Mark
+//! energy compliance calculation.  The prover takes raw sensor readings as
+//! private input and commits only the pass/fail result and the computed score —
+//! raw energy, occupancy, and area data never leave the edge device.
+//!
+//! # Certification levels (Section 4 — Existing Buildings)
+//!
+//! | Level    | EUI threshold (kWh/m²/year) |
+//! |----------|-----------------------------|
+//! | Certified | ≤ 135                      |
+//! | Gold      | ≤ 115                      |
+//! | GoldPlus  | ≤  95                      |
+//! | Platinum  | ≤  75                      |
+//!
+//! References: BCA Green Mark 2021, SS 553:2016, BCA Energy Efficiency Act 2012.
 
 use serde::{Deserialize, Serialize};
 
@@ -166,17 +166,16 @@ impl ZkProgram for GreenMarkProgram {
     }
 }
 
-/// Decode the public attestation from a proof's `public_values` field.
-pub fn decode_attestation(proof: &ZkProof) -> Result<GreenMarkAttestation, ZkError> {
-    let bytes = proof
-        .decode_public_values()
-        .map_err(|e| ZkError::InvalidProof(e.to_string()))?;
-    serde_json::from_slice(&bytes).map_err(|e| ZkError::InvalidProof(e.to_string()))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn decode_attestation(proof: &ZkProof) -> Result<GreenMarkAttestation, ZkError> {
+        let bytes = proof
+            .decode_public_values()
+            .map_err(|e| ZkError::InvalidProof(e.to_string()))?;
+        serde_json::from_slice(&bytes).map_err(|e| ZkError::InvalidProof(e.to_string()))
+    }
 
     fn inputs(eui: f32, cop: f32, lpd: f32) -> GreenMarkInputs {
         GreenMarkInputs {

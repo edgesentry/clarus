@@ -68,7 +68,7 @@ impl Storage {
     async fn put(&self, bucket: &str, key: &str, data: Bytes) -> Result<()> {
         match self.backend.as_str() {
             "s3" | "minio" => {
-                let store = if bucket == &self.audit_bucket {
+                let store = if bucket == self.audit_bucket {
                     self.s3_audit.as_ref().unwrap()
                 } else {
                     self.s3_analytics.as_ref().unwrap()
