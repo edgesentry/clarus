@@ -122,14 +122,34 @@ fn maritime_frame(cycle: u64, frame: u64, timestamp_ms: u64) -> Frame {
 
 // ── BCA Green Mark ────────────────────────────────────────────────────────────
 
+// Oscillation parameters — chosen so each metric crosses its BCA threshold
+// periodically, exercising both pass and fail branches.
+//
+// EUI (kWh/m²/yr): Gold threshold = 115  → centre 105, amplitude 15 → range 90–120
+// COP:             minimum        = 0.65  → centre 0.60, amplitude 0.08 → range 0.52–0.68
+// LPD (W/m²):     maximum        = 15.0  → centre 13.5, amplitude 2.5  → range 11–16
+const EUI_SIM_BASE: f32 = 105.0;
+const EUI_SIM_AMP:  f32 = 15.0;
+const EUI_SIM_FREQ: f32 = 0.15;
+
+const COP_SIM_BASE: f32 = 0.60;
+const COP_SIM_AMP:  f32 = 0.08;
+const COP_SIM_FREQ: f32 = 0.20;
+
+const LPD_SIM_BASE: f32 = 13.5;
+const LPD_SIM_AMP:  f32 = 2.5;
+const LPD_SIM_FREQ: f32 = 0.10;
+
 fn bca_greenmark_frame(cycle: u64, _frame: u64, timestamp_ms: u64) -> Frame {
-    // Sensor values oscillate deterministically to cross thresholds periodically.
-    // eui_kwh_m2: base 105.0 + 15.0 * sin(cycle * 0.15) → oscillates 90–120 (threshold 115)
-    // chiller_cop: base 0.60 + 0.08 * sin(cycle * 0.20) → oscillates 0.52–0.68 (threshold 0.65)
-    // lpd_w_m2:   base 13.5 + 2.5  * sin(cycle * 0.10) → oscillates 11–16    (threshold 15)
-    let eui = 105.0_f32 + 15.0 * (cycle as f32 * 0.15).sin();
-    let cop = 0.60_f32  + 0.08 * (cycle as f32 * 0.20).sin();
-    let lpd = 13.5_f32  + 2.5  * (cycle as f32 * 0.10).sin();
+    // BCA_EUI_FIXED / BCA_COP_FIXED / BCA_LPD_FIXED override the oscillating
+    // defaults for deterministic E2E test scenarios (see config-bca-q*.env.example).
+    let fixed = |var: &str, default: f32| -> f32 {
+        std::env::var(var).ok().and_then(|v| v.trim().parse().ok()).unwrap_or(default)
+    };
+    let t   = cycle as f32;
+    let eui = fixed("BCA_EUI_FIXED", EUI_SIM_BASE + EUI_SIM_AMP * (t * EUI_SIM_FREQ).sin());
+    let cop = fixed("BCA_COP_FIXED", COP_SIM_BASE + COP_SIM_AMP * (t * COP_SIM_FREQ).sin());
+    let lpd = fixed("BCA_LPD_FIXED", LPD_SIM_BASE + LPD_SIM_AMP * (t * LPD_SIM_FREQ).sin());
 
     // Round to 1 decimal place for readability
     let round1 = |v: f32| -> f64 { (v * 10.0).round() as f64 / 10.0 };
@@ -254,6 +274,27 @@ mod tests {
         }
         assert!(above, "EUI must exceed 115 in at least one of 100 cycles");
         assert!(below, "EUI must be below 115 in at least one of 100 cycles");
+    }
+
+    #[test]
+    fn bca_fixed_env_vars_override_oscillation() {
+        // BCA_EUI_FIXED / BCA_COP_FIXED / BCA_LPD_FIXED must pin the sensor values
+        // regardless of the cycle number, enabling deterministic E2E test scenarios.
+        std::env::set_var("BCA_EUI_FIXED", "155.0");
+        std::env::set_var("BCA_COP_FIXED", "0.58");
+        std::env::set_var("BCA_LPD_FIXED", "16.5");
+
+        for cycle in [0_u64, 10, 50, 99] {
+            let frames = generate_frames(&Scenario::BcaGreenMark, cycle, 0);
+            let sv = frames[0].entities[0].sensor_values.as_ref().unwrap();
+            assert!((sv["eui_kwh_m2"] - 155.0).abs() < 0.05, "EUI must be 155.0");
+            assert!((sv["chiller_cop"] - 0.58).abs() < 0.05, "COP must be 0.58");
+            assert!((sv["lpd_w_m2"]  - 16.5).abs() < 0.05, "LPD must be 16.5");
+        }
+
+        std::env::remove_var("BCA_EUI_FIXED");
+        std::env::remove_var("BCA_COP_FIXED");
+        std::env::remove_var("BCA_LPD_FIXED");
     }
 
     #[test]

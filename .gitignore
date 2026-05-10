@@ -17,3 +17,6 @@ site/
 .wrangler/
 analytics/chains/
 *.swp
+
+# Local edge configs with credentials — use *.env.example for templates
+edge/config*.env

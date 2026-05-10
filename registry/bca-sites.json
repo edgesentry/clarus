@@ -1,0 +1,35 @@
+{
+  "version": "1",
+  "schema": "bca-greenmark-sites-v1",
+  "description": "BCA Green Mark registered sites — source of truth for clarus dashboard and documaris attestation view",
+  "sites": [
+    {
+      "site_id": "MCH-OUTLET-042",
+      "name": "Marina Bay Commercial Hub — Outlet 042",
+      "operator_id": "MCH-OPERATOR-001",
+      "profile": "sg-bca-greenmark",
+      "e2e_scenario": "Q1 — Correct calculation + Passes BCA GM (Gold, EUI=105)"
+    },
+    {
+      "site_id": "BLD-HIGHUSE-FAIL",
+      "name": "High-Intensity User Building B",
+      "operator_id": "MCH-OPERATOR-001",
+      "profile": "sg-bca-greenmark",
+      "e2e_scenario": "Q2 — Correct calculation + Fails BCA GM (Not Certified, EUI=155)"
+    },
+    {
+      "site_id": "BLD-TAMPER-PASS",
+      "name": "Tampered Report — Claims GoldPlus (Fraud Attempt)",
+      "operator_id": "MCH-OPERATOR-001",
+      "profile": "sg-bca-greenmark",
+      "e2e_scenario": "Q3 — Incorrect/tampered ZKP + Claims Pass (detected by proof verification)"
+    },
+    {
+      "site_id": "BLD-TAMPER-FAIL",
+      "name": "Tampered Report — Claims Not Certified (Sabotage Attempt)",
+      "operator_id": "MCH-OPERATOR-001",
+      "profile": "sg-bca-greenmark",
+      "e2e_scenario": "Q4 — Incorrect/tampered ZKP + Claims Fail (detected by proof verification)"
+    }
+  ]
+}

@@ -17,7 +17,7 @@ pub struct Config {
 
     // ── Storage backend ───────────────────────────────────────────────────
 
-    /// "wrangler" (default), "r2" for Cloudflare R2, "minio" for local MinIO.
+    /// "wrangler" (default), "s3" for any S3-compatible endpoint, "minio" for local MinIO.
     #[arg(long, env = "STORAGE_BACKEND", default_value = "wrangler")]
     pub storage_backend: String,
 
@@ -29,13 +29,16 @@ pub struct Config {
     #[arg(long, env = "MINIO_SECRET_KEY", default_value = "minioadmin")]
     pub minio_secret_key: String,
 
-    // Cloudflare R2
-    #[arg(long, env = "R2_ACCOUNT_ID", default_value = "")]
-    pub r2_account_id: String,
-    #[arg(long, env = "R2_ACCESS_KEY_ID", default_value = "")]
-    pub r2_access_key_id: String,
-    #[arg(long, env = "R2_SECRET_ACCESS_KEY", default_value = "")]
-    pub r2_secret_access_key: String,
+    // S3-compatible (Cloudflare R2, AWS S3, etc.)
+    /// S3 endpoint URL (e.g. https://<account>.r2.cloudflarestorage.com or https://s3.amazonaws.com).
+    #[arg(long, env = "S3_ENDPOINT", default_value = "")]
+    pub s3_endpoint: String,
+    #[arg(long, env = "S3_REGION", default_value = "auto")]
+    pub s3_region: String,
+    #[arg(long, env = "S3_ACCESS_KEY_ID", default_value = "")]
+    pub s3_access_key_id: String,
+    #[arg(long, env = "S3_SECRET_ACCESS_KEY", default_value = "")]
+    pub s3_secret_access_key: String,
 
     // ── Buckets ───────────────────────────────────────────────────────────
 
