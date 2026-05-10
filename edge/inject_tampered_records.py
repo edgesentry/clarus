@@ -26,14 +26,13 @@ import random
 
 # ── R2 credentials ───────────────────────────────────────────────────────────
 
-ACCOUNT_ID        = os.environ["R2_ACCOUNT_ID"]
-ACCESS_KEY_ID     = os.environ["R2_ACCESS_KEY_ID"]
-SECRET_ACCESS_KEY = os.environ["R2_SECRET_ACCESS_KEY"]
-AUDIT_BUCKET     = "clarus-dev-public-audit"
-RAW_BUCKET       = "clarus-dev-public-raw"
-R2_ENDPOINT      = f"https://{ACCOUNT_ID}.r2.cloudflarestorage.com"
-REGION           = "auto"
-SERVICE          = "s3"
+S3_ENDPOINT       = os.environ["S3_ENDPOINT"].rstrip("/")
+REGION            = os.environ.get("S3_REGION", "auto")
+ACCESS_KEY_ID     = os.environ["S3_ACCESS_KEY_ID"]
+SECRET_ACCESS_KEY = os.environ["S3_SECRET_ACCESS_KEY"]
+AUDIT_BUCKET      = os.environ.get("AUDIT_BUCKET", "clarus-dev-public-audit")
+RAW_BUCKET        = os.environ.get("RAW_BUCKET",   "clarus-dev-public-raw")
+SERVICE           = "s3"
 
 # ── Scenario definitions ──────────────────────────────────────────────────────
 
@@ -95,8 +94,9 @@ def r2_put(bucket: str, key: str, body: bytes, content_type: str = "application/
     amzdate   = now.strftime("%Y%m%dT%H%M%SZ")
     datestamp = now.strftime("%Y%m%d")
 
-    url      = f"{R2_ENDPOINT}/{bucket}/{key}"
-    host     = f"{ACCOUNT_ID}.r2.cloudflarestorage.com"
+    url      = f"{S3_ENDPOINT}/{bucket}/{key}"
+    from urllib.parse import urlparse
+    host     = urlparse(S3_ENDPOINT).netloc
     body_sha = hashlib.sha256(body).hexdigest()
 
     canonical_headers = (
