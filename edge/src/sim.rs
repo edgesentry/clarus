@@ -123,13 +123,18 @@ fn maritime_frame(cycle: u64, frame: u64, timestamp_ms: u64) -> Frame {
 // ── BCA Green Mark ────────────────────────────────────────────────────────────
 
 fn bca_greenmark_frame(cycle: u64, _frame: u64, timestamp_ms: u64) -> Frame {
-    // Sensor values oscillate deterministically to cross thresholds periodically.
+    // If BCA_EUI_FIXED / BCA_COP_FIXED / BCA_LPD_FIXED are set, use those values
+    // directly instead of oscillating — enables deterministic E2E test scenarios.
+    // Otherwise sensor values oscillate deterministically to cross thresholds:
     // eui_kwh_m2: base 105.0 + 15.0 * sin(cycle * 0.15) → oscillates 90–120 (threshold 115)
     // chiller_cop: base 0.60 + 0.08 * sin(cycle * 0.20) → oscillates 0.52–0.68 (threshold 0.65)
     // lpd_w_m2:   base 13.5 + 2.5  * sin(cycle * 0.10) → oscillates 11–16    (threshold 15)
-    let eui = 105.0_f32 + 15.0 * (cycle as f32 * 0.15).sin();
-    let cop = 0.60_f32  + 0.08 * (cycle as f32 * 0.20).sin();
-    let lpd = 13.5_f32  + 2.5  * (cycle as f32 * 0.10).sin();
+    let fixed = |var: &str, default: f32| -> f32 {
+        std::env::var(var).ok().and_then(|v| v.trim().parse().ok()).unwrap_or(default)
+    };
+    let eui = fixed("BCA_EUI_FIXED", 105.0_f32 + 15.0 * (cycle as f32 * 0.15).sin());
+    let cop = fixed("BCA_COP_FIXED", 0.60_f32  + 0.08 * (cycle as f32 * 0.20).sin());
+    let lpd = fixed("BCA_LPD_FIXED", 13.5_f32  + 2.5  * (cycle as f32 * 0.10).sin());
 
     // Round to 1 decimal place for readability
     let round1 = |v: f32| -> f64 { (v * 10.0).round() as f64 / 10.0 };
