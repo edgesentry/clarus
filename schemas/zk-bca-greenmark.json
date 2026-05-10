@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://clarus.edgesentry.io/schemas/zk-attestation.json",
-  "title": "ZkAttestation",
-  "description": "ZKP proof envelope and public attestation types produced by the clarus edge daemon. Source of truth for clarus (Rust) and documaris (TypeScript) — both CIs validate against this schema.",
+  "$id": "https://clarus.edgesentry.io/schemas/zk-bca-greenmark.json",
+  "title": "ZkBcaGreenMark",
+  "description": "ZKP proof envelope and BCA Green Mark public attestation types produced by the clarus edge daemon. Source of truth for clarus (Rust) and documaris (TypeScript) — both CIs validate against this schema.",
   "$defs": {
     "ZkFramework": {
       "type": "string",
