@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@duckdb/duckdb-wasm": "^1.29.0",
+    "@noble/hashes": "^2.2.0",
     "@observablehq/plot": "^0.6.17"
   },
   "devDependencies": {
