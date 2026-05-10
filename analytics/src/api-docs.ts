@@ -1,7 +1,7 @@
 import { createApiReference } from "@scalar/api-reference";
 
 createApiReference(document.getElementById("app")!, {
-  spec: { url: "/openapi.json" },
+  url: "/openapi.json",
   theme: "default",
   layout: "modern",
 });
