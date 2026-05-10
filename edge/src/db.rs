@@ -8,7 +8,6 @@ use anyhow::Result;
 use duckdb::{params, Connection};
 use edgesentry_audit::AuditRecord;
 use edgesentry_evaluate::RiskEvent;
-use hex;
 use serde::{Deserialize, Serialize};
 
 // ── Schema ────────────────────────────────────────────────────────────────────

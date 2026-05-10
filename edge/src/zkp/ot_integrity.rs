@@ -1,32 +1,32 @@
-/// OT/IT Cybersecurity Integrity — ZKP computation layer.
-///
-/// Addresses PIER71-02: "Managing Cybersecurity Risks and Incidences"
-/// (IACS UR E26/27, IMO MSC-FAL.1/Circ.3).
-///
-/// An OT device (PLC, navigation system, engine control unit) measures the
-/// SHA-256 hash of every running binary and configuration file, then proves
-/// that all measured hashes appear in a pre-approved allowlist — without
-/// revealing *which* specific software is running (competitive sensitivity).
-///
-/// # What is proved (public)
-///
-/// - `device_id`: which OT device was attested
-/// - `all_authorized`: true iff every measured component is on the allowlist
-/// - `unauthorized_count`: number of components NOT on the allowlist (0 = clean)
-/// - `component_count`: total number of components measured
-/// - `allowlist_version`: version/hash of the approved allowlist used
-/// - `attested_at_ms`: attestation timestamp
-///
-/// # What stays private
-///
-/// - The individual component hashes (reveals software stack to competitors)
-/// - The full allowlist contents (internal IP)
-///
-/// # Regulatory alignment
-///
-/// - IACS UR E26: "software integrity verification for OT systems"
-/// - IACS UR E27: "cyber-resilient systems — authorised software control"
-/// - IMO MSC-FAL.1/Circ.3: "verify integrity of operational technology"
+//! OT/IT Cybersecurity Integrity — ZKP computation layer.
+//!
+//! Addresses PIER71-02: "Managing Cybersecurity Risks and Incidences"
+//! (IACS UR E26/27, IMO MSC-FAL.1/Circ.3).
+//!
+//! An OT device (PLC, navigation system, engine control unit) measures the
+//! SHA-256 hash of every running binary and configuration file, then proves
+//! that all measured hashes appear in a pre-approved allowlist — without
+//! revealing *which* specific software is running (competitive sensitivity).
+//!
+//! # What is proved (public)
+//!
+//! - `device_id`: which OT device was attested
+//! - `all_authorized`: true iff every measured component is on the allowlist
+//! - `unauthorized_count`: number of components NOT on the allowlist (0 = clean)
+//! - `component_count`: total number of components measured
+//! - `allowlist_version`: version/hash of the approved allowlist used
+//! - `attested_at_ms`: attestation timestamp
+//!
+//! # What stays private
+//!
+//! - The individual component hashes (reveals software stack to competitors)
+//! - The full allowlist contents (internal IP)
+//!
+//! # Regulatory alignment
+//!
+//! - IACS UR E26: "software integrity verification for OT systems"
+//! - IACS UR E27: "cyber-resilient systems — authorised software control"
+//! - IMO MSC-FAL.1/Circ.3: "verify integrity of operational technology"
 
 use serde::{Deserialize, Serialize};
 
@@ -164,14 +164,6 @@ impl ZkProgram for OtIntegrityProgram {
     }
 }
 
-/// Decode the public attestation from a proof's `public_values` field.
-pub fn decode_attestation(proof: &ZkProof) -> Result<OtIntegrityAttestation, ZkError> {
-    let bytes = proof
-        .decode_public_values()
-        .map_err(|e| ZkError::InvalidProof(e.to_string()))?;
-    serde_json::from_slice(&bytes).map_err(|e| ZkError::InvalidProof(e.to_string()))
-}
-
 // ── Simulation helper ──────────────────────────────────────────────────────────
 
 /// Generate deterministic OT integrity inputs for the demo/simulation scenario.
@@ -203,6 +195,13 @@ pub fn sim_inputs(device_id: &str, cycle: u64, now_ms: u64) -> OtIntegrityInputs
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn decode_attestation(proof: &ZkProof) -> Result<OtIntegrityAttestation, ZkError> {
+        let bytes = proof
+            .decode_public_values()
+            .map_err(|e| ZkError::InvalidProof(e.to_string()))?;
+        serde_json::from_slice(&bytes).map_err(|e| ZkError::InvalidProof(e.to_string()))
+    }
 
     fn inputs_clean(device: &str) -> OtIntegrityInputs {
         let hashes: Vec<String> = (0..5u8)
