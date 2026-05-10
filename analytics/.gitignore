@@ -1,3 +1,4 @@
 data/**/*.parquet
 data/**/*.csv
 .wrangler/
+public/scalar.js

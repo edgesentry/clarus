@@ -12,7 +12,6 @@ export default defineConfig({
         adminLive:          resolve(__dirname, "admin/live.html"),
         adminAudit:         resolve(__dirname, "admin/audit.html"),
         adminStatus:        resolve(__dirname, "admin/status.html"),
-        apiDocs:            resolve(__dirname, "api-docs.html"),
       },
     },
   },
