@@ -1,11 +1,11 @@
 /**
  * GET /api/verify?site=<site_id>
  *
- * Layer 1 verifier — human and machine readable.
- * Returns the decoded GreenMarkAttestation with BLAKE3 proof validity.
+ * Returns the BCA Green Mark compliance attestation for a site.
+ * Reads the top-level `attestation` field written by clarus on every BCA cycle.
  *
- * Mock framework: proof_bytes = BLAKE3(public_values_bytes) — verified server-side.
- * SP1/RISC Zero:  proof_verified: null — pending ZK verifier integration.
+ * Legacy: also accepts records with `zk_proof.public_values` (old format).
+ * B2B ZKP path (SP1): tracked in edgesentry-rs#387.
  */
 
 import { blake3 } from "@noble/hashes/blake3.js";
@@ -27,7 +27,7 @@ function arrEqual(a: Uint8Array, b: Uint8Array): boolean {
   return true;
 }
 
-function verifyProof(proof: ZkProof): boolean | null {
+function verifyZkProof(proof: ZkProof): boolean | null {
   if (proof.framework === "mock") {
     try {
       const pubValBytes = b64Decode(proof.public_values);
@@ -47,27 +47,36 @@ export async function onRequestGet({ request, env }: { request: Request; env: En
 
   const record = await fetchLatestZkRecord(site, env);
   if (!record) {
-    return Response.json({ valid: false, site_id: site, reason: "no_zkp_record" }, { status: 404, headers: CORS });
+    return Response.json({ valid: false, site_id: site, reason: "no_record" }, { status: 404, headers: CORS });
   }
 
-  const proof = record.zk_proof!;
-  let att: GreenMarkAttestation;
-  try {
-    att = JSON.parse(atob(proof.public_values)) as GreenMarkAttestation;
-  } catch {
-    return Response.json({ valid: false, site_id: site, reason: "public_values_decode_failed" }, { headers: CORS });
-  }
+  // Prefer top-level attestation (new format); fall back to zk_proof.public_values (legacy)
+  let att: GreenMarkAttestation | null = null;
+  let proofVerified: boolean | null = null;
 
-  const proofValid = verifyProof(proof);
-  if (proofValid === false) {
-    return Response.json({
-      valid:       false,
-      site_id:     site,
-      reason:      "proof_bytes_do_not_match_public_values",
-      framework:   proof.framework,
-      program_id:  proof.program_id,
-      record_hash: record.record_hash_hex ?? null,
-    }, { headers: CORS });
+  if (record.attestation) {
+    att = record.attestation;
+    // No BLAKE3 check needed — integrity is guaranteed by the WORM chain + Ed25519 signature
+    proofVerified = null;
+  } else if (record.zk_proof) {
+    try {
+      att = JSON.parse(atob(record.zk_proof.public_values)) as GreenMarkAttestation;
+    } catch {
+      return Response.json({ valid: false, site_id: site, reason: "public_values_decode_failed" }, { headers: CORS });
+    }
+    proofVerified = verifyZkProof(record.zk_proof);
+    if (proofVerified === false) {
+      return Response.json({
+        valid:       false,
+        site_id:     site,
+        reason:      "proof_bytes_do_not_match_public_values",
+        framework:   record.zk_proof.framework,
+        program_id:  record.zk_proof.program_id,
+        record_hash: record.record_hash_hex ?? null,
+      }, { headers: CORS });
+    }
+  } else {
+    return Response.json({ valid: false, site_id: site, reason: "no_attestation" }, { status: 404, headers: CORS });
   }
 
   return Response.json({
@@ -78,9 +87,8 @@ export async function onRequestGet({ request, env }: { request: Request; env: En
     cop_pass:          att.cop_pass,
     lpd_pass:          att.lpd_pass,
     eui_kwh_m2:        att.eui_kwh_m2,
-    framework:         proof.framework,
-    program_id:        proof.program_id,
-    proof_verified:    proofValid, // null = SP1/RISC Zero, not yet verifiable server-side
+    framework:         record.zk_proof?.framework ?? "none",
+    proof_verified:    proofVerified,
     attested_at_ms:    record.timestamp_ms,
     record_hash:       record.record_hash_hex ?? null,
     verify_url:        `${new URL(request.url).origin}/api/verify?site=${encodeURIComponent(site)}`,

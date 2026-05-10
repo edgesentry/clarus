@@ -25,8 +25,7 @@ use config::Config;
 use edgesentry_audit::{generate_keypair, inspect_key, sign_record, AuditRecord};
 use edgesentry_evaluate::{evaluate, EvidenceQuality, RiskEvent};
 use edgesentry_profile::load_profile;
-use edgesentry_zkp::ZkProgram;
-use zkp::{GreenMarkInputs, GreenMarkProgram, OtIntegrityProgram, ot_sim_inputs};
+use zkp::{GreenMarkAttestation, GreenMarkInputs, OtIntegrityProgram, evaluate_green_mark, ot_sim_inputs};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -74,12 +73,9 @@ async fn main() -> Result<()> {
     };
     info!(public_key = %keypair.public_key_hex, site = %config.site_id, "Identity ready");
 
-    // ── ZKP prover (profile-specific) ─────────────────────────────────────
-    let zkp_prover: Option<Box<dyn ZkProgram>> =
-        if config.profile.contains("bca-greenmark") || config.profile.contains("bca_greenmark") {
-            info!("ZKP prover: BCA Green Mark 2021 (mock — SP1 ELF pending)");
-            Some(Box::new(GreenMarkProgram))
-        } else if config.profile.contains("ot-cyber") || config.profile.contains("ot_cyber") || config.profile.contains("cybersecurity") {
+    // OT cybersecurity ZKP prover (BCA uses direct attestation, not ZKP)
+    let ot_zkp_prover: Option<Box<dyn edgesentry_zkp::ZkProgram>> =
+        if config.profile.contains("ot-cyber") || config.profile.contains("ot_cyber") || config.profile.contains("cybersecurity") {
             info!("ZKP prover: OT Integrity — IACS UR E26/E27 (mock — SP1 ELF pending)");
             Some(Box::new(OtIntegrityProgram))
         } else {
@@ -135,59 +131,62 @@ async fn main() -> Result<()> {
             prev_hash = record_hash;
             db::insert_audit_record(&conn, &record, event)?;
 
-            // Generate ZKP proof when a profile-specific prover is active.
-            // Private inputs are built from the current frame's sensor values;
-            // only the public attestation is committed to the WORM envelope.
-            let zk_proof = zkp_prover.as_ref().and_then(|prover| {
-                let raw_inputs: Option<Vec<u8>> = match scenario {
-                    sim::Scenario::BcaGreenMark => {
-                        let sv = frames
-                            .iter()
-                            .flat_map(|f| f.entities.iter())
-                            .find_map(|e| e.sensor_values.as_ref())
-                            .cloned()
-                            .unwrap_or_default();
-                        let inputs = GreenMarkInputs {
-                            site_id: config.site_id.clone(),
-                            eui_kwh_m2: *sv.get("eui_kwh_m2").unwrap_or(&0.0) as f32,
-                            chiller_cop: *sv.get("chiller_cop").unwrap_or(&0.0) as f32,
-                            lpd_w_m2: *sv.get("lpd_w_m2").unwrap_or(&0.0) as f32,
-                            period_start_ms: now_ms.saturating_sub(config.cycle_interval_secs * 1_000),
-                            period_end_ms: now_ms,
-                        };
-                        serde_json::to_vec(&inputs).ok()
-                    }
-                    sim::Scenario::OtCybersecurity => {
-                        let inputs = ot_sim_inputs(&config.site_id, cycle, now_ms);
-                        serde_json::to_vec(&inputs).ok()
-                    }
-                    _ => None,
+            // BCA Green Mark: compute attestation directly from sensor values.
+            // The compliance result is stored as a top-level field in the envelope —
+            // no ZKP layer required for BCA certification (see docs/regulatory/sg-bca/).
+            let bca_attestation: Option<GreenMarkAttestation> =
+                if scenario == sim::Scenario::BcaGreenMark {
+                    let sv = frames
+                        .iter()
+                        .flat_map(|f| f.entities.iter())
+                        .find_map(|e| e.sensor_values.as_ref())
+                        .cloned()
+                        .unwrap_or_default();
+                    let inputs = GreenMarkInputs {
+                        site_id: config.site_id.clone(),
+                        eui_kwh_m2: *sv.get("eui_kwh_m2").unwrap_or(&0.0) as f32,
+                        chiller_cop: *sv.get("chiller_cop").unwrap_or(&0.0) as f32,
+                        lpd_w_m2: *sv.get("lpd_w_m2").unwrap_or(&0.0) as f32,
+                        period_start_ms: now_ms.saturating_sub(config.cycle_interval_secs * 1_000),
+                        period_end_ms: now_ms,
+                    };
+                    Some(evaluate_green_mark(&inputs))
+                } else {
+                    None
                 };
 
-                raw_inputs.and_then(|b| match prover.prove(&b) {
-                    Ok(proof)  => Some(proof),
-                    Err(e)     => { warn!("ZKP prove failed: {e}"); None }
-                })
+            // OT cybersecurity ZKP proof (separate from BCA attestation path)
+            let ot_zk_proof = ot_zkp_prover.as_ref().and_then(|prover| {
+                if scenario == sim::Scenario::OtCybersecurity {
+                    let inputs = ot_sim_inputs(&config.site_id, cycle, now_ms);
+                    serde_json::to_vec(&inputs).ok().and_then(|b| match prover.prove(&b) {
+                        Ok(proof) => Some(proof),
+                        Err(e)    => { warn!("ZKP prove failed: {e}"); None }
+                    })
+                } else {
+                    None
+                }
             });
 
-            let envelope = build_audit_envelope(&record, record_hash, event, zk_proof.as_ref());
+            let envelope = build_audit_envelope(
+                &record, record_hash, event,
+                bca_attestation.as_ref(),
+                ot_zk_proof.as_ref(),
+            );
             let worm_key = format!("chains/{}/{run_id}/{:020}.json", config.site_id, sequence);
             match storage.put_audit(&worm_key, serde_json::to_vec(&envelope)?.into()).await {
                 Ok(()) => {
-                    // Update the zkp-latest pointer whenever a ZKP proof is attached,
-                    // so documaris can discover the newest attested record via a single
-                    // strongly-consistent GET without waiting for R2 list consistency.
-                    if zk_proof.is_some() {
+                    // Write compliance-latest pointer on every BCA cycle so documaris
+                    // can discover the newest record without waiting for R2 list consistency.
+                    if bca_attestation.is_some() {
                         let pointer = serde_json::json!({
                             "run_id": run_id.to_string(),
                             "last_seq": sequence,
                             "site_id": config.site_id,
                         });
-                        // Write pointer to raw bucket (not audit) — pointers are
-                        // mutable navigation hints, not WORM evidence records.
-                        let ptr_key = format!("zkp-latest/{}.json", config.site_id);
+                        let ptr_key = format!("compliance-latest/{}.json", config.site_id);
                         if let Err(e) = storage.put_raw(&ptr_key, serde_json::to_vec(&pointer)?.into()).await {
-                            warn!("zkp-latest pointer update failed: {e}");
+                            warn!("compliance-latest pointer update failed: {e}");
                         }
                     }
                 }
@@ -303,13 +302,16 @@ fn now_millis() -> u64 {
 /// Pre-computes hex fields so browsers can verify the hash chain with a
 /// simple string comparison — no postcard or BLAKE3 needed in the browser.
 ///
-/// When `zk_proof` is present the envelope includes `zk_proof` so that
-/// documaris can verify the attestation without accessing raw sensor data.
+/// `attestation` is the BCA Green Mark compliance result stored at the
+/// top level — readable without any ZKP knowledge.
+///
+/// `ot_zk_proof` is the optional OT cybersecurity ZKP proof (separate path).
 fn build_audit_envelope(
     record: &AuditRecord,
     record_hash: [u8; 32],
     event: &RiskEvent,
-    zk_proof: Option<&edgesentry_zkp::ZkProof>,
+    attestation: Option<&GreenMarkAttestation>,
+    ot_zk_proof: Option<&edgesentry_zkp::ZkProof>,
 ) -> serde_json::Value {
     let mut envelope = serde_json::json!({
         "device_id":             record.device_id,
@@ -327,11 +329,15 @@ fn build_audit_envelope(
         "entity_ids":            event.entity_ids,
     });
 
-    if let Some(proof) = zk_proof {
+    if let Some(att) = attestation {
+        envelope["attestation"] = serde_json::to_value(att).unwrap_or(serde_json::Value::Null);
+    }
+
+    if let Some(proof) = ot_zk_proof {
         envelope["zk_proof"] = serde_json::json!({
-            "framework":    proof.framework,
-            "program_id":   proof.program_id,
-            "proof_bytes":  proof.proof_bytes,
+            "framework":     proof.framework,
+            "program_id":    proof.program_id,
+            "proof_bytes":   proof.proof_bytes,
             "public_values": proof.public_values,
         });
     }
@@ -376,7 +382,7 @@ mod tests {
     fn envelope_has_all_required_hex_fields() {
         let (record, hash) = make_record(0, AuditRecord::zero_hash());
         let event = make_event();
-        let env = build_audit_envelope(&record, hash, &event, None);
+        let env = build_audit_envelope(&record, hash, &event, None, None);
 
         for field in ["record_hash_hex", "prev_record_hash_hex", "payload_hash_hex", "signature_hex"] {
             let val = env[field].as_str().expect(field);
@@ -400,9 +406,9 @@ mod tests {
         let (r1, h1) = make_record(1, h0);
         let (r2, _)  = make_record(2, h1);
 
-        let e0 = build_audit_envelope(&r0, h0, &event, None);
-        let e1 = build_audit_envelope(&r1, h1, &event, None);
-        let e2 = build_audit_envelope(&r2, [0u8; 32], &event, None);
+        let e0 = build_audit_envelope(&r0, h0, &event, None, None);
+        let e1 = build_audit_envelope(&r1, h1, &event, None, None);
+        let e2 = build_audit_envelope(&r2, [0u8; 32], &event, None, None);
 
         // genesis: prev_record_hash of record 0 is all zeros
         assert_eq!(e0["prev_record_hash_hex"].as_str().unwrap(), "0".repeat(64));
@@ -422,7 +428,7 @@ mod tests {
     fn envelope_event_fields_match_risk_event() {
         let (record, hash) = make_record(42, AuditRecord::zero_hash());
         let event = make_event();
-        let env = build_audit_envelope(&record, hash, &event, None);
+        let env = build_audit_envelope(&record, hash, &event, None, None);
 
         assert_eq!(env["rule_id"].as_str().unwrap(), "RESTRICTED_ZONE_APPROACH");
         assert_eq!(env["sequence"].as_u64().unwrap(), 42);

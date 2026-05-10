@@ -30,7 +30,9 @@ function makeEnv(ptrBody: { run_id: string; last_seq: number } | null, auditObje
   return {
     CLARUS_DEV_PUBLIC_RAW: {
       get: vi.fn(async (key: string) => {
-        if (key.startsWith("zkp-latest/") && ptrBody) return { text: async () => JSON.stringify(ptrBody) };
+        if ((key.startsWith("compliance-latest/") || key.startsWith("zkp-latest/")) && ptrBody) {
+          return { text: async () => JSON.stringify(ptrBody) };
+        }
         return null;
       }),
     } as unknown as R2BucketMinimal,
