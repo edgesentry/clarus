@@ -132,10 +132,13 @@ pub fn evaluate(inputs: &GreenMarkInputs) -> GreenMarkAttestation {
 /// 2. Compile `guest/green_mark.rs` with `cargo prove build`
 /// 3. Replace `ZkFramework::Mock` with `ZkFramework::Sp1`
 /// 4. Replace the mock proof bytes with the real SP1 prover call
+// Retained for the SP1 upgrade path (edgesentry-rs#387); not used in the BCA default path.
+#[allow(dead_code)]
 pub struct GreenMarkProgram;
 
 /// Stable identifier for the BCA Green Mark 2021 guest program.
 /// Will be replaced by the SP1 vkey hash once the ELF is compiled.
+#[allow(dead_code)]
 pub const PROGRAM_ID: &str = "bca-green-mark-2021-v1-mock";
 
 impl ZkProgram for GreenMarkProgram {
