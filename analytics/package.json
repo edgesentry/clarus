@@ -11,9 +11,12 @@
   },
   "dependencies": {
     "@duckdb/duckdb-wasm": "^1.29.0",
-    "@observablehq/plot": "^0.6.17"
+    "@noble/hashes": "^2.2.0",
+    "@observablehq/plot": "^0.6.17",
+    "@scalar/api-reference": "^1.55.3"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260510.1",
     "jsdom": "^25.0.1",
     "typescript": "^6.0.3",
     "vite": "^8.0.10",

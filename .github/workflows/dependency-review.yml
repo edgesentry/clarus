@@ -36,5 +36,7 @@ jobs:
             pkg:github/actions/attest-build-provenance,
             pkg:cargo/webpki-roots,
             pkg:cargo/unicode-properties,
-            pkg:cargo/semver
+            pkg:cargo/semver,
+            pkg:npm/json-schema,
+            pkg:npm/stringify-object
           comment-summary-in-pr: always
