@@ -277,6 +277,27 @@ mod tests {
     }
 
     #[test]
+    fn bca_fixed_env_vars_override_oscillation() {
+        // BCA_EUI_FIXED / BCA_COP_FIXED / BCA_LPD_FIXED must pin the sensor values
+        // regardless of the cycle number, enabling deterministic E2E test scenarios.
+        std::env::set_var("BCA_EUI_FIXED", "155.0");
+        std::env::set_var("BCA_COP_FIXED", "0.58");
+        std::env::set_var("BCA_LPD_FIXED", "16.5");
+
+        for cycle in [0_u64, 10, 50, 99] {
+            let frames = generate_frames(&Scenario::BcaGreenMark, cycle, 0);
+            let sv = frames[0].entities[0].sensor_values.as_ref().unwrap();
+            assert!((sv["eui_kwh_m2"] - 155.0).abs() < 0.05, "EUI must be 155.0");
+            assert!((sv["chiller_cop"] - 0.58).abs() < 0.05, "COP must be 0.58");
+            assert!((sv["lpd_w_m2"]  - 16.5).abs() < 0.05, "LPD must be 16.5");
+        }
+
+        std::env::remove_var("BCA_EUI_FIXED");
+        std::env::remove_var("BCA_COP_FIXED");
+        std::env::remove_var("BCA_LPD_FIXED");
+    }
+
+    #[test]
     fn scenario_from_profile_bca_greenmark() {
         assert_eq!(Scenario::from_profile("sg-bca-greenmark"), Scenario::BcaGreenMark);
         assert_eq!(Scenario::from_profile("bca_greenmark"), Scenario::BcaGreenMark);
