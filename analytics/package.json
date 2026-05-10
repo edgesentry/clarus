@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "vite build",
+    "build": "cp node_modules/@scalar/api-reference/dist/browser/standalone.js public/scalar.js && vite build",
     "dev": "vite",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
