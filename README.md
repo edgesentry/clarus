@@ -2,6 +2,8 @@
 
 Physics-based safety monitoring and compliance evidence platform. The same engine applies to any domain — the active use case is determined by the loaded profile.
 
+**[API Reference](https://edgesentry.github.io/clarus/api-reference/) · [Interactive API Docs](https://clarus.edgesentry.io/api-docs) · [Docs](https://edgesentry.github.io/clarus/)**
+
 | Profile | Domain | Primary submission |
 |---|---|---|
 | `sg-port-safety/` | Port worker / forklift safety — MPA + MOM WSH | PIER71-14 |

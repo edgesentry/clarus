@@ -10,7 +10,8 @@ Physics-based safety monitoring platform — application layer for [edgesentry-r
 
 The engine, CLI, and all pipeline crates live in edgesentry-rs — no pipeline logic belongs here.
 
-**Demo app:** [clarus.edgesentry.io](https://clarus.edgesentry.io/) (Cloudflare Pages — analytics web app)
+**Demo app:** [clarus.edgesentry.io](https://clarus.edgesentry.io/) (Cloudflare Pages — analytics web app)  
+**Docs:** [edgesentry.github.io/clarus](https://edgesentry.github.io/clarus/) · **API docs:** [clarus.edgesentry.io/api-docs](https://clarus.edgesentry.io/api-docs)
 
 ## Checkout requirement
 
