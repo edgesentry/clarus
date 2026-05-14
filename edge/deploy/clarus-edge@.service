@@ -5,9 +5,9 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=yohei
-WorkingDirectory=/home/yohei/clarus/edge
-EnvironmentFile=/home/yohei/clarus/edge/config.env
+User=%i
+WorkingDirectory=%h/clarus/edge
+EnvironmentFile=%h/clarus/edge/config.env
 ExecStart=/usr/local/bin/clarus-edge
 Restart=on-failure
 RestartSec=10

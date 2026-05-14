@@ -4,9 +4,9 @@
 
 ```bash
 # 1. Copy systemd service
-sudo cp clarus-edge.service /etc/systemd/system/
+sudo cp clarus-edge@.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable clarus-edge
+sudo systemctl enable clarus-edge@$(whoami)
 
 # 2. Download and install the latest binary
 chmod +x update.sh
@@ -17,8 +17,8 @@ cp ../config.env.example ../config.env
 # edit config.env — set R2 credentials, profile, site ID
 
 # 4. Start
-sudo systemctl start clarus-edge
-sudo systemctl status clarus-edge
+sudo systemctl start clarus-edge@$(whoami)
+sudo systemctl status clarus-edge@$(whoami)
 ```
 
 ## Updating to a new release
@@ -34,7 +34,7 @@ installs it to `/usr/local/bin/clarus-edge`, and restarts the systemd service.
 ## Logs
 
 ```bash
-journalctl -u clarus-edge -f
+journalctl -u clarus-edge@$(whoami) -f
 ```
 
 ## How builds work

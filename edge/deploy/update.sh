@@ -51,11 +51,13 @@ sudo mv "${INSTALL_PATH}.tmp" "$INSTALL_PATH"
 
 echo "[update.sh] Installed to $INSTALL_PATH"
 
-if systemctl is-active --quiet clarus-edge 2>/dev/null; then
-  echo "[update.sh] Restarting clarus-edge service..."
-  sudo systemctl restart clarus-edge
+SERVICE="clarus-edge@$(whoami)"
+
+if systemctl is-active --quiet "$SERVICE" 2>/dev/null; then
+  echo "[update.sh] Restarting $SERVICE..."
+  sudo systemctl restart "$SERVICE"
   echo "[update.sh] Done. Status:"
-  systemctl status clarus-edge --no-pager --lines=5
+  systemctl status "$SERVICE" --no-pager --lines=5
 else
-  echo "[update.sh] Service not running. Start with: sudo systemctl start clarus-edge"
+  echo "[update.sh] Service not running. Start with: sudo systemctl start $SERVICE"
 fi
