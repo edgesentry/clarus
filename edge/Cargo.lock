@@ -528,6 +528,7 @@ dependencies = [
  "duckdb",
  "edgesentry-audit",
  "edgesentry-evaluate",
+ "edgesentry-ingest",
  "edgesentry-profile",
  "edgesentry-types",
  "edgesentry-zkp",
