@@ -12,6 +12,7 @@ path = "src/main.rs"
 [dependencies]
 # EdgeSentry library crates
 edgesentry-types    = { path = "../../edgesentry-rs/crates/edgesentry-types" }
+edgesentry-ingest   = { path = "../../edgesentry-rs/crates/edgesentry-ingest" }
 edgesentry-evaluate = { path = "../../edgesentry-rs/crates/edgesentry-evaluate" }
 edgesentry-profile  = { path = "../../edgesentry-rs/crates/edgesentry-profile" }
 edgesentry-audit    = { path = "../../edgesentry-rs/crates/edgesentry-audit" }

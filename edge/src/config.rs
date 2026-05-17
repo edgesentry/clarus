@@ -15,6 +15,14 @@ pub struct Config {
     #[arg(long, env = "PROFILES_DIR", default_value = "../profiles")]
     pub profiles_dir: String,
 
+    /// Entity source: `sim` (default) or `ais` / `ais://HOST:PORT` for NMEA UDP.
+    #[arg(long, env = "SOURCE", default_value = "sim")]
+    pub source: String,
+
+    /// Shorthand bind address for AIS UDP (overrides host in `SOURCE` when set).
+    #[arg(long, env = "AIS_UDP_ADDR")]
+    pub ais_udp_addr: Option<String>,
+
     // ── Storage backend ───────────────────────────────────────────────────
 
     /// "wrangler" (default), "s3" for any S3-compatible endpoint, "minio" for local MinIO.

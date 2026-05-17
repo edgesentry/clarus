@@ -17,6 +17,7 @@ use tracing::{info, warn};
 
 mod config;
 mod db;
+mod ingest_ais;
 mod sim;
 mod storage;
 mod zkp;
@@ -82,8 +83,23 @@ async fn main() -> Result<()> {
             None
         };
 
-    // ── Pipeline state ────────────────────────────────────────────────────
-    let scenario = sim::Scenario::from_profile(&config.profile);
+    // ── Entity source (sim vs live AIS UDP) ───────────────────────────────
+    let ais_ingest = match ingest_ais::ais_bind_addr(&config) {
+        Some(addr) => {
+            let ingest = ingest_ais::AisIngest::open(&addr, &profile_path)?;
+            info!(%addr, "AIS UDP ingest enabled (recorded or live NMEA)");
+            Some(ingest)
+        }
+        None => {
+            info!(source = %config.source, "Synthetic sim ingest");
+            None
+        }
+    };
+    let scenario = ais_ingest
+        .as_ref()
+        .map(|_| None)
+        .unwrap_or_else(|| Some(sim::Scenario::from_profile(&config.profile)));
+
     let cycle_dur = Duration::from_secs(config.cycle_interval_secs);
     let hb_interval = Duration::from_secs(config.heartbeat_interval_secs);
 
@@ -99,14 +115,22 @@ async fn main() -> Result<()> {
         .checked_sub(hb_interval)
         .unwrap_or_else(Instant::now);
 
-    info!(scenario = ?scenario, "Pipeline started");
+    info!(
+        mode = if ais_ingest.is_some() { "ais" } else { "sim" },
+        scenario = ?scenario,
+        "Pipeline started"
+    );
 
     loop {
         let cycle_start = Instant::now();
         let now_ms = now_millis();
 
-        // ── 1. Generate frames ────────────────────────────────────────────
-        let frames = sim::generate_frames(&scenario, cycle, now_ms);
+        // ── 1. Ingest frames (sim or AIS UDP) ─────────────────────────────
+        let frames = if let Some(ref ais) = ais_ingest {
+            ais.collect_until(cycle_start + cycle_dur)
+        } else {
+            sim::generate_frames(scenario.as_ref().unwrap(), cycle, now_ms)
+        };
 
         // ── 2. Evaluate rules ─────────────────────────────────────────────
         let mut cycle_events: Vec<RiskEvent> = Vec::new();
@@ -135,7 +159,7 @@ async fn main() -> Result<()> {
             // The compliance result is stored as a top-level field in the envelope —
             // no ZKP layer required for BCA certification (see docs/regulatory/sg-bca/).
             let bca_attestation: Option<GreenMarkAttestation> =
-                if scenario == sim::Scenario::BcaGreenMark {
+                if scenario.as_ref() == Some(&sim::Scenario::BcaGreenMark) {
                     let sv = frames
                         .iter()
                         .flat_map(|f| f.entities.iter())
@@ -157,7 +181,7 @@ async fn main() -> Result<()> {
 
             // OT cybersecurity ZKP proof (separate from BCA attestation path)
             let ot_zk_proof = ot_zkp_prover.as_ref().and_then(|prover| {
-                if scenario == sim::Scenario::OtCybersecurity {
+                if scenario.as_ref() == Some(&sim::Scenario::OtCybersecurity) {
                     let inputs = ot_sim_inputs(&config.site_id, cycle, now_ms);
                     serde_json::to_vec(&inputs).ok().and_then(|b| match prover.prove(&b) {
                         Ok(proof) => Some(proof),
@@ -197,7 +221,11 @@ async fn main() -> Result<()> {
         }
 
         // ── 4. Heartbeat ──────────────────────────────────────────────────
-        let drift = sim::drift_score(cycle);
+        let drift = if ais_ingest.is_some() {
+            0.02_f32
+        } else {
+            sim::drift_score(cycle)
+        };
         let cal = calibration_status(drift);
         let (cert, deg, rej) = quality_counts(&cycle_events);
 
