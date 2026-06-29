@@ -13,7 +13,7 @@
     "@duckdb/duckdb-wasm": "^1.29.0",
     "@noble/hashes": "^2.2.0",
     "@observablehq/plot": "^0.6.17",
-    "@scalar/api-reference": "^1.59.3"
+    "@scalar/api-reference": "^1.62.0"
   },
   "overrides": {
     "dompurify": ">=3.4.0"
