@@ -1,0 +1,34 @@
+# Weekly + on-demand full OSV scan; PR scan reports only newly introduced vulns.
+# SARIF uploads to GitHub code scanning (requires public repo or GitHub Advanced Security).
+name: OSV-Scanner
+
+on:
+  schedule:
+    # Wednesday 00:00 UTC = 08:00 SGT
+    - cron: "0 0 * * 3"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  scan-scheduled:
+    name: OSV-Scanner (scheduled / dispatch)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@b1d267aea5211fa648d9d442fa64b90dbdcbdd36 # v2.7.0
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+
+  scan-pr:
+    name: OSV-Scanner (pull request)
+    if: github.event_name == 'pull_request'
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@b1d267aea5211fa648d9d442fa64b90dbdcbdd36 # v2.7.0
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
